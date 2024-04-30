@@ -172,3 +172,6 @@ when u do str + notstr, its equal to str + string(notstr).
 
 ## TODO(-1) python fstring formatting
 
+# Scoping and function scope
+
+# Significant newlines
