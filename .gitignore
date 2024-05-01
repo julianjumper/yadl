@@ -1,4 +1,3 @@
-src/test.interp
-src/test.tokens
-src/testLexer.interp
-src/testLexer.tokens
+.bsp
+project
+target
