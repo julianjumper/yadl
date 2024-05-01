@@ -1,4 +1,5 @@
 grammar test;
+
 fragment WS: (' ')*;
 fragment WSplus: ' ' WS;
 
