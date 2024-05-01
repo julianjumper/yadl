@@ -4,6 +4,7 @@ fragment WS: (' ')*;
 fragment WSplus: ' ' WS;
 
 test: ((Statment)? (WS Comment)? WS Newline)* EOF;
+
 Comment: '//' .*? Newline;
 
 Statment: Declaration | Format | Save;
