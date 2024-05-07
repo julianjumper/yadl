@@ -4,7 +4,7 @@ The following operations are defined on operations across different types:
 
 `string + any`. This will convert any type to its string representation and append it to the string.
 
-`any + string`. Analogous but it will prepend to the string.
+`any + string`. Analogous but prepends to the string.
 
 
 `string * number`. If number is a none-negative integer, the result will be the original string repeated `number` times. For example `'hi' * 2 == 'hihi'`.
