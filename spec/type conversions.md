@@ -12,3 +12,8 @@ The following operations are defined on operations across different types:
 `array * number`. Analogous to the previous conversion it will copy all elements inside the array `number` of times and returns a new array.
 
 `bool num_op number` it will convert the boolean to a number.
+
+
+
+
+# Conversion Methods
