@@ -1,4 +1,11 @@
+
 w = load weather.json
+
+w = load weather.json
+
+
+w = load weather.json
+
 c = load cities.json
 
 data customFormat derived from w {
