@@ -1,6 +1,32 @@
+
+
+
+# Strings
+Strings are enclosed by `" "`, `' '` or `f" "` (or `"""` idk weil das ist nervig). If they are opened with `f"` they are a formatted string and can do cool things (to be continued).
+
+```
+"Hallo Welt"
+'Hello World!'
+```
+
+
+
+
+
+# String Arithmetic
+
+### Operators
+`+`: takes two strings and appends the second string to the first. If used with a non-string, that gets converted to a string.
+`*`: takes a string and a int x, returning the string x times
+`[]`: insert 
+
+# Operator Precedence
+
+
+
 # Terminals
 
-Note everything in brakets is regex.
+Note everything in brackets is regex.
 
 
 `DIGIT ::= [0-9]`
@@ -14,7 +40,7 @@ Note everything in brakets is regex.
 
 types can be converted with for example bool(3) == true
 
-Check the type of a object with `typeof obj == 'bool'`.
+Check the type of an object with `typeof obj == 'bool'`.
 
 # Variables
 `IDENT ::= EXPR`
