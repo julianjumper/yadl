@@ -1,6 +1,13 @@
+
+
+
+# Operator Precedence
+
+
+
 # Terminals
 
-Note everything in brakets is regex.
+Note everything in brackets is regex.
 
 
 `DIGIT ::= [0-9]`
@@ -14,7 +21,7 @@ Note everything in brakets is regex.
 
 types can be converted with for example bool(3) == true
 
-Check the type of a object with `typeof obj == 'bool'`.
+Check the type of an object with `typeof obj == 'bool'`.
 
 # Variables
 `IDENT ::= EXPR`
