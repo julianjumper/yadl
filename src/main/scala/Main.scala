@@ -33,8 +33,13 @@ def functionCallArgs[$: P]: P[Seq[Value]] = P(
 )
 
 def valueFunctionCallP[$: P]: P[Value] = P(
-  identifierP.! ~ ws ~ "(" ~ ws ~ functionCallArgs ~ ws ~ ")"
-).map((n, bs) => FunctionCall(n, bs))
+  identifierP.! ~ ws ~ "(" ~ ws ~ functionCallArgs.? ~ ws ~ ")"
+).map((n, bs) =>
+  bs match {
+    case None     => FunctionCall(n, Seq())
+    case Some(xs) => FunctionCall(n, xs)
+  }
+)
 
 def valueBinaryOpP[$: P]: P[Value] = P(
   valueTerminalP ~ ws ~ arihmeticOperatorP ~ ws ~ valueP
@@ -54,6 +59,9 @@ def identifierP[$: P]: P[Value] =
 def assignmentP[$: P] = P(identifierP ~ ws ~ "=" ~ ws ~ valueP)
 
 @main def hello(): Unit =
-  val Parsed.Success(v, idx) =
+  val Parsed.Success(v, _) =
     parse("aoeu = 15 + f(3, 4) - (3 * (23 + 3))", assignmentP(_))
   println(v)
+  val Parsed.Success(w, _) =
+    parse("aoeu = 15 + f() - (3 * (23 + 3))", assignmentP(_))
+  println(w)
