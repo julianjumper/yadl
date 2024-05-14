@@ -36,6 +36,8 @@ An Array/Dictionary is evaluated as `true` if it is nonempty, an empty Array/Dic
 
 `none` is always evaluated as `false`
 
+`functions` are always truthy.
+
 Examples:
 ```
 0 == false
@@ -48,3 +50,6 @@ Examples:
 {'a': 1, 'b': 2} == true
 none == false 
 ```
+
+## Conversion Method
+`bool(any) := any == true`
