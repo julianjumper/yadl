@@ -11,21 +11,22 @@ import org.apache.flink.util.Collector;
 
 public class Main {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
 
-        DataSet<String> data = env.readTextFile("file:///path/to/file");
-
-        data
-                .filter(new FilterFunction<String>() {
+        DataSet<String> data = env.readTextFile("C:/Users/Phyton/Desktop/Test.txt");
+        for(String i : data.collect())
+        {
+            System.out.println(i);
+        }
+        data.filter(new FilterFunction<String>() {
                     public boolean filter(String value) {
                         return value.startsWith("http://");
                     }
-                })
-                .writeAsText("file:///path/to/result");
+                });
 
-        JobExecutionResult res = env.execute();
+        //JobExecutionResult res = env.execute();
     }
 
 }
