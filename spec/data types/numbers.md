@@ -35,4 +35,4 @@ The following operations are defined on numbers:
 
 `^` Power
 
-`mod` Modulo
+`%` Modulo

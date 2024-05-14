@@ -8,7 +8,7 @@ or
 and
 not
 +, - (binary)
-*, /
+*, /, %
 ^
 - (unary)
 ```
