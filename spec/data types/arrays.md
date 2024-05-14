@@ -7,7 +7,7 @@ Accessing an Element in an Array is done using square Brackets (Example: `arr[0]
 
 Indexing of arrays starts at `0`
 
-# Exampmles
+# Examples
 
 ```
 arr = [1, 2, 3]
