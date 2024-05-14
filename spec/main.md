@@ -168,6 +168,12 @@ EXPR ::= IDENT | FUNC | PIPE_OP |
 
 # Arithmetic
 Standart Arithmeitk
+`+`: Addition
+`-`: Subtraction / negative numbers
+`*`: Multiplication
+`/`: Division
+`^`: Power -> `2^2 = 4`
+
 # Boolean Operations
 Standart bool OPs
 # String Operations
