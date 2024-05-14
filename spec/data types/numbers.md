@@ -36,3 +36,12 @@ The following operations are defined on numbers:
 `^` Power
 
 `%` Modulo
+
+
+## Implicit Type conversions
+`number(bool|number)`
+
+if its a number return itself.
+
+return `1` if `bool == true` otherwise return `0`.
+

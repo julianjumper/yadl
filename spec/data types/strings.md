@@ -1,7 +1,8 @@
 # Strings
 
-Strings are enclosed by `" "`/`' '` or `f" "`/`f' '`. If they are opened with `f" "`/`f' '` they are a formatted string which allows you to insert variables with `{ }` which works like the `+` operator (and potentionally other things but that's by far the most used f-string property in python).
+Strings are enclosed by `" "`/`' '` or `f" "`/`f' '`. If they are opened with `f" "`/`f' '` they are a formatted string which allows you to insert variables with `{ }` which works like the `+` operator.
 
+Note: strings are immutable.
 
 ### Example
 ```
@@ -12,17 +13,11 @@ f"Moin {name}!"
 
 
 # String Operators
-`+`: takes two strings and appends the second string to the first. If used with a non-string, that gets converted to a string.
+`+`: takes two strings and returns the concationation of both strings.
 
-`*`: takes a string and a int x, returning the string x times
+`*`: takes a string and a number (must be a non negative whole number) x, returning a new string that the concatination of the original string to '' x times.
 
-`[]`: works like array accessing
-
-## Builtins
-`len`: returns the length of a string
-
-`split`: takes a string and returns an array of substrings split on a delimeter
-
+`[]`: You can access the i-th element in the string.
 
 ### Example
 ```
@@ -30,5 +25,53 @@ f"Moin {name}!"
 "Moin" * 3 // "MoinMoinMoin"
 "Hello"[1] // "H"
 len("Hello") // 5
-split("Hello World!", " ") // ["Hello", "World!"]
 ```
+
+## Multiline Strings
+You can also define multipline strings in the following way:
+
+```
+'''
+this is a multiline string!!
+ok
+'''
+```
+You can also use `"` instead of `'`. 
+
+Note: Whe using indented multiline strings, the indentation is also considered part of the string. Same goes for newlines.
+
+## Implicit type conversions
+`string(any)`
+
+### Bool
+returns `'true'` if `true` otherwise return `'false'`.
+
+### Number
+retruns the number as a string.
+
+#### Example
+```
+string(0xf_f) // '255'
+```
+### Arrays
+Prints all elements of the array enclosed in brackets and seperated by commas. Calls the string cast recursivly for all elements.
+
+#### Example
+```
+string([[[], none]]) // '[[[],none]]'
+```
+
+### Dictionaries
+Prints all key value pairs seperated by commas. The pairs it self are seperated by colons. Calls the string conversion recursivly for all keys and values. This construct will be enclosed by curly braces.
+
+```
+d = {}
+d[[]] = none
+string(d) // '{[]:none}' 
+```
+
+### String
+returns the string.
+
+### none
+returns `'none'`
