@@ -10,6 +10,9 @@ It as the form: `(arguments) => stmt`. The result of the function will be the st
 () => print("hi")
 (x) => x + 1
 () => return 1 // Error 
+
+eight = ((x, y) => x + y)(3, 5)
+
 ```
 
 ## Block
@@ -35,4 +38,13 @@ Functions are considered objects inside the language. You may call functions the
 ```
 inc = (x) => x + 1
 y = inc(1) // y == 2
+```
+
+## Scope
+The function body is inside a new scope.
+
+### Example
+```
+x = (x) => x
+print(x(3)) // prints 3 not the function.
 ```
