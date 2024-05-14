@@ -4,3 +4,4 @@
 
 `or and + - * / ^ %` left
 
+`fn(), arr/dict[]` left

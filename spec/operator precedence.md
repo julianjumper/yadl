@@ -11,5 +11,6 @@ not
 *, /, %
 ^
 - (unary)
+[], () (array/dictionary accessing, function calls)
 ```
 (Lower is higher)
