@@ -10,18 +10,40 @@ def numberP[$: P] =
 def stringP[$: P] = P("'" ~ AnyChar.rep.! ~ "'")
 def stringConcatP[$: P] = P("++")
 
+enum boolOperators:
+  case And, Or, Not
+
 def arihmeticOperatorP[$: P] = P((CharIn("*/+") | "-").!)
-def booleanOperatorP[$: P] = P(("and" | "or" | "not").!)
+def booleanOperatorP[$: P] = P(("and" | "or" | "not").!).map {
+  case "and" => boolOperators.And
+  case "or" => boolOperators.Or
+  case "not" => boolOperators.Not
+  case _ => assert(false, "boolean operator not defined")
+}
 
 trait Value
 case class Identifier(name: String) extends Value
 case class Number(v: Integer) extends Value
+case class Bool(b: Boolean) extends Value
 case class BinaryOp(left: Value, op: String, right: Value) extends Value
 case class FunctionCall(id: String, args: Seq[Value]) extends Value
 
 def valueTerminalP[$: P]: P[Value] = P(
-  valueFunctionCallP | identifierP | numberP
+  valueFunctionCallP | identifierP | numberP | booleanP
 )
+
+def booleanP[$: P]: P[Value] = P(
+  ("true" | "false").!
+).map {
+  case "true" => Bool(true)
+  case "false" => Bool(false)
+  case _ => assert(false, "unreachable")
+}
+
+// TODO
+def booleanBinaryOpP[$: P]: P[Value] = P(
+  booleanP ~ ws ~ booleanOperatorP ~ ws ~ booleanP
+).map((l, op, r) => BinaryOp(l, op, r))
 
 def functionCallArgs[$: P]: P[Seq[Value]] = P(
   valueTerminalP ~ (ws ~ "," ~ ws ~ functionCallArgs).?
