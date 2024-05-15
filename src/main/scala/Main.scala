@@ -1,5 +1,7 @@
 import fastparse._, NoWhitespace._
 
+type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
+
 def wsSingle[$: P] = P(" " | "\t")
 def ws[$: P] = P(wsSingle.rep)
 def newline[$: P] = P("\n\r" | "\r" | "\n")
@@ -33,16 +35,62 @@ trait Statement
 case class Assignment(varName: String, value: Value) extends Statement
 case class Return(value: Value) extends Statement
 
-def statementP[$: P]: P[Statement] = P(
-  assignmentP | valueFunctionCallP | ("return" ~ ws ~ valueP).map(Return(_))
-)
+def eval(st: Statement, scope: HashMap[String, Value]): HashMap[String, Value] =
+  st match {
+    case Assignment(name, value) => scope.addOne((name, value))
+    case FunctionCall(identifier, callArgs) =>
+      scope.get(identifier) match {
+        case Some(Function(a, b)) =>
+          val fun = Function(a, b)
+          evalFunctionCall(fun, callArgs, scope)
+        case Some(_) => assert(false, "Only functions may be called")
+        case None    => assert(false, "TODO: function call in eval")
+      }
+    case Return(_) =>
+      assert(false, "Return Statement is not allowed in global scope")
+  }
 
-def functionDefBodyP[$: P]: P[Seq[Statement]] = P(
+def evalFunctionCall(
+    fun: Function,
+    callArgs: Seq[Value],
+    scope: HashMap[String, Value]
+): HashMap[String, Value] =
+  val Function(args, body) = fun
+  val newScope = scope.addAll(args.zip(callArgs))
+  body.foldLeft(newScope)((acc, x) =>
+    x match {
+      case Assignment(name, value) => acc.addOne((name, value))
+      case FunctionCall(id, callArgsInner) =>
+        acc.get(id) match {
+          case Some(Function(a, b)) =>
+            val f = Function(a, b)
+            evalFunctionCall(f, callArgsInner, newScope)
+          case Some(_) =>
+            assert(false, "'eval function call': Only functions may be called")
+          case None =>
+            assert(
+              false,
+              "'eval function call': no function with identifier '$identifier%s'"
+            )
+        }
+      case Return(Identifier(name)) =>
+        (newScope.get("returned value"), newScope.get(name)) match {
+          case (None, Some(v)) => newScope.addOne(("returned value", v))
+          case (_, _)          => newScope
+        }
+    }
+  )
+
+def statementP[$: P]: P[Statement] =
+  assignmentP | valueFunctionCallP | ("return" ~ ws ~ valueP).map(Return(_))
+
+def functionDefBodyP[$: P]: P[Seq[Statement]] = (
   "{" ~ newline ~ (ws ~ statementP ~ ws ~ newline).rep ~ "}" | statementP.map(
     Seq(_)
   )
 )
-def functionDefArgsP[$: P]: P[Seq[String]] = P(
+
+def functionDefArgsP[$: P]: P[Seq[String]] = (
   identifierP ~ (ws ~ "," ~ ws ~ functionDefArgsP).?
 ).map((i, is) =>
   (i, is) match {
@@ -51,7 +99,7 @@ def functionDefArgsP[$: P]: P[Seq[String]] = P(
   }
 )
 
-def functionDefP[$: P]: P[Value] = P(
+def functionDefP[$: P]: P[Value] = (
   "(" ~ ws ~ functionDefArgsP.? ~ ws ~ ")" ~ ws ~ "=>" ~ ws ~ functionDefBodyP
 ).map((bs, b) =>
   bs match {
@@ -60,9 +108,7 @@ def functionDefP[$: P]: P[Value] = P(
   }
 )
 
-def valueTerminalP[$: P]: P[Value] = P(
-  valueFunctionCallP | identifierP | numberP | booleanP
-)
+def valueTerminalP[$: P]: P[Value] = valueFunctionCallP | identifierP | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -77,7 +123,7 @@ def booleanBinaryOpP[$: P]: P[Value] = P(
   booleanP ~ ws ~ booleanOperatorP ~ ws ~ booleanP
 ).map((l, op, r) => BinaryOp(l, op, r))
 
-def functionCallArgsP[$: P]: P[Seq[Value]] = P(
+def functionCallArgsP[$: P]: P[Seq[Value]] = (
   valueTerminalP ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
 ).map((v, vs) =>
   vs match {
@@ -86,7 +132,7 @@ def functionCallArgsP[$: P]: P[Seq[Value]] = P(
   }
 )
 
-def valueFunctionCallP[$: P]: P[FunctionCall] = P(
+def valueFunctionCallP[$: P]: P[FunctionCall] = (
   identifierP.! ~ ws ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
 ).map((n, bs) =>
   bs match {
@@ -95,11 +141,11 @@ def valueFunctionCallP[$: P]: P[FunctionCall] = P(
   }
 )
 
-def valueBinaryOpP[$: P]: P[Value] = P(
+def valueBinaryOpP[$: P]: P[Value] = (
   valueTerminalP ~ ws ~ arihmeticOperatorP ~ ws ~ valueP
 ).map((l, op, r) => BinaryOp(l, op, r))
 
-def valueP[$: P]: P[Value] = P(
+def valueP[$: P]: P[Value] = (
   "(" ~ valueP ~ ")" | valueBinaryOpP | valueTerminalP
 )
 
@@ -108,10 +154,10 @@ def identifierRestP[$: P] = P(
   CharIn("a-z") | CharIn("A-Z") | CharIn("0-9") | "_"
 )
 def identifierP[$: P]: P[Value] =
-  P((identifierStartP ~ identifierRestP.rep).!).map(Identifier(_))
+  ((identifierStartP ~ identifierRestP.rep).!).map(Identifier(_))
 
 def assignmentP[$: P]: P[Statement] =
-  P(identifierP.! ~ ws ~ "=" ~ ws ~ valueP).map((n, v) => Assignment(n, v))
+  (identifierP.! ~ ws ~ "=" ~ ws ~ valueP).map((n, v) => Assignment(n, v))
 
 @main def hello(): Unit =
   val Parsed.Success(v, _) =
