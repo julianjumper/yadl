@@ -7,6 +7,8 @@ Accessing an Element in an Array is done using square Brackets (Example: `arr[0]
 
 Indexing of arrays starts at `0`
 
+Note: leading and trailing commas are optinal and newlines don't apply (See Dictionary).
+
 
 ## Examples
 
@@ -20,6 +22,11 @@ arr_nested[2] == [1, 2]
 arr_mixed = [1, 'Hello', {'first': 1, 'second': 2}]
 arr_mixed[1] == 'Hello'
 arr_mixed[2]['second'] == 2 
+
+[,1,]
+[1
+2] // Error
+
 ```
 
 

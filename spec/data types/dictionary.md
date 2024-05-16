@@ -4,6 +4,7 @@ Values in dictionaries an be accessed via `dic[key]`. Keys and values may be any
 
 Note: There is no sigificant whitespace inside dictionaries analog to parentheses.
 
+Key-values are seperated by a colon. Key-value-pairs are seperated by a comma.
 Leading and trailing commas are optional.
 
 ## Example
@@ -11,12 +12,38 @@ Leading and trailing commas are optional.
 ```
 x = {
     , a: 1,
-    "b"; "3",
+    "b": "3",
     3: false,
 }
 
 x[3] = 1
 x['3'] = 2 // x['3'] != x[3]
+
+{
+    1: 1,
+    2: 2
+}
+
+{
+    1: 1,
+    2: 2,
+}
+
+{
+    ,1: 1
+    ,2: 2
+}
+
+{
+    1: 1 // Error: comma expected
+    2: 2
+}
+
+{
+    1: 1         ,
+    ,2:
+     2
+}
 
 ```
 
