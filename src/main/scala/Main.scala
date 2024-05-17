@@ -15,7 +15,7 @@ def stringConcatP[$: P] = P("++")
 enum boolOperators:
   case And, Or, Not
 
-def arihmeticOperatorP[$: P] = P((CharIn("*/+") | "-").!)
+def arihmeticOperatorP[$: P] = P((CharIn("*/+^") | "-").!)
 def booleanOperatorP[$: P] = P(("and" | "or" | "not").!).map {
   case "and" => boolOperators.And
   case "or"  => boolOperators.Or
