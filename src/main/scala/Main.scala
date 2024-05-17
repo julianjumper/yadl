@@ -24,14 +24,16 @@ def booleanOperatorP[$: P] = P(("and" | "or" | "not").!).map {
 }
 
 trait Value
+trait Statement
+
 case class Identifier(name: String) extends Value
 case class Number(v: Integer) extends Value
 case class Bool(b: Boolean) extends Value
 case class BinaryOp(left: Value, op: String, right: Value) extends Value
+case class BoolBinaryOp(left: Value, op: boolOperators, right: Value)
+    extends Value
 case class Function(args: Seq[String], body: Seq[Statement]) extends Value
-case class FunctionCall(id: String, args: Seq[Value]) extends Value, Statement
 
-trait Statement
 case class Assignment(varName: String, value: Value) extends Statement
 case class Return(value: Value) extends Statement
 
@@ -108,7 +110,8 @@ def functionDefP[$: P]: P[Value] = (
   }
 )
 
-def valueTerminalP[$: P]: P[Value] = valueFunctionCallP | identifierP | numberP
+def valueTerminalP[$: P]: P[Value] =
+  valueFunctionCallP | identifierP | numberP | booleanP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -118,10 +121,10 @@ def booleanP[$: P]: P[Value] = P(
   case _       => assert(false, "unreachable")
 }
 
-// TODO
+// TODO: complete parsing of binary boolean operations
 def booleanBinaryOpP[$: P]: P[Value] = P(
   booleanP ~ ws ~ booleanOperatorP ~ ws ~ booleanP
-).map((l, op, r) => BinaryOp(l, op, r))
+).map((l, op, r) => BoolBinaryOp(l, op, r))
 
 def functionCallArgsP[$: P]: P[Seq[Value]] = (
   valueTerminalP ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
