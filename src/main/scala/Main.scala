@@ -37,48 +37,80 @@ case class Function(args: Seq[String], body: Seq[Statement]) extends Value
 case class Assignment(varName: String, value: Value) extends Statement
 case class Return(value: Value) extends Statement
 
-def eval(st: Statement, scope: HashMap[String, Value]): HashMap[String, Value] =
+case class FunctionCall(id: String, args: Seq[Value]) extends Value, Statement
+
+def evalStatement(
+    st: Statement,
+    scope: HashMap[String, Value]
+): HashMap[String, Value] =
   st match {
-    case Assignment(name, value) => scope.addOne((name, value))
+    case Assignment(name, value) =>
+      val result = evalValue(value, scope)
+      val newValue = result.get("new value") match {
+        case Some(v) => v
+        case None =>
+          assert(false, "unreachable: a new value should always be returned")
+      }
+      val _ = result.remove("new value")
+      val _ = scope.put(name, newValue)
+      scope
     case FunctionCall(identifier, callArgs) =>
       scope.get(identifier) match {
-        case Some(Function(a, b)) =>
-          val fun = Function(a, b)
-          evalFunctionCall(fun, callArgs, scope)
+        case Some(Function(args, body)) =>
+          call(args, body, callArgs, scope.clone)
         case Some(_) => assert(false, "Only functions may be called")
-        case None    => assert(false, "TODO: function call in eval")
+        case None => assert(false, "TODO: case None in function call in eval")
       }
     case Return(_) =>
       assert(false, "Return Statement is not allowed in global scope")
   }
 
-def evalFunctionCall(
-    fun: Function,
+def evalValue(
+    v: Value,
+    scope: HashMap[String, Value]
+): HashMap[String, Value] =
+  assert(false, "TODO: implement evaluation of values")
+
+def call(
+    args: Seq[String],
+    body: Seq[Statement],
     callArgs: Seq[Value],
     scope: HashMap[String, Value]
 ): HashMap[String, Value] =
-  val Function(args, body) = fun
   val newScope = scope.addAll(args.zip(callArgs))
   body.foldLeft(newScope)((acc, x) =>
     x match {
-      case Assignment(name, value) => acc.addOne((name, value))
+      case Assignment(name, value) =>
+        val result = evalValue(value, acc)
+        val newValue = result.get("new value") match {
+          case Some(v) => v
+          case None =>
+            assert(false, "unreachable: a new value should always be returned")
+        }
+        val _ = result.remove("new value")
+        val _ = acc.put(name, newValue)
+        acc
       case FunctionCall(id, callArgsInner) =>
         acc.get(id) match {
           case Some(Function(a, b)) =>
-            val f = Function(a, b)
-            evalFunctionCall(f, callArgsInner, newScope)
+            call(a, b, callArgsInner, acc.clone)
           case Some(_) =>
             assert(false, "'eval function call': Only functions may be called")
           case None =>
             assert(
               false,
-              "'eval function call': no function with identifier '$identifier%s'"
+              f"in function call: no function with identifier '$id%s'"
             )
         }
       case Return(Identifier(name)) =>
-        (newScope.get("returned value"), newScope.get(name)) match {
-          case (None, Some(v)) => newScope.addOne(("returned value", v))
-          case (_, _)          => newScope
+        (acc.get("returned value"), acc.get(name)) match {
+          case (None, Some(v)) => acc.addOne(("returned value", v))
+          case (_, _)          => acc
+        }
+      case Return(value) =>
+        acc.get("returned value") match {
+          case None => acc.addOne(("returned value", value))
+          case _    => acc
         }
     }
   )
