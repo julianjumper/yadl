@@ -27,7 +27,7 @@ trait Value
 trait Statement
 
 case class Identifier(name: String) extends Value
-case class Number(v: Integer) extends Value
+case class Number(value: Integer) extends Value
 case class Bool(b: Boolean) extends Value
 case class BinaryOp(left: Value, op: String, right: Value) extends Value
 case class BoolBinaryOp(left: Value, op: boolOperators, right: Value)
@@ -37,7 +37,9 @@ case class Function(args: Seq[String], body: Seq[Statement]) extends Value
 case class Assignment(varName: String, value: Value) extends Statement
 case class Return(value: Value) extends Statement
 
-case class FunctionCall(id: String, args: Seq[Value]) extends Value, Statement
+case class FunctionCall(identifier: String, args: Seq[Value])
+    extends Value,
+      Statement
 
 def evalStatement(
     st: Statement,
@@ -52,12 +54,12 @@ def evalStatement(
           assert(false, "unreachable: a new value should always be returned")
       }
       val _ = result.remove("new value")
-      val _ = scope.put(name, newValue)
+      scope.update(name, newValue)
       scope
     case FunctionCall(identifier, callArgs) =>
       scope.get(identifier) match {
         case Some(Function(args, body)) =>
-          call(args, body, callArgs, scope.clone)
+          call(args, body, callArgs, scope)
         case Some(_) => assert(false, "Only functions may be called")
         case None => assert(false, "TODO: case None in function call in eval")
       }
@@ -78,7 +80,7 @@ def call(
     scope: HashMap[String, Value]
 ): HashMap[String, Value] =
   val newScope = scope.addAll(args.zip(callArgs))
-  body.foldLeft(newScope)((acc, x) =>
+  var returnScope = body.foldLeft(newScope)((acc, x) =>
     x match {
       case Assignment(name, value) =>
         val result = evalValue(value, acc)
@@ -88,12 +90,12 @@ def call(
             assert(false, "unreachable: a new value should always be returned")
         }
         val _ = result.remove("new value")
-        val _ = acc.put(name, newValue)
+        acc.update(name, newValue)
         acc
       case FunctionCall(id, callArgsInner) =>
         acc.get(id) match {
           case Some(Function(a, b)) =>
-            call(a, b, callArgsInner, acc.clone)
+            call(a, b, callArgsInner, acc)
           case Some(_) =>
             assert(false, "'eval function call': Only functions may be called")
           case None =>
@@ -114,6 +116,8 @@ def call(
         }
     }
   )
+  returnScope.subtractAll(args)
+  returnScope
 
 def statementP[$: P]: P[Statement] =
   assignmentP | valueFunctionCallP | ("return" ~ ws ~ valueP).map(Return(_))
