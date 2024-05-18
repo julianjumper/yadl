@@ -12,15 +12,39 @@ def numberP[$: P] =
 def stringP[$: P] = P("'" ~ AnyChar.rep.! ~ "'")
 def stringConcatP[$: P] = P("++")
 
-enum boolOperators:
+enum BooleanOps:
   case And, Or, Not
 
-def arihmeticOperatorP[$: P] = P((CharIn("*/+^") | "-").!)
+enum CompareOps:
+  case Less, LessEq, Greater, GreaterEq, Eq, NotEq
+
+enum ArithmaticOps:
+  case Add, Sub, Mul, Div, Expo
+
+def arihmeticOperatorP[$: P] = P((CharIn("*/+^") | "-").!).map {
+  case "*" => ArithmaticOps.Mul
+  case "+" => ArithmaticOps.Add
+  case "-" => ArithmaticOps.Sub
+  case "/" => ArithmaticOps.Div
+  case "^" => ArithmaticOps.Expo
+  case _   => assert(false, "arithmatic operator not defined")
+}
+
 def booleanOperatorP[$: P] = P(("and" | "or" | "not").!).map {
-  case "and" => boolOperators.And
-  case "or"  => boolOperators.Or
-  case "not" => boolOperators.Not
+  case "and" => BooleanOps.And
+  case "or"  => BooleanOps.Or
+  case "not" => BooleanOps.Not
   case _     => assert(false, "boolean operator not defined")
+}
+
+def compareOperatorP[$: P] = P(("==" | "!=" | "<=" | ">=" | "<" | ">").!).map {
+  case "<"  => CompareOps.Less
+  case "<=" => CompareOps.LessEq
+  case ">"  => CompareOps.Greater
+  case ">=" => CompareOps.GreaterEq
+  case "==" => CompareOps.Eq
+  case "!=" => CompareOps.NotEq
+  case _    => assert(false, "comparision operator not defined")
 }
 
 trait Value
@@ -29,10 +53,12 @@ trait Statement
 case class Identifier(name: String) extends Value
 case class Number(value: Integer) extends Value
 case class Bool(b: Boolean) extends Value
-case class BinaryOp(left: Value, op: String, right: Value) extends Value
-case class BoolBinaryOp(left: Value, op: boolOperators, right: Value)
+case class BinaryOp(left: Value, op: ArithmaticOps, right: Value) extends Value
+case class BoolBinaryOp(left: Value, op: BooleanOps, right: Value) extends Value
+case class BinaryCompareOp(left: Value, op: CompareOps, right: Value)
     extends Value
 case class Function(args: Seq[String], body: Seq[Statement]) extends Value
+case class Wrapped(value: Value) extends Value
 
 case class Assignment(varName: String, value: Value) extends Statement
 case class Return(value: Value) extends Statement
@@ -184,8 +210,11 @@ def valueBinaryOpP[$: P]: P[Value] = (
   valueTerminalP ~ ws ~ arihmeticOperatorP ~ ws ~ valueP
 ).map((l, op, r) => BinaryOp(l, op, r))
 
+def valueWrappedP[$: P]: P[Value] =
+  ("(" ~ valueP ~ ")").map(Wrapped(_))
+
 def valueP[$: P]: P[Value] = (
-  "(" ~ valueP ~ ")" | valueBinaryOpP | valueTerminalP
+  valueWrappedP | valueBinaryOpP | valueTerminalP
 )
 
 def identifierStartP[$: P] = P(CharIn("a-z") | CharIn("A-Z"))
@@ -198,21 +227,46 @@ def identifierP[$: P]: P[Value] =
 def assignmentP[$: P]: P[Statement] =
   (identifierP.! ~ ws ~ "=" ~ ws ~ valueP).map((n, v) => Assignment(n, v))
 
-@main def hello(): Unit =
-  val Parsed.Success(v, _) =
-    parse(
-      "aoeu = 15 + f(3, 4) - (3 * (23 + 3))",
-      assignmentP(using _)
-    ): @unchecked
-  println(v)
+def mapper(sts: Seq[Option[Statement]]): Seq[Statement] =
+  sts match {
+    case Some(st) :: rest  => st +: mapper(rest)
+    case None :: rest      => mapper(rest)
+    case Some(st) :: Seq() => Seq(st)
+  }
 
-  val Parsed.Success(w, _) =
-    parse("aoeu = 15 + f() - (3 * (23 + 3))", assignmentP(using _)): @unchecked
-  println(w)
+def fileP[$: P]: P[Seq[Statement]] =
+  ((statementP.? ~ ws ~ newline).rep ~ End).map(mapper(_))
 
-  val Parsed.Success(f, _) =
-    parse(
-      "(x, y) => {\n  aoeu = 15 + 4\n  return aoeu\n}",
-      functionDefP(using _)
-    ): @unchecked
-  println(f)
+def precedence(op: ArithmaticOps) = op match {
+  case ArithmaticOps.Add  => 4
+  case ArithmaticOps.Sub  => 4
+  case ArithmaticOps.Mul  => 5
+  case ArithmaticOps.Div  => 5
+  case ArithmaticOps.Expo => 6
+}
+
+def precedence(op: BooleanOps) = op match {
+  case BooleanOps.And => 2
+  case BooleanOps.Or  => 1
+  case BooleanOps.Not => 3
+}
+
+def precedence(_n: CompareOps) = 0
+
+def precedenceOf(value: Value) = value match {
+  case BinaryOp(_, op, _)        => precedence(op)
+  case BoolBinaryOp(_, op, _)    => precedence(op)
+  case BinaryCompareOp(_, op, _) => precedence(op)
+  case _                         => 100000
+}
+
+object Main {
+  def main(args: Array[String]): Unit =
+    for (f <- args)
+      val content = java.io.FileInputStream(f)
+      val result = parse(content, fileP)
+      result match {
+        case Parsed.Success(v, _) => println(v)
+        case v                    => println(v)
+      }
+}
