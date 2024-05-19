@@ -1,4 +1,5 @@
 import fastparse._, NoWhitespace._
+import java.io.*
 
 type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
 
@@ -146,7 +147,7 @@ def call(
   returnScope
 
 def statementP[$: P]: P[Statement] =
-  assignmentP | valueFunctionCallP | ("return" ~ ws ~ valueP).map(Return(_))
+  functionCallP | assignmentP | ("return" ~ ws ~ valueP).map(Return(_))
 
 def functionDefBodyP[$: P]: P[Seq[Statement]] = (
   "{" ~ newline ~ (ws ~ statementP ~ ws ~ newline).rep ~ "}" | statementP.map(
@@ -173,7 +174,7 @@ def functionDefP[$: P]: P[Value] = (
 )
 
 def valueTerminalP[$: P]: P[Value] =
-  valueFunctionCallP | identifierP | numberP | booleanP
+  functionCallP./ | identifierP | numberP | booleanP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -197,8 +198,8 @@ def functionCallArgsP[$: P]: P[Seq[Value]] = (
   }
 )
 
-def valueFunctionCallP[$: P]: P[FunctionCall] = (
-  identifierP.! ~ ws ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
+def functionCallP[$: P]: P[FunctionCall] = (
+  identifierP.! ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
 ).map((n, bs) =>
   bs match {
     case None     => FunctionCall(n, Seq())
@@ -207,14 +208,19 @@ def valueFunctionCallP[$: P]: P[FunctionCall] = (
 )
 
 def valueBinaryOpP[$: P]: P[Value] = (
-  valueTerminalP ~ ws ~ arihmeticOperatorP ~ ws ~ valueP
-).map((l, op, r) => BinaryOp(l, op, r))
+  (valueWrappedP | valueTerminalP./) ~ (ws ~ arihmeticOperatorP ~ ws ~ valueP).?
+).map((l, rest) =>
+  rest match {
+    case Some((op, r)) => BinaryOp(l, op, r)
+    case None          => l
+  }
+)
 
 def valueWrappedP[$: P]: P[Value] =
   ("(" ~ valueP ~ ")").map(Wrapped(_))
 
 def valueP[$: P]: P[Value] = (
-  valueWrappedP | valueBinaryOpP | valueTerminalP
+  valueBinaryOpP | valueWrappedP | valueTerminalP./
 )
 
 def identifierStartP[$: P] = P(CharIn("a-z") | CharIn("A-Z"))
@@ -225,17 +231,17 @@ def identifierP[$: P]: P[Value] =
   ((identifierStartP ~ identifierRestP.rep).!).map(Identifier(_))
 
 def assignmentP[$: P]: P[Statement] =
-  (identifierP.! ~ ws ~ "=" ~ ws ~ valueP).map((n, v) => Assignment(n, v))
+  (identifierP.! ~/ ws ~ "=" ~ ws ~ valueP).map((n, v) => Assignment(n, v))
 
 def mapper(sts: Seq[Option[Statement]]): Seq[Statement] =
   sts match {
-    case Some(st) :: rest  => st +: mapper(rest)
-    case None :: rest      => mapper(rest)
-    case Some(st) :: Seq() => Seq(st)
+    case Some(st) :: rest => st +: mapper(rest)
+    case None :: rest     => mapper(rest)
+    case Seq()            => Seq()
   }
 
 def fileP[$: P]: P[Seq[Statement]] =
-  ((statementP.? ~ ws ~ newline).rep ~ End).map(mapper(_))
+  ((statementP.? ~ ws ~ newline).rep).map(mapper(_))
 
 def precedence(op: ArithmaticOps) = op match {
   case ArithmaticOps.Add  => 4
@@ -260,13 +266,34 @@ def precedenceOf(value: Value) = value match {
   case _                         => 100000
 }
 
+// Thank you Java (-_-)
+def readFileContent(filepath: String) =
+  var file = new File(filepath);
+
+  var fis = new FileInputStream(file);
+  var baos = new ByteArrayOutputStream()
+  var buffer = Array.ofDim[scala.Byte](1024);
+  var bytesRead = 0;
+
+  bytesRead = fis.read(buffer)
+  while (bytesRead != -1) {
+    baos.write(buffer, 0, bytesRead);
+    bytesRead = fis.read(buffer)
+  }
+  baos.toString();
+
 object Main {
   def main(args: Array[String]): Unit =
     for (f <- args)
-      val content = java.io.FileInputStream(f)
-      val result = parse(content, fileP)
+      val content = readFileContent(f)
+      val result = parse(content, fileP(using _)): @unchecked
       result match {
-        case Parsed.Success(v, _) => println(v)
-        case v                    => println(v)
+        case Parsed.Success(v, _) =>
+          for (s <- v)
+            println(s)
+        case Parsed.Failure(v, s, s2) =>
+          val fail = Parsed.Failure(v, s, s2)
+          val trace = fail.trace().longAggregateMsg
+          println(trace)
       }
 }
