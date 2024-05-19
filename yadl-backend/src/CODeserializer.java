@@ -9,6 +9,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.Json
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -22,18 +23,17 @@ public class CODeserializer extends StdDeserializer<customObject> {
         super(vc);
     }
 
-    @Override
-    public customObject deserialize(JsonParser jp, DeserializationContext ctxt)
-            throws IOException, JsonProcessingException {
-        JsonNode node = jp.getCodec().readTree(jp);
-
+    private GAO recursiveGAO(JsonNode node)
+    {
         Iterator<Map.Entry<String, JsonNode>> iterator = node.fields();
 
         ArrayList<Map.Entry<String, JsonNode>> nodesList = Lists.newArrayList(iterator);
-        customObject obj = new customObject();
-        GAO tmp = new GAO();
+        GAO root = new GAO();
+        root.type = GAO.Type.Dir;
+        root.directoryData = new HashMap<>();
         for (Map.Entry<String, JsonNode> nodEntry : nodesList)
         {
+            GAO tmp = new GAO();
             String name = nodEntry.getKey();
             JsonNode newNode = nodEntry.getValue();
             JsonNodeType type = newNode.getNodeType();
@@ -42,6 +42,8 @@ public class CODeserializer extends StdDeserializer<customObject> {
                 case ARRAY:
                     break;
                 case OBJECT:
+                    tmp = recursiveGAO(newNode);
+                    tmp.type = GAO.Type.Dir;
                     break;
                 case NUMBER:
                     tmp.type = GAO.Type.Int;
@@ -52,8 +54,20 @@ public class CODeserializer extends StdDeserializer<customObject> {
                     tmp.stringData = newNode.asText();
                     break;
             }
-            obj.root.put(name,tmp);
+            root.directoryData.put(name,tmp);
         }
+        return root;
+    }
+    @Override
+    public customObject deserialize(JsonParser jp, DeserializationContext ctxt)
+            throws IOException, JsonProcessingException {
+        JsonNode node = jp.getCodec().readTree(jp);
+
+
+        customObject obj = new customObject();
+
+        obj.root = recursiveGAO(node);
+
 
         /*else if (node.isArray())
         {

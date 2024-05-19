@@ -8,7 +8,10 @@ public class GAO { //General Abstraction Object - No need for templating ;)
 
         None
     }
-
+    public GAO()
+    {
+        type = Type.None;
+    }
     public Type type;
     public String stringData;
     public Integer integerData;

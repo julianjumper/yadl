@@ -16,15 +16,19 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         customObject tmp = new ObjectMapper().readValue(new File("./res/test.json"), customObject.class);
-        for(GAO i : tmp.root.values())
+        for(GAO i : tmp.root.directoryData.values())
         {
             if(i.type == GAO.Type.Int)
             {
                 System.out.println(i.integerData);
             }
-            else
+            else if(i.type == GAO.Type.String)
             {
                 System.out.println(i.stringData);
+            }
+            else
+            {
+                System.out.println(((GAO) i.directoryData.values().toArray()[0]).stringData);
             }
         }
         /*ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
