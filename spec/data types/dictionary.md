@@ -1,22 +1,49 @@
 # Dictionaries:
 
-Values in dictionaries an be accessed via `dic[key]` or via `dic.key` if the key would be a valid variable name. Keys and values may be any datatype.
+Values in dictionaries an be accessed via `dic[key]`. Keys and values may be any datatype.
 
 Note: There is no sigificant whitespace inside dictionaries analog to parentheses.
 
+Key-values are seperated by a colon. Key-value-pairs are seperated by a comma.
+Leading and trailing commas are optional.
 
 ## Example
 
 ```
 x = {
     , a: 1,
-    "b"; "3",
+    "b": "3",
     3: false,
 }
 
-x.b = none
 x[3] = 1
 x['3'] = 2 // x['3'] != x[3]
+
+{
+    1: 1,
+    2: 2
+}
+
+{
+    1: 1,
+    2: 2,
+}
+
+{
+    ,1: 1
+    ,2: 2
+}
+
+{
+    1: 1 // Error: comma expected
+    2: 2
+}
+
+{
+    1: 1         ,
+    ,2:
+     2
+}
 
 ```
 

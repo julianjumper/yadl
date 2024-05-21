@@ -1,4 +1,4 @@
-# Significant Whitespace
+# Significant Whitespace (Newlines)
 
 Statements are seperated via a newline
 
@@ -17,3 +17,6 @@ Example:
 x = ("Hello"
     + "World)
 ```
+
+
+Note: Spaces and Tabs itself only seperate individual tokens, they have no other effect.

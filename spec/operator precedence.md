@@ -8,8 +8,9 @@ or
 and
 not
 +, - (binary)
-*, /
-^
+*, /, %
 - (unary)
+^
+[], () (array/dictionary accessing, function calls)
 ```
 (Lower is higher)
