@@ -1,0 +1,6 @@
+// RUN: yadl-interpreter %s
+
+x = 7 - 3 - 2
+print(x)
+
+//CHECK-OUT: 2
