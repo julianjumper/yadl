@@ -3,6 +3,25 @@ import os
 import pytest
 import subprocess
 import filecmp
+from pathlib import Path
+
+
+def parse_comment(comment_line: str):
+    if not comment_line.startswith("//"):
+        raise SyntaxError("Expected commented line")
+    if not comment_line.startswith("// "):
+        raise SyntaxError("Expected space after slashes")
+    comment_line = comment_line.split("// ")[1:].join("// ")
+    comment_line.split(":")
+    if len(comment_line) < 2:
+        raise SyntaxError("Expected command")
+    cmd = comment_line[0]
+    comment_line.join(":")
+
+    if not comment_line.startswith(" "):
+        raise SyntaxError("Expected Space after colon")
+
+    return {"cmd": cmd, "payload": comment_line}
 
 
 def parse_yadl(filename):
@@ -10,11 +29,16 @@ def parse_yadl(filename):
         "run": "yadl-interpreter " + filename,
         "out": [],
         "file-eq": [],
-        "remove": []
+        "remove": [],
     }
 
     with open(filename, "r") as file:
-        for line in file:
+        lines = file.readlines()
+
+        if len(lines) == 0:
+            raise SyntaxError("Expected non empty yadl file")
+
+        for line in lines:
             line = line.strip()
             tokens = line.split(sep=" ")
 
@@ -45,7 +69,8 @@ def parse_yadl(filename):
 
 
 def run_test(test_cfg):
-    result = subprocess.run(test_cfg["run"], capture_output=True, text=True)
+    # assert False, test_cfg['run']
+    result = subprocess.run(test_cfg["run"], capture_output=True, shell=True, text=True)
 
     # check output
     output = result.stdout.strip().split("\n")
@@ -61,8 +86,10 @@ def run_test(test_cfg):
 
 
 configurations = []
-for file_name in os.listdir("tests"):
-    configurations.append(parse_yadl("tests/"+file_name))
+TEST_DIR = os.path.abspath("tests")
+for posix_path in Path(TEST_DIR).rglob("*.yadl"):
+    full_path = os.path.join(os.path.dirname(TEST_DIR), posix_path)
+    configurations.append(parse_yadl(str(full_path)))
 
 
 @pytest.mark.parametrize("config", configurations)
