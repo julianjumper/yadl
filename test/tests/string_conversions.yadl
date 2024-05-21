@@ -1,0 +1,15 @@
+// RUN: yadl-interpreter %s
+
+x = "It is " + 42
+y = 42 + " it is"
+
+z = "hi" * 2
+
+print(x)
+print(y)
+print(z)
+
+// CHECK-RET: It is 42
+// CHECK-RET: 42 it is
+// CHECK-RET: hihi
+

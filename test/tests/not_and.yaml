@@ -1,0 +1,6 @@
+// RUN: yadl-interpreter %s
+
+x = not true and false 
+print(x)
+
+// CHECK-EQ: false
