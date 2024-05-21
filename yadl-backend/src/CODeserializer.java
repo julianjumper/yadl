@@ -23,38 +23,52 @@ public class CODeserializer extends StdDeserializer<customObject> {
         super(vc);
     }
 
-    private GAO recursiveGAO(JsonNode node)
+    private GAO recursiveGAO(JsonNode node, GAO.Type type)
     {
         Iterator<Map.Entry<String, JsonNode>> iterator = node.fields();
 
         ArrayList<Map.Entry<String, JsonNode>> nodesList = Lists.newArrayList(iterator);
         GAO root = new GAO();
-        root.type = GAO.Type.Dir;
-        root.directoryData = new HashMap<>();
+        root.type = type;
+
         for (Map.Entry<String, JsonNode> nodEntry : nodesList)
         {
             GAO tmp = new GAO();
             String name = nodEntry.getKey();
             JsonNode newNode = nodEntry.getValue();
-            JsonNodeType type = newNode.getNodeType();
-            switch(type)
+            JsonNodeType CurType = newNode.getNodeType();
+            switch(CurType)
             {
                 case ARRAY:
+                    tmp = recursiveGAO(newNode, GAO.Type.Array);
                     break;
                 case OBJECT:
-                    tmp = recursiveGAO(newNode);
-                    tmp.type = GAO.Type.Dir;
+                    tmp = recursiveGAO(newNode, GAO.Type.Dir);
                     break;
                 case NUMBER:
-                    tmp.type = GAO.Type.Int;
-                    tmp.integerData = newNode.asInt();
+                    tmp.type = GAO.Type.Number;
+                    tmp.numberData = newNode.asDouble();
                     break;
                 case STRING:
                     tmp.type = GAO.Type.String;
                     tmp.stringData = newNode.asText();
                     break;
+                case BOOLEAN:
+                    tmp.type = GAO.Type.Boolean;
+                    tmp.numberData = (double) (newNode.asBoolean() ? 1:0);
+                    break;
+                default:
+                    tmp.type = GAO.Type.None;
+                    break;
             }
-            root.directoryData.put(name,tmp);
+           if(root.type == GAO.Type.Array)
+           {
+               root.arrayData.add(tmp);
+           }
+           else if(root.type == GAO.Type.Dir)
+           {
+               root.directoryData.put(name,tmp);
+           }
         }
         return root;
     }
@@ -66,29 +80,7 @@ public class CODeserializer extends StdDeserializer<customObject> {
 
         customObject obj = new customObject();
 
-        obj.root = recursiveGAO(node);
-
-
-        /*else if (node.isArray())
-        {
-            Iterator<JsonNode> arrayItemsIterator = node.elements();
-            ArrayList<JsonNode> arrayItemsList = Lists.newArrayList(arrayItemsIterator);
-            for (JsonNode arrayNode : arrayItemsList)
-            {
-                walker("array item", arrayNode);
-            }
-        }
-        else
-        {
-            if (node.isValueNode())
-            {
-                System.out.println("  valueNode: " + node.asText());
-            }
-            else
-            {
-                System.out.println("  node some other type");
-            }
-        }*/
+        obj.root = recursiveGAO(node, GAO.Type.Dir);
 
         return obj;
     }

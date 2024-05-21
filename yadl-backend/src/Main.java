@@ -18,9 +18,9 @@ public class Main {
         customObject tmp = new ObjectMapper().readValue(new File("./res/test.json"), customObject.class);
         for(GAO i : tmp.root.directoryData.values())
         {
-            if(i.type == GAO.Type.Int)
+            if(i.type == GAO.Type.Number)
             {
-                System.out.println(i.integerData);
+                System.out.println(i.numberData);
             }
             else if(i.type == GAO.Type.String)
             {
@@ -31,20 +31,6 @@ public class Main {
                 System.out.println(((GAO) i.directoryData.values().toArray()[0]).stringData);
             }
         }
-        /*ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-
-        DataSet<String> data = env.readTextFile("C:/Users/Phyton/Desktop/Test.txt");
-        for(String i : data.collect())
-        {
-            System.out.println(i);
-        }
-        data.filter(new FilterFunction<String>() {
-                    public boolean filter(String value) {
-                        return value.startsWith("http://");
-                    }
-                });
-
-        //JobExecutionResult res = env.execute();*/
     }
 
 }

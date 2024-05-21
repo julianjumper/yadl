@@ -17,7 +17,6 @@ import java.util.Map;
     {
         root = new GAO();
         root.type = GAO.Type.Dir;
-        root.directoryData = new HashMap<>();
         root.directoryData.put(key, value);
     }
 
