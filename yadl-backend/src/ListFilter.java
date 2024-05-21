@@ -1,6 +1,9 @@
 import java.util.ArrayList;
 import java.util.List;
 
+enum Operation {
+    EQUALS, GREATER, LESS
+}
 public class ListFilter {
     public static <T> List<T> filter(List<T> list, Filter<T> filter) {
         List<T> result = new ArrayList<>();
