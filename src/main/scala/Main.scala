@@ -257,21 +257,20 @@ def precedence(op: BooleanOps) = op match {
   case BooleanOps.Not => 3
 }
 
-def precedence(_n: CompareOps) = 0
-
-def precedenceOf(value: Value) = value match {
-  case BinaryOp(_, op, _)        => precedence(op)
-  case BoolBinaryOp(_, op, _)    => precedence(op)
-  case BinaryCompareOp(_, op, _) => precedence(op)
-  case _                         => 100000
+def precedenceOf(value: Value): Int = value match {
+  case BinaryOp(_, op, _)       => precedence(op)
+  case BoolBinaryOp(_, op, _)   => precedence(op)
+  case BinaryCompareOp(_, _, _) => 0
+  case Wrapped(v)               => 10 + precedenceOf(v)
+  case _                        => 100000
 }
 
 // Thank you Java (-_-)
 def readFileContent(filepath: String) =
   var file = new File(filepath);
 
-  var fis = new FileInputStream(file);
-  var baos = new ByteArrayOutputStream()
+  var fis = FileInputStream(file);
+  var baos = ByteArrayOutputStream()
   var buffer = Array.ofDim[scala.Byte](1024);
   var bytesRead = 0;
 
