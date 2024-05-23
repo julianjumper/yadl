@@ -1,0 +1,14 @@
+
+f = (x) => {
+    if (true) {
+        i = x + 3
+        break()
+    } elif (false) {
+        i = x + 5
+    } else {
+        i = 23
+    }
+    return i
+}
+
+print(f(4))

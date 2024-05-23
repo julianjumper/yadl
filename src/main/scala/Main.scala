@@ -62,6 +62,12 @@ case class Function(args: Seq[String], body: Seq[Statement]) extends Value
 case class Wrapped(value: Value) extends Value
 
 case class Assignment(varName: String, value: Value) extends Statement
+class Branch(condition: Value, boby: Seq[Statement])
+case class If(
+    inital: Branch,
+    elifs: Seq[Branch],
+    end: Option[Seq[Statement]]
+) extends Statement
 case class Return(value: Value) extends Statement
 
 case class FunctionCall(identifier: String, args: Seq[Value])
@@ -146,14 +152,35 @@ def call(
   returnScope.subtractAll(args)
   returnScope
 
-def statementP[$: P]: P[Statement] =
-  functionCallP | assignmentP | ("return" ~ ws ~ valueP).map(Return(_))
+def initialBranch[$: P]: P[Branch] =
+  P(
+    "if" ~ ws ~ "(" ~ ws ~ valueP ~ ws ~ ")" ~ ws ~ codeBlock
+  ).map((v, sts) => Branch(v, sts))
 
-def functionDefBodyP[$: P]: P[Seq[Statement]] = (
-  "{" ~ newline ~ (ws ~ statementP ~ ws ~ newline).rep ~ "}" | statementP.map(
-    Seq(_)
+def elif[$: P]: P[Branch] =
+  P(
+    "elif" ~ ws ~ "(" ~ ws ~ valueP ~ ws ~ ")" ~ ws ~ codeBlock
+  ).map((v, sts) => Branch(v, sts))
+
+def endBranch[$: P]: P[Seq[Statement]] =
+  P("else" ~ ws ~ codeBlock)
+
+def ifStatement[$: P]: P[Statement] =
+  (initialBranch ~ ws ~ elif.rep ~ ws ~ endBranch.?).map((i, m, e) =>
+    If(i, m, e)
   )
-)
+
+def returnP[$: P]: P[Statement] =
+  P("return" ~ ws ~ valueP).map(Return(_))
+
+def statementP[$: P]: P[Statement] =
+  returnP | ifStatement | functionCallP | assignmentP
+
+def codeBlock[$: P]: P[Seq[Statement]] =
+  P("{" ~ newline ~ (ws ~ statementP ~ ws ~ newline).rep ~ ws ~ "}")
+
+def functionDefBodyP[$: P]: P[Seq[Statement]] =
+  codeBlock | statementP.map(Seq(_))
 
 def functionDefArgsP[$: P]: P[Seq[String]] = (
   identifierP ~ (ws ~ "," ~ ws ~ functionDefArgsP).?
@@ -220,7 +247,7 @@ def valueWrappedP[$: P]: P[Value] =
   ("(" ~ valueP ~ ")").map(Wrapped(_))
 
 def valueP[$: P]: P[Value] = (
-  valueBinaryOpP | valueWrappedP | valueTerminalP./
+  functionDefP | valueBinaryOpP | valueWrappedP | valueTerminalP./
 )
 
 def identifierStartP[$: P] = P(CharIn("a-z") | CharIn("A-Z"))
