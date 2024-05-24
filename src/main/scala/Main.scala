@@ -68,6 +68,7 @@ case class If(
     elifs: Seq[Branch],
     end: Option[Seq[Statement]]
 ) extends Statement
+case class Expression(expr: Value) extends Statement
 case class Return(value: Value) extends Statement
 
 case class FunctionCall(identifier: String, args: Seq[Value])
@@ -180,7 +181,7 @@ def codeBlock[$: P]: P[Seq[Statement]] =
   P("{" ~ newline ~ (ws ~ statementP ~ ws ~ newline).rep ~ ws ~ "}")
 
 def functionDefBodyP[$: P]: P[Seq[Statement]] =
-  codeBlock | statementP.map(Seq(_))
+  codeBlock | valueP.map((v) => Seq(Expression(v)))
 
 def functionDefArgsP[$: P]: P[Seq[String]] = (
   identifierP ~ (ws ~ "," ~ ws ~ functionDefArgsP).?
@@ -217,7 +218,7 @@ def booleanBinaryOpP[$: P]: P[Value] = P(
 ).map((l, op, r) => BoolBinaryOp(l, op, r))
 
 def functionCallArgsP[$: P]: P[Seq[Value]] = (
-  valueTerminalP ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
+  valueP ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
 ).map((v, vs) =>
   vs match {
     case None     => Seq(v)
