@@ -50,16 +50,18 @@ def compareOperatorP[$: P] = P(("==" | "!=" | "<=" | ">=" | "<" | ">").!).map {
   case _    => assert(false, "comparision operator not defined")
 }
 
+trait Operator
 trait Value
 trait Statement
+
+case class ArithmaticOp(op: ArithmaticOps) extends Operator
+case class CompareOp(op: CompareOps) extends Operator
+case class BooleanOp(op: BooleanOps) extends Operator
 
 case class Identifier(name: String) extends Value
 case class Number(value: Double) extends Value
 case class Bool(b: Boolean) extends Value
-case class BinaryOp(left: Value, op: ArithmaticOps, right: Value) extends Value
-case class BoolBinaryOp(left: Value, op: BooleanOps, right: Value) extends Value
-case class BinaryCompareOp(left: Value, op: CompareOps, right: Value)
-    extends Value
+case class BinaryOp(left: Value, op: Operator, right: Value) extends Value
 case class Function(args: Seq[String], body: Seq[Statement]) extends Value
 case class Wrapped(value: Value) extends Value
 
@@ -223,11 +225,6 @@ def booleanP[$: P]: P[Value] = P(
   case _       => assert(false, "unreachable")
 }
 
-// TODO: complete parsing of binary boolean operations
-def booleanBinaryOpP[$: P]: P[Value] = P(
-  booleanP ~ ws ~ booleanOperatorP ~ ws ~ booleanP
-).map((l, op, r) => BoolBinaryOp(l, op, r))
-
 def functionCallArgsP[$: P]: P[Seq[Value]] = (
   valueP ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
 ).map((v, vs) =>
@@ -246,8 +243,13 @@ def functionCallP[$: P]: P[FunctionCall] = (
   }
 )
 
+def binaryOperator[$: P]: P[Operator] =
+  arihmeticOperatorP.map(ArithmaticOp(_)) | booleanOperatorP.map(
+    BooleanOp(_)
+  ) | compareOperatorP.map(CompareOp(_))
+
 def valueBinaryOpP[$: P]: P[Value] = (
-  (valueWrappedP | valueTerminalP./) ~ (ws ~ arihmeticOperatorP ~ ws ~ valueP).?
+  (valueWrappedP | valueTerminalP./) ~ (ws ~ binaryOperator ~ ws ~ valueP).?
 ).map((l, rest) =>
   rest match {
     case Some((op, r)) => BinaryOp(l, op, r)
@@ -297,11 +299,11 @@ def precedence(op: BooleanOps) = op match {
 }
 
 def precedenceOf(value: Value): Int = value match {
-  case BinaryOp(_, op, _)       => precedence(op)
-  case BoolBinaryOp(_, op, _)   => precedence(op)
-  case BinaryCompareOp(_, _, _) => 0
-  case Wrapped(v)               => 10 + precedenceOf(v)
-  case _                        => 100000
+  case BinaryOp(_, ArithmaticOp(op), _) => precedence(op)
+  case BinaryOp(_, BooleanOp(op), _)    => precedence(op)
+  case BinaryOp(_, CompareOp(_), _)     => 0
+  case Wrapped(v)                       => 10 + precedenceOf(v)
+  case _                                => 100000
 }
 
 // Thank you Java (-_-)
