@@ -70,6 +70,7 @@ case class If(
     elifs: Seq[Branch],
     end: Option[Seq[Statement]]
 ) extends Statement
+case class WhileLoop(loop: Branch) extends Statement
 case class Expression(expr: Value) extends Statement
 case class Return(value: Value) extends Statement
 
@@ -155,14 +156,22 @@ def call(
   returnScope.subtractAll(args)
   returnScope
 
+def condition[$: P]: P[Value] =
+  P("(" ~ ws ~ valueP ~ ws ~ ")")
+
 def initialBranch[$: P]: P[Branch] =
   P(
-    "if" ~ ws ~ "(" ~ ws ~ valueP ~ ws ~ ")" ~ ws ~ codeBlock
+    "if" ~ ws ~ condition ~ ws ~ codeBlock
   ).map((v, sts) => Branch(v, sts))
+
+def whileloop[$: P]: P[Statement] =
+  P("while" ~ ws ~ condition ~ ws ~ codeBlock).map((c, cb) =>
+    WhileLoop(Branch(c, cb))
+  )
 
 def elif[$: P]: P[Branch] =
   P(
-    "elif" ~ ws ~ "(" ~ ws ~ valueP ~ ws ~ ")" ~ ws ~ codeBlock
+    "elif" ~ ws ~ condition ~ ws ~ codeBlock
   ).map((v, sts) => Branch(v, sts))
 
 def endBranch[$: P]: P[Seq[Statement]] =
@@ -177,7 +186,7 @@ def returnP[$: P]: P[Statement] =
   P("return" ~ ws ~ valueP).map(Return(_))
 
 def statementP[$: P]: P[Statement] =
-  returnP | ifStatement | functionCallP | assignmentP
+  returnP | whileloop | ifStatement | functionCallP | assignmentP
 
 def codeBlock[$: P]: P[Seq[Statement]] =
   P("{" ~ newline ~ (ws ~ statementP ~ ws ~ newline).rep ~ ws ~ "}")
