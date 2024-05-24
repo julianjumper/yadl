@@ -8,7 +8,9 @@ def ws[$: P] = P(wsSingle.rep)
 def newline[$: P] = P("\n\r" | "\r" | "\n")
 
 def numberP[$: P] =
-  P((CharPred(_.isDigit) ~ CharPred(_.isDigit).rep).!).map(s => Number(s.toInt))
+  P((CharPred(_.isDigit) ~ CharPred(_.isDigit).rep).!).map(s =>
+    Number(s.toDouble)
+  )
 
 def stringP[$: P] = P("'" ~ AnyChar.rep.! ~ "'")
 def stringConcatP[$: P] = P("++")
@@ -52,7 +54,7 @@ trait Value
 trait Statement
 
 case class Identifier(name: String) extends Value
-case class Number(value: Integer) extends Value
+case class Number(value: Double) extends Value
 case class Bool(b: Boolean) extends Value
 case class BinaryOp(left: Value, op: ArithmaticOps, right: Value) extends Value
 case class BoolBinaryOp(left: Value, op: BooleanOps, right: Value) extends Value
