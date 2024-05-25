@@ -1,0 +1,9 @@
+// RUN: DEFAULT
+
+
+x = () => () => 3
+
+print(x()())
+
+// CHECK-OUT: 3
+
