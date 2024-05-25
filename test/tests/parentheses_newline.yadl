@@ -1,0 +1,8 @@
+// RUN: yadl-interpreter %s
+
+x = ("Hello "
+    + "World!")
+
+print(x)
+
+// CHECK-OUT: Hello World!
