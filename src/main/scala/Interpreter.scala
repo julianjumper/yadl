@@ -1,3 +1,7 @@
+import ArithmaticOps.{Add, Div, Expo, Mul, Sub}
+import BooleanOps.{And, Or}
+import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
+
 type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
 
 val RETURN_VALUE = "a newly returned value"
@@ -63,6 +67,8 @@ def evalValue(
       val left_result = evalValue(left, scope)
       val Some(new_left) = left_result.remove(NEW_VALUE): @unchecked
       evalValue(right, scope)
+      val Some(new_right) = left_result.remove(NEW_VALUE): @unchecked
+      evalBinaryOp(op, new_left, new_right, scope)
     case Identifier(name) =>
       scope.get(name) match {
         case Some(value) =>
@@ -79,6 +85,149 @@ def evalValue(
     case err =>
       assert(false, f"TODO: not implemented '$err'")
   }
+  scope
+  // assert(false, "not implemented")
+
+def evalBinaryOp(
+    op: Operator,
+    left: Value,
+    right: Value,
+    scope: HashMap[String, Value]
+): HashMap[String, Value] = {
+    op match
+      case ArithmaticOp(ops) => evalArithmeticOps(ops, left, right, scope)
+      case CompareOp(ops) => evalCompareOps(ops, left, right, scope)
+      case BooleanOp(ops) => evalBooleanOps(ops, left, right, scope)
+      case _ => throw new IllegalArgumentException("Binary operation invalid.")
+}
+
+def evalBooleanOps(op: BooleanOps,
+                   left: Value,
+                   right: Value,
+                   scope: HashMap[String, Value]
+                  ): HashMap[String, Value] = {
+  // evaluate left and right value
+  val leftEval = left match {
+    case Number(n) => Number(n)
+    case Bool(b) => Bool(b)
+    case id: Identifier => scope.getOrElse(id.name, assert(false, "Variable not in scope."))
+    case _ => assert(false, "Unexpected left-hand type in boolean operator.")
+  }
+
+  val rightEval = right match {
+    case Number(n) => Number(n)
+    case Bool(b) => Bool(b)
+    case id: Identifier => scope.getOrElse(id.name, assert(false, "Variable not found in scope."))
+    case _ => assert(false, "Unexpected right-hand type in boolean operator.")
+  }
+
+  // if left or right is string.
+  if (leftEval.isInstanceOf[Identifier] || rightEval.isInstanceOf[Identifier]) {
+    assert(false, "No boolean operators allowed on strings")
+  }
+
+  // otherwise left and right are bools or numbers
+  val result = op match {
+    case And => (extractNumber(leftEval) > 0) && (extractNumber(rightEval) > 0)
+    case Or => (extractNumber(leftEval) > 0) || (extractNumber(rightEval) > 0)
+    case _ => assert(false, "Unexpected comparison operation.")
+  }
+
+  scope.addOne((NEW_VALUE, Bool(result))) // Adding the result to the scope
+  scope
+}
+
+def evalCompareOps(op: CompareOps,
+                   left: Value,
+                   right: Value,
+                   scope: HashMap[String, Value]
+                  ): HashMap[String, Value] = {
+  // evaluate left and right value
+  val leftEval = left match {
+    case Number(n) => Number(n)
+    case Bool(b) => Bool(b)
+    case id: Identifier => scope.getOrElse(id.name, assert(false, "Variable not in scope."))
+    case _ => assert(false, "Unexpected left-hand type in comparison.")
+  }
+
+  val rightEval = right match {
+    case Number(n) => Number(n)
+    case Bool(b) => Bool(b)
+    case id: Identifier => scope.getOrElse(id.name, assert(false, "Variable not found in scope."))
+    case _ => assert(false, "Unexpected right-hand type in comparison.")
+  }
+
+  // if left or right is string.
+  if (leftEval.isInstanceOf[Identifier] || rightEval.isInstanceOf[Identifier]) {
+    op match {
+      case Eq => scope.addOne((NEW_VALUE, Bool(leftEval.asInstanceOf[Identifier].name == rightEval.asInstanceOf[Identifier].name)))
+      case NotEq => scope.addOne((NEW_VALUE, Bool(leftEval.asInstanceOf[Identifier].name != rightEval.asInstanceOf[Identifier].name)))
+      case _ => assert(false, "On Strings, only == and != are allowed.")
+    }
+    return scope
+  }
+
+  // otherwise left and right are bools or numbers
+  val result = op match {
+    case Less => extractNumber(leftEval) < extractNumber(rightEval)
+    case LessEq => extractNumber(leftEval) <= extractNumber(rightEval)
+    case Greater => extractNumber(leftEval) > extractNumber(rightEval)
+    case GreaterEq => extractNumber(leftEval) >= extractNumber(rightEval)
+    case Eq => leftEval == rightEval
+    case NotEq => leftEval != rightEval
+    case null => assert(false, "Unexpected comparison operation.")
+  }
+
+  scope.addOne((NEW_VALUE, Bool(result))) // Adding the result to the scope
+  scope
+}
+
+def evalArithmeticOps(
+    op: ArithmaticOps,
+    left: Value,
+    right: Value,
+    scope: HashMap[String, Value]
+): HashMap[String, Value] = {
+  // evaluate left and right value
+  val leftEval = left match {
+    case Number(n) => Number(n)
+    case Bool(b) => Bool(b)
+    case id: Identifier => scope.getOrElse(id.name, assert(false, "Variable not in scope."))
+    case _ => assert(false, "Unexpected left-hand type in comparison.")
+  }
+
+  val rightEval = right match {
+    case Number(n) => Number(n)
+    case Bool(b) => Bool(b)
+    case id: Identifier => scope.getOrElse(id.name, assert(false, "Variable not found in scope."))
+    case _ => assert(false, "Unexpected right-hand type in comparison.")
+  }
+
+  if (leftEval.isInstanceOf[Identifier] || rightEval.isInstanceOf[Identifier]) {
+    assert(false, "No arithmetic operations of string allowed.")
+  }
+
+  val leftNumber = extractNumber(leftEval)
+  val rightNumber = extractNumber(rightEval)
+  // calculate arithmetic operation
+  val result = op match {
+    case Add => leftNumber + rightNumber
+    case Sub => leftNumber - rightNumber
+    case Mul => leftNumber * rightNumber
+    case Div => leftNumber / rightNumber
+    case Expo => scala.math.pow(leftNumber, rightNumber)
+    case null => assert(false, "Arithmetic operation is null")
+  }
+  scope.addOne((NEW_VALUE, Number(result))) // Adding the result to the scope
+  scope
+}
+
+// Input: Number or Bool. Output: Double (true == 1, false == 0)
+def extractNumber(value: Value): Double = value match {
+  case Number(n) => n
+  case Bool(b) => if (b) 1.0 else 0.0
+  case _ => assert(false, "Expected number or boolean in comparison.")
+}
 
 def call(
     args: Seq[String],

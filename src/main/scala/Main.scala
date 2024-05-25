@@ -47,7 +47,7 @@ object Main {
       val result = parse(content, fileP(using _)): @unchecked
       result match {
         case Parsed.Success(v, _) =>
-          val _ = v.foldLeft(new HashMap[String, Value])((acc, st) =>
+          val context = v.foldLeft(new HashMap[String, Value])((acc, st) =>
             evalStatement(st, acc)
           )
         case Parsed.Failure(v, s, s2) =>
