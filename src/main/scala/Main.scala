@@ -1,5 +1,6 @@
 import fastparse._, NoWhitespace._
 import java.io.*
+import java.{util => ju}
 
 def precedence(op: ArithmaticOps) = op match {
   case ArithmaticOps.Add  => 4
@@ -46,8 +47,8 @@ object Main {
       val result = parse(content, fileP(using _)): @unchecked
       result match {
         case Parsed.Success(v, _) =>
-          for (s <- v)
-            println(s)
+          val x = v.foldLeft(new HashMap[String, Value])((acc, st) => evalStatement(st, acc
+          println(x)
         case Parsed.Failure(v, s, s2) =>
           val fail = Parsed.Failure(v, s, s2)
           val trace = fail.trace().longAggregateMsg
