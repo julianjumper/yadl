@@ -5,6 +5,8 @@ import subprocess
 import filecmp
 from pathlib import Path
 
+DEFAULT_RUN_COMMAND = "yadl-interpreter %s"
+
 
 def parse_comment(comment_line: str):
     if not comment_line.startswith("//"):
@@ -24,15 +26,15 @@ def parse_comment(comment_line: str):
     return {"cmd": cmd, "payload": comment_line}
 
 
-def parse_yadl(filename):
+def parse_yadl(filepath):
     test_cfg = {
-        "run": "yadl-interpreter " + filename,
+        "run": "yadl-interpreter " + filepath,
         "out": [],
         "file-eq": [],
         "remove": [],
     }
 
-    with open(filename, "r") as file:
+    with open(filepath, "r") as file:
         lines = file.readlines()
 
         if len(lines) == 0:
@@ -49,12 +51,19 @@ def parse_yadl(filename):
             # %s is a placeholder for the filename
             for i, token in enumerate(tokens):
                 if token == "%s":
-                    tokens[i] = filename
+                    tokens[i] = filepath
 
             # fill the config by checking for keywords
             # define (alternative) command to run
             if tokens[1] == "RUN:":
-                test_cfg["run"] = " ".join(tokens[2:])
+                assert (
+                    "run" not in test_cfg
+                ), f'RUN command found multiple times in file "{filepath}"'
+
+                if " ".join(tokens[2]) == "DEFAULT":
+                    test_cfg["run"] = DEFAULT_RUN_COMMAND.replace("%s", filepath)
+                else:
+                    test_cfg["run"] = " ".join(tokens[2:])
             # check output
             elif tokens[1] == "CHECK-OUT:":
                 test_cfg["out"].append(" ".join(tokens[2:]))
