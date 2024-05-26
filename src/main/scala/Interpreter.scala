@@ -11,10 +11,19 @@ def evalStatement(
     st: Statement,
     scope: HashMap[String, Value]
 ): HashMap[String, Value] =
+  // First we differentiate of what the current statement is.
+  // The types are given by the statementP parsing rule in the Parser file.
+  // Our goal of this function obviously is to handle all statements. This can either be a definition/re-definition
+  // of a variable. Then we want to update the Hashmap. Or loops, if-else, function calls, return (see statementP rule).
   st match {
     case Assignment(name, value) =>
+      // Assignments have the form variable = Value. See the ValueP rule of the parser for the types that are assignable.
+      // Our goal here is it to evaluate the right-hand side. Eg. x = 4+9, then we want to add the variable x to the
+      // Hashmap with the value 13 as a number.
       val result = evalValue(value, scope)
       // NOTE: `NEW_VALUE` should allways exist. It indicates a bug in `evalValue` if it does not
+      // The evalValue-function stores the newly calculated value in the Hashmap with the key NEW_VALUE. We need to
+      // replace NEW_VALUE with the actual variable name.
       val Some(newValue) = result.remove(NEW_VALUE): @unchecked
       scope.update(name, newValue)
       scope
@@ -63,7 +72,6 @@ def evalValue(
           assert(false, s"the identifier '$identifier' is not a function")
       }
     case BinaryOp(left, op, right) =>
-      // TODO: Add proper handling of binary operations
       val left_result = evalValue(left, scope)
       val Some(new_left) = left_result.remove(NEW_VALUE): @unchecked
       evalValue(right, scope)
@@ -86,7 +94,7 @@ def evalValue(
       assert(false, f"TODO: not implemented '$err'")
   }
   scope
-  // assert(false, "not implemented")
+  // assert(false, "not implemented") // TODO des
 
 def evalBinaryOp(
     op: Operator,

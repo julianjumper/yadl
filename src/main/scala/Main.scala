@@ -2,6 +2,9 @@ import fastparse._, NoWhitespace._
 import java.io.*
 import java.{util => ju}
 
+// Some operators should be calculated before other operators.
+// eg. 4 - 4 * 4 => 4*4 gets calculated before 4-4.
+// So the "precedence" of * is higher than of -. This is handled here.
 def precedence(op: ArithmaticOps) = op match {
   case ArithmaticOps.Add  => 4
   case ArithmaticOps.Sub  => 4
@@ -42,15 +45,23 @@ def readFileContent(filepath: String) =
 
 object Main {
   def main(args: Array[String]): Unit =
+    // read each given file
     for (f <- args)
+      // read file
       val content = readFileContent(f)
+      // parse this file using the starting rule "fileP"
       val result = parse(content, fileP(using _)): @unchecked
       result match {
-        case Parsed.Success(v, _) =>
-          val context = v.foldLeft(new HashMap[String, Value])((acc, st) =>
-            evalStatement(st, acc)
+        case Parsed.Success(stmt_seq, _) =>
+          // parsing successful, ready to be interpreted
+          // This is done by folding over the sequence (seq) of statements (stmt) that we got from the parser.
+          // The first statement is interpreted and new variables are stored in an empty Hashmap.
+          // This Hashmap gets passed to the next statement and so on. So the Hashmap gets updated with each statement.
+          val context = stmt_seq.foldLeft(new HashMap[String, Value])((acc, stmt) =>
+            evalStatement(stmt, acc) // interpret current statement
           )
         case Parsed.Failure(v, s, s2) =>
+          // parsing was not successful.
           val fail = Parsed.Failure(v, s, s2)
           val trace = fail.trace().longAggregateMsg
           println(trace)

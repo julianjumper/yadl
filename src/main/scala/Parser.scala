@@ -194,8 +194,12 @@ def mapper(sts: Seq[Option[Statement]]): Seq[Statement] =
     case Seq()            => Seq()
   }
 
+// Root rule
 def fileP[$: P]: P[Seq[Statement]] =
   ((statementP.? ~ ws ~ newline).rep).map(mapper(_))
+  // fastparse (the parsing library that we use) syntax:
+  // This code means that we call a parser for a statement, then a parser for whitespaces, then for newlines.
+  // This can be repeated any number of times (signaled by .rep). As regex: (statement whitespace* newline)*
 
 //Hilfsparser Number
 def numberDezimalP[$: P] = P(
