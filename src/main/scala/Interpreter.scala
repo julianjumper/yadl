@@ -11,7 +11,7 @@ def evalStatement(
     st: Statement,
     scope: HashMap[String, Value]
 ): HashMap[String, Value] =
-  // First we differentiate of what the current statement is.
+  // First we differentiate of what type the current statement is.
   // The types are given by the statementP parsing rule in the Parser file.
   // Our goal of this function obviously is to handle all statements. This can either be a definition/re-definition
   // of a variable. Then we want to update the Hashmap. Or loops, if-else, function calls, return (see statementP rule).
