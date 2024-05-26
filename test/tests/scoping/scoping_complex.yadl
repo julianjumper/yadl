@@ -1,0 +1,12 @@
+// RUN DEFAULT
+
+x = 5
+
+add = (x) => {
+    x = 7
+    return x
+}
+
+print(x)
+
+// CHECK OUTPUT: 5

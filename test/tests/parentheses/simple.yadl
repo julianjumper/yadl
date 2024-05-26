@@ -1,0 +1,10 @@
+// RUN DEFAULT
+
+x = ("Hello"
+
+    + " World"
+    )
+
+print(x)
+
+// CHECK OUT: Hello World
