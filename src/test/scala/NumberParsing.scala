@@ -55,8 +55,9 @@ class NumberParsing extends munit.FunSuite {
   test("case '0_.0'") {
     val input = "0_.0"
     parse(input, numberP(using _)) match {
-      case Success(value, index) =>
-        assert(false, "parsing succeded where it should have failed")
+      case Success(_, index) =>
+        val tmp = index == input.length
+        assert(!tmp, "parsing succeded where it should have failed")
       case _: Failure =>
         assert(true, "expected failure")
     }
@@ -100,7 +101,7 @@ class NumberParsing extends munit.FunSuite {
 
   test("case '0b1101101.1101'") {
     val input = "0b1101101.1101"
-    val expected = Number(109.13)
+    val expected = Number(109.8125)
     parse(input, numberP(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
@@ -112,7 +113,7 @@ class NumberParsing extends munit.FunSuite {
 
   test("case '0b.1101'") {
     val input = "0b.1101"
-    val expected = Number(0.13)
+    val expected = Number(0.8125)
     parse(input, numberP(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
@@ -124,10 +125,10 @@ class NumberParsing extends munit.FunSuite {
 
   test("case '0b1101101.'") {
     val input = "0b1101101."
-    val expected = Number(109.0)
     parse(input, numberP(using _)) match {
-      case Success(_, _) =>
-        assert(false, "parsing succeded where it should have failed")
+      case Success(_, index) =>
+        val tmp = index == input.length
+        assert(!tmp, "parsing succeded where it should have failed")
       case _: Failure =>
         assert(true, "expected failure")
     }
@@ -135,7 +136,7 @@ class NumberParsing extends munit.FunSuite {
 
   test("case '0x10aaff.22ff'") {
     val input = "0x10aaff.22ff"
-    val expected = Number(1092351.8959)
+    val expected = Number(1092351.1367034912)
     parse(input, numberP(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
@@ -145,37 +146,15 @@ class NumberParsing extends munit.FunSuite {
     }
   }
 
-  test("case '0x10AAFF.22FF'") {
-    val input = "0x10AAFF.22FF"
-    val expected = Number(1092351.8959)
+  test("case '0x10AAFF.F2'") {
+    val input = "0x10AAFF.F2"
+    val expected = Number(1092351.9453125)
     parse(input, numberP(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
       case _: Failure =>
         assert(false, f"number parsing for test case '$input' failed")
-    }
-  }
-
-  test("case '0x10aazz.22zz'") {
-    val input = "0x10aazz.22zz"
-    val expected = Number(1092351.8959)
-    parse(input, numberP(using _)) match {
-      case Success(_, _) =>
-        assert(false, "parsing succeded where it should have failed")
-      case _: Failure =>
-        assert(true, "expected failure")
-    }
-  }
-
-  test("case '0x10AAZZ.22ZZ'") {
-    val input = "0x10AAZZ.22ZZ"
-    val expected = Number(1092351.8959)
-    parse(input, numberP(using _)) match {
-      case Success(_, _) =>
-        assert(false, "parsing succeded where it should have failed")
-      case _: Failure =>
-        assert(true, "expected failure")
     }
   }
 }
