@@ -131,7 +131,7 @@ def functionDefP[$: P]: P[Value] = (
 )
 
 def valueTerminalP[$: P]: P[Value] =
-  functionCallP./ | identifierP | numberP | booleanP
+  booleanP | functionCallP./ | identifierP | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -266,14 +266,14 @@ def numberP[$: P]: P[Number] = P(
 //Hilfsparser String
 def unescape(input: String): String =
   input
-    .replaceAllLiterally("\\\\", "\\")
-    .replaceAllLiterally("\\t", "\t")
-    .replaceAllLiterally("\\b", "\b")
-    .replaceAllLiterally("\\n", "\n")
-    .replaceAllLiterally("\\r", "\r")
-    .replaceAllLiterally("\\f", "\f")
-    .replaceAllLiterally("\\\"", "\"")
-    .replaceAllLiterally("\\\'", "\'")
+    .replace("\\\\", "\\")
+    .replace("\\t", "\t")
+    .replace("\\b", "\b")
+    .replace("\\n", "\n")
+    .replace("\\r", "\r")
+    .replace("\\f", "\f")
+    .replace("\\\"", "\"")
+    .replace("\\\'", "\'")
 
 def charForString1P[$: P] = P(!("\"" | "\\r" | "\\n") ~ AnyChar)
 def charForString2P[$: P] = P(!("\'" | "\\r" | "\\n") ~ AnyChar)
