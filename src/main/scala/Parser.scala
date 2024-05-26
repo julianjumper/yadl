@@ -180,7 +180,9 @@ def valueP[$: P]: P[Value] = (
   functionDefP | valueBinaryOpP | valueWrappedP | valueTerminalP./
 )
 
-def identifierP[$: P]: P[Identifier] = P((CharIn("a-zA-Z") ~ CharIn("a-zA-z0-9_").rep).!.map(x => Identifier(x)))
+def identifierP[$: P]: P[Identifier] = P(
+  (CharIn("a-zA-Z") ~ CharIn("a-zA-z0-9_").rep).!.map(x => Identifier(x))
+)
 
 def assignmentP[$: P]: P[Statement] =
   (identifierP.! ~/ ws ~ "=" ~ ws ~ valueP).map((n, v) => Assignment(n, v))
@@ -196,58 +198,82 @@ def fileP[$: P]: P[Seq[Statement]] =
   ((statementP.? ~ ws ~ newline).rep).map(mapper(_))
 
 //Hilfsparser Number
-def numberDezimalP[$: P] = P(CharIn("0-9") ~ (("_" ~ CharIn("0-9")) | CharIn("0-9")).rep)
-def numberBinaryP[$: P] = P(CharIn("01") ~ (("_" ~ CharIn("01")) | CharIn("01")).rep)
-def numberOctalP[$: P] = P(CharIn("0-7") ~ (("_" ~ CharIn("0-7")) | CharIn("0-7")).rep)
-def numberHexadezimal[$: P] = P(CharIn("0-9a-z") ~ (("_" ~ CharIn("0-9a-z")) | CharIn("0-9a-z")).rep)
+def numberDezimalP[$: P] = P(
+  CharIn("0-9") ~ (("_" ~ CharIn("0-9")) | CharIn("0-9")).rep
+)
+def numberBinaryP[$: P] = P(
+  CharIn("01") ~ (("_" ~ CharIn("01")) | CharIn("01")).rep
+)
+def numberOctalP[$: P] = P(
+  CharIn("0-7") ~ (("_" ~ CharIn("0-7")) | CharIn("0-7")).rep
+)
+def numberHexadezimal[$: P] = P(
+  CharIn("0-9a-z") ~ (("_" ~ CharIn("0-9a-z")) | CharIn("0-9a-z")).rep
+)
 
 //Hilffunktion für Number map
-def basisToDecimal(numberString: String, restString: String, basis: Int): Double =  
-    println("numberString: " + numberString + "; restString: " + restString + "; basis: " + basis)
-    val numberLong = java.lang.Long.parseLong(numberString.replaceAll("_", ""), basis)
-    val restLong = java.lang.Long.parseLong(restString.replaceAll("\\.", "").replaceAll("_", ""), basis)
-    val resultString = numberLong.toString + "." + restLong.toString
-    resultString.toDouble
+def basisToDecimal(
+    numberString: String,
+    restString: String,
+    basis: Int
+): Double =
+  println(
+    "numberString: " + numberString + "; restString: " + restString + "; basis: " + basis
+  )
+  val numberLong =
+    java.lang.Long.parseLong(numberString.replaceAll("_", ""), basis)
+  val restLong = java.lang.Long
+    .parseLong(restString.replaceAll("\\.", "").replaceAll("_", ""), basis)
+  val resultString = numberLong.toString + "." + restLong.toString
+  resultString.toDouble
 
 //Parser Number
-def numberP[$: P]: P[Number] = P((
+def numberP[$: P]: P[Number] = P(
+  (
     ("0b".! ~ numberBinaryP.!.? ~ ("." ~ numberBinaryP).!.?) |
-    ("0o".! ~ numberOctalP.!.? ~ ("." ~ numberOctalP).!.?) |
-    ("0x".! ~ numberHexadezimal.!.? ~ ("." ~ numberHexadezimal).!.?) |
-    (numberDezimalP.!.? ~ ("." ~ numberDezimalP).!.?)
-).map(x => x match {
-    // Dezimal Number Cases
-    case (Some(number), None)       => Number(number.replaceAll("_", "").toDouble)
-    case (Some(number), Some(rest)) => Number((number + rest).replaceAll("_", "").toDouble)
-    case (None, Some(rest))         => Number(rest.replaceAll("_", "").toDouble)
-    // Binary Number Cases
-    case ("0b", Some(number), None)       => Number(basisToDecimal(number, ".0", 2))
-    case ("0b", Some(number), Some(rest)) => Number(basisToDecimal(number, rest, 2))
-    case ("0b", None, Some(rest))         => Number(basisToDecimal("0", rest, 2))
-    //Octal Number Cases
-    case ("0o", Some(number), None)       => Number(basisToDecimal(number, ".0", 8))
-    case ("0o", Some(number), Some(rest)) => Number(basisToDecimal(number, rest, 8))
-    case ("0o", None, Some(rest))         => Number(basisToDecimal("0", rest, 8))
-    //Hexadezimal Number Cases
-    case ("0x", Some(number), None)       => Number(basisToDecimal(number, ".0", 16))
-    case ("0x", Some(number), Some(rest)) => Number(basisToDecimal(number, rest, 16))
-    case ("0x", None, Some(rest))         => Number(basisToDecimal("0", rest, 16))
-    //Default Case
-    case _ => assert(false, "error occured while parsing a number")
-}))
+      ("0o".! ~ numberOctalP.!.? ~ ("." ~ numberOctalP).!.?) |
+      ("0x".! ~ numberHexadezimal.!.? ~ ("." ~ numberHexadezimal).!.?) |
+      (numberDezimalP.!.? ~ ("." ~ numberDezimalP).!.?)
+  ).map(x =>
+    x match {
+      // Dezimal Number Cases
+      case (Some(number), None) => Number(number.replaceAll("_", "").toDouble)
+      case (Some(number), Some(rest)) =>
+        Number((number + rest).replaceAll("_", "").toDouble)
+      case (None, Some(rest)) => Number(rest.replaceAll("_", "").toDouble)
+      // Binary Number Cases
+      case ("0b", Some(number), None) => Number(basisToDecimal(number, ".0", 2))
+      case ("0b", Some(number), Some(rest)) =>
+        Number(basisToDecimal(number, rest, 2))
+      case ("0b", None, Some(rest)) => Number(basisToDecimal("0", rest, 2))
+      // Octal Number Cases
+      case ("0o", Some(number), None) => Number(basisToDecimal(number, ".0", 8))
+      case ("0o", Some(number), Some(rest)) =>
+        Number(basisToDecimal(number, rest, 8))
+      case ("0o", None, Some(rest)) => Number(basisToDecimal("0", rest, 8))
+      // Hexadezimal Number Cases
+      case ("0x", Some(number), None) =>
+        Number(basisToDecimal(number, ".0", 16))
+      case ("0x", Some(number), Some(rest)) =>
+        Number(basisToDecimal(number, rest, 16))
+      case ("0x", None, Some(rest)) => Number(basisToDecimal("0", rest, 16))
+      // Default Case
+      case _ => assert(false, "error occured while parsing a number")
+    }
+  )
+)
 
 //Hilfsparser String
 def unescape(input: String): String =
-    input
-      .replaceAllLiterally("\\\\", "\\")
-      .replaceAllLiterally("\\t", "\t")
-      .replaceAllLiterally("\\b", "\b")
-      .replaceAllLiterally("\\n", "\n")
-      .replaceAllLiterally("\\r", "\r")
-      .replaceAllLiterally("\\f", "\f")
-      .replaceAllLiterally("\\\"", "\"")
-      .replaceAllLiterally("\\\'", "\'")
-        
+  input
+    .replaceAllLiterally("\\\\", "\\")
+    .replaceAllLiterally("\\t", "\t")
+    .replaceAllLiterally("\\b", "\b")
+    .replaceAllLiterally("\\n", "\n")
+    .replaceAllLiterally("\\r", "\r")
+    .replaceAllLiterally("\\f", "\f")
+    .replaceAllLiterally("\\\"", "\"")
+    .replaceAllLiterally("\\\'", "\'")
 
 def charForString1P[$: P] = P(!("\"" | "\\r" | "\\n") ~ AnyChar)
 def charForString2P[$: P] = P(!("\'" | "\\r" | "\\n") ~ AnyChar)
@@ -256,11 +282,16 @@ def charForMultilineString2P[$: P] = P(!"\'\'\'" ~ AnyChar)
 
 //Parser String
 //def formatStringP[$: P] = P()
-def stdStringP[$: P] = P((("\"\"\"" ~ charForMultilineString1P.rep.! ~ "\"\"\"")|
-                          ("\'\'\'" ~ charForMultilineString1P.rep.! ~ "\'\'\'")|
-                          ("\"" ~ charForString1P.rep.! ~ "\"")|
-                          ("\'" ~ charForString2P.rep.! ~ "\'")
-                          ).map(x => StdString(unescape(x))))
+def stdStringP[$: P] = P(
+  (("\"\"\"" ~ charForMultilineString1P.rep.! ~ "\"\"\"") |
+    ("\'\'\'" ~ charForMultilineString1P.rep.! ~ "\'\'\'") |
+    ("\"" ~ charForString1P.rep.! ~ "\"") |
+    ("\'" ~ charForString2P.rep.! ~ "\'")).map(x => StdString(unescape(x)))
+)
 
-def stdMultiStringP[$: P] = P((("\"\"\"" ~ charForMultilineString1P.rep.! ~ "\"\"\"") ~ End|
-                          ("\'\'\'" ~ charForMultilineString1P.rep.! ~ "\'\'\'") ~ End).map(x => StdString(unescape(x))))
+def stdMultiStringP[$: P] = P(
+  (("\"\"\"" ~ charForMultilineString1P.rep.! ~ "\"\"\"") ~ End |
+    ("\'\'\'" ~ charForMultilineString1P.rep.! ~ "\'\'\'") ~ End).map(x =>
+    StdString(unescape(x))
+  )
+)
