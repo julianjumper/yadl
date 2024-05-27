@@ -52,7 +52,7 @@ class NumberParsing extends munit.FunSuite {
     }
   }
 
-  test("case '0_.0'") {
+  test("case '0_.0' (should fail)") {
     val input = "0_.0"
     parse(input, numberP(using _)) match {
       case Success(_, index) =>
@@ -123,7 +123,7 @@ class NumberParsing extends munit.FunSuite {
     }
   }
 
-  test("case '0b1101101.'") {
+  test("case '0b1101101.' (should fail)") {
     val input = "0b1101101."
     parse(input, numberP(using _)) match {
       case Success(_, index) =>
@@ -155,6 +155,20 @@ class NumberParsing extends munit.FunSuite {
         assertEquals(index, input.length, "input has not been parsed fully")
       case _: Failure =>
         assert(false, f"number parsing for test case '$input' failed")
+    }
+  }
+
+  test("case '0x.' (should fail)") {
+    val input = "0x."
+    parse(input, numberP(using _)) match {
+      case Success(_, index) =>
+        assertEquals(index, input.length, "input has not been parsed fully")
+        assert(
+          false,
+          "unexpected success: number does not have any digits and thus should fail"
+        )
+      case _: Failure =>
+        assert(true)
     }
   }
 }
