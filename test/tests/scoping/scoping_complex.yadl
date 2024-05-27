@@ -3,10 +3,22 @@
 x = 5
 
 add = (x) => {
-    x = 7
+    x = x + 2
     return x
 }
+
+print(add(x))
+
+// CHECK OUT: 7
 
 print(x)
 
 // CHECK OUTPUT: 5
+
+add_mutate = () => {x = x + 2}
+
+add_mutate()
+
+print(x)
+
+// CHECK OUT: 7
