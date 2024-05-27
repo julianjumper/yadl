@@ -1,67 +1,69 @@
 import fastparse._, NoWhitespace._
+import java.io.*
+import java.{util => ju}
 
-def wsSingle[$: P] = P(" " | "\t")
-def ws[$: P] = P(wsSingle.rep)
-def newline[$: P] = P("\n" | "\r" | "\n\r")
+// Some operators should be calculated before other operators.
+// eg. 4 - 4 * 4 => 4*4 gets calculated before 4-4.
+// So the "precedence" of * is higher than of -. This is handled here.
+def precedence(op: ArithmaticOps) = op match {
+  case ArithmaticOps.Add  => 4
+  case ArithmaticOps.Sub  => 4
+  case ArithmaticOps.Mul  => 5
+  case ArithmaticOps.Div  => 5
+  case ArithmaticOps.Expo => 6
+}
 
-def numberP[$: P] =
-  P((CharPred(_.isDigit) ~ CharPred(_.isDigit).rep).!).map(s => Number(s.toInt))
+def precedence(op: BooleanOps) = op match {
+  case BooleanOps.And => 2
+  case BooleanOps.Or  => 1
+  case BooleanOps.Not => 3
+}
 
-def stringP[$: P] = P("'" ~ AnyChar.rep.! ~ "'")
-def stringConcatP[$: P] = P("++")
+def precedenceOf(value: Value): Int = value match {
+  case BinaryOp(_, ArithmaticOp(op), _) => precedence(op)
+  case BinaryOp(_, BooleanOp(op), _)    => precedence(op)
+  case BinaryOp(_, CompareOp(_), _)     => 0
+  case Wrapped(v)                       => 10 + precedenceOf(v)
+  case _                                => 100000
+}
 
-def arihmeticOperatorP[$: P] = P((CharIn("*/+") | "-").!)
-def booleanOperatorP[$: P] = P(("and" | "or" | "not").!)
+// Thank you Java (-_-)
+def readFileContent(filepath: String): String =
+  var file = new File(filepath);
 
-trait Value
-case class Identifier(name: String) extends Value
-case class Number(v: Integer) extends Value
-case class BinaryOp(left: Value, op: String, right: Value) extends Value
-case class FunctionCall(id: String, args: Seq[Value]) extends Value
+  var fis = FileInputStream(file);
+  var baos = ByteArrayOutputStream()
+  var buffer = Array.ofDim[scala.Byte](1024);
+  var bytesRead = 0;
 
-def valueTerminalP[$: P]: P[Value] = P(
-  valueFunctionCallP | identifierP | numberP
-)
-
-def functionCallArgs[$: P]: P[Seq[Value]] = P(
-  valueTerminalP ~ (ws ~ "," ~ ws ~ functionCallArgs).?
-).map((v, vs) =>
-  vs match {
-    case None     => Seq(v)
-    case Some(xs) => v +: xs
+  bytesRead = fis.read(buffer)
+  while (bytesRead != -1) {
+    baos.write(buffer, 0, bytesRead)
+    bytesRead = fis.read(buffer)
   }
-)
+  baos.toString
 
-def valueFunctionCallP[$: P]: P[Value] = P(
-  identifierP.! ~ ws ~ "(" ~ ws ~ functionCallArgs.? ~ ws ~ ")"
-).map((n, bs) =>
-  bs match {
-    case None     => FunctionCall(n, Seq())
-    case Some(xs) => FunctionCall(n, xs)
-  }
-)
-
-def valueBinaryOpP[$: P]: P[Value] = P(
-  valueTerminalP ~ ws ~ arihmeticOperatorP ~ ws ~ valueP
-).map((l, op, r) => BinaryOp(l, op, r))
-
-def valueP[$: P]: P[Value] = P(
-  "(" ~ valueP ~ ")" | valueBinaryOpP | valueTerminalP
-)
-
-def identifierStartP[$: P] = P(CharIn("a-z") | CharIn("A-Z"))
-def identifierRestP[$: P] = P(
-  CharIn("a-z") | CharIn("A-Z") | CharIn("0-9") | "_"
-)
-def identifierP[$: P]: P[Value] =
-  P((identifierStartP ~ identifierRestP.rep).!).map(Identifier(_))
-
-def assignmentP[$: P] = P(identifierP ~ ws ~ "=" ~ ws ~ valueP)
-
-@main def hello(): Unit =
-  val Parsed.Success(v, _) =
-    parse("aoeu = 15 + f(3, 4) - (3 * (23 + 3))", assignmentP(_))
-  println(v)
-  val Parsed.Success(w, _) =
-    parse("aoeu = 15 + f() - (3 * (23 + 3))", assignmentP(_))
-  println(w)
+object Main {
+  def main(args: Array[String]): Unit =
+    // read each given file
+    for (f <- args)
+      // read file
+      val content = readFileContent(f)
+      // parse this file using the starting rule `fileP`
+      val result = parse(content, fileP(using _)): @unchecked
+      result match {
+        case Parsed.Success(stmt_seq, _) =>
+          // parsing successful, ready to be interpreted
+          // This is done by folding over the sequence (seq) of statements (stmt) that we got from the parser.
+          // The first statement is interpreted and new variables are stored in an empty Scope.
+          // This Scope gets passed to the next statement and so on. So the Scope gets updated with each statement.
+          val context = stmt_seq.foldLeft(new Scope)(
+            evalStatement // interpret current statement
+          )
+        case Parsed.Failure(v, s, s2) =>
+          // parsing was not successful.
+          val fail = Parsed.Failure(v, s, s2)
+          val trace = fail.trace().longAggregateMsg
+          println(trace)
+      }
+}
