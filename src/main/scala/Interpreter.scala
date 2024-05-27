@@ -105,24 +105,23 @@ def evalStatement(
     st: Statement
 ): Scope =
   // First we differentiate of what type the current statement is.
-  // The types are given by the statementP parsing rule in the Parser file.
+  // The types are given by the `statementP` parsing rule in the Parser file.
   // Our goal of this function obviously is to handle all statements. This can either be a definition/re-definition
-  // of a variable. Then we want to update the Hashmap. Or loops, if-else, function calls, return (see statementP rule).
+  // of a variable. Then we want to update the Scope. Or loops, if-else, function calls, return (see statementP rule).
   if (scope.hasResult)
     scope
   else
     st match {
       case Assignment(name, value) =>
-        // Assignments have the form variable = Value. See the ValueP rule of the parser for the types that are assignable.
+        // Assignments have the form variable = Value. See the `valueP` rule of the parser for the types that are assignable.
         // Our goal here is it to evaluate the right-hand side. Eg. x = 4+9, then we want to add the variable x to the
-        // Hashmap with the value 13 as a number.
+        // Scope with the value 13 as a number.
         val result = evalValue(value, scope)
         // NOTE: `.result` should allways exist. It indicates a bug in `evalValue` if it does not
-        // The evalValue-function stores the newly calculated value in the Hashmap with the key NEW_VALUE. We need to
-        // replace NEW_VALUE with the actual variable name.
+        // The evalValue-function stores the newly calculated value in the Scope in the variable `result`. We need to
+        // update the variable `name` with this new value.
         val Some(newValue) = result.result: @unchecked
         scope.update(Identifier(name), newValue)
-        scope
       case FunctionCall(identifier, callArgs) =>
         evalFunctionCall(identifier, callArgs, scope)
       case Return(value) =>

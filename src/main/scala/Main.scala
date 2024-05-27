@@ -49,14 +49,14 @@ object Main {
     for (f <- args)
       // read file
       val content = readFileContent(f)
-      // parse this file using the starting rule "fileP"
+      // parse this file using the starting rule `fileP`
       val result = parse(content, fileP(using _)): @unchecked
       result match {
         case Parsed.Success(stmt_seq, _) =>
           // parsing successful, ready to be interpreted
           // This is done by folding over the sequence (seq) of statements (stmt) that we got from the parser.
-          // The first statement is interpreted and new variables are stored in an empty Hashmap.
-          // This Hashmap gets passed to the next statement and so on. So the Hashmap gets updated with each statement.
+          // The first statement is interpreted and new variables are stored in an empty Scope.
+          // This Scope gets passed to the next statement and so on. So the Scope gets updated with each statement.
           val context = stmt_seq.foldLeft(new Scope)(
             evalStatement // interpret current statement
           )
