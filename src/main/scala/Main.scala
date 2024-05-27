@@ -28,7 +28,7 @@ def precedenceOf(value: Value): Int = value match {
 }
 
 // Thank you Java (-_-)
-def readFileContent(filepath: String) =
+def readFileContent(filepath: String): String =
   var file = new File(filepath);
 
   var fis = FileInputStream(file);
@@ -38,10 +38,10 @@ def readFileContent(filepath: String) =
 
   bytesRead = fis.read(buffer)
   while (bytesRead != -1) {
-    baos.write(buffer, 0, bytesRead);
+    baos.write(buffer, 0, bytesRead)
     bytesRead = fis.read(buffer)
   }
-  baos.toString();
+  baos.toString
 
 object Main {
   def main(args: Array[String]): Unit =
