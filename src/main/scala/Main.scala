@@ -57,8 +57,8 @@ object Main {
           // This is done by folding over the sequence (seq) of statements (stmt) that we got from the parser.
           // The first statement is interpreted and new variables are stored in an empty Hashmap.
           // This Hashmap gets passed to the next statement and so on. So the Hashmap gets updated with each statement.
-          val context = stmt_seq.foldLeft(new HashMap[String, Value])((acc, stmt) =>
-            evalStatement(stmt, acc) // interpret current statement
+          val context = stmt_seq.foldLeft(new Scope)(
+            evalStatement // interpret current statement
           )
         case Parsed.Failure(v, s, s2) =>
           // parsing was not successful.
