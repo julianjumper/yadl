@@ -198,14 +198,14 @@ def fileP[$: P]: P[Seq[Statement]] =
   ((statementP.? ~ ws ~ newline).rep).map(mapper(_))
 
 //Hilfsparser Number
-def digitsP[$: P](digitParser: => P[String]): P[String] =
+def digitsP[$: P](digitParser: => P[Char]): P[String] =
   (digitParser ~ (("_" ~ digitParser) | digitParser).rep)
-    .map((f, r) => f + r.foldLeft("")(_ + _))
+    .map((f, r) => r.foldLeft(StringBuffer().append(f))(_.append(_)).toString)
 
-def dezimalP[$: P] = P(CharIn("0-9").!)
-def binaryP[$: P] = P(CharIn("01").!)
-def octalP[$: P] = P(CharIn("0-7").!)
-def hexadezimalP[$: P] = P(CharIn("0-9a-fA-F").!)
+def dezimalP[$: P] = P(CharIn("0-9").!).map(_.head)
+def binaryP[$: P] = P(CharIn("01").!).map(_.head)
+def octalP[$: P] = P(CharIn("0-7").!).map(_.head)
+def hexadezimalP[$: P] = P(CharIn("0-9a-fA-F").!).map(_.head)
 
 //Hilffunktion für Number map
 def basisToDecimal(
@@ -215,10 +215,7 @@ def basisToDecimal(
 ): Double =
   val numberLong = java.lang.Long.parseLong(numberString, basis).toDouble
   val restLong = java.lang.Long.parseLong(restString, basis).toDouble
-  val fraction = restLong / scala.math.pow(
-    basis,
-    restString.length
-  )
+  val fraction = restLong / scala.math.pow(basis, restString.length)
   numberLong + fraction
 
 //Parser Number
@@ -240,7 +237,7 @@ def numberDigits[$: P](baseType: Base) = baseType match {
   case Base.Hexadecimal => digitsP(hexadezimalP)
 }
 
-def dotNumber[$: P](base: Base): P[Number] =
+def dotDigits[$: P](base: Base): P[Number] =
   ("." ~ numberDigits(base)).map(s =>
     base match
       case Base.Binary      => Number(basisToDecimal("0", s, 2))
@@ -249,7 +246,7 @@ def dotNumber[$: P](base: Base): P[Number] =
       case Base.Hexadecimal => Number(basisToDecimal("0", s, 16))
   )
 
-def numberDotNumber[$: P](base: Base): P[Number] =
+def digitsDotDigits[$: P](base: Base): P[Number] =
   (numberDigits(base) ~ "." ~ numberDigits(base)).map((f, r) =>
     base match
       case Base.Binary      => Number(basisToDecimal(f, r, 2))
@@ -258,7 +255,7 @@ def numberDotNumber[$: P](base: Base): P[Number] =
       case Base.Hexadecimal => Number(basisToDecimal(f, r, 16))
   )
 
-def number[$: P](base: Base): P[Number] =
+def digits[$: P](base: Base): P[Number] =
   (numberDigits(base)).map(s =>
     base match
       case Base.Binary      => Number(basisToDecimal(s, "0", 2))
@@ -268,7 +265,7 @@ def number[$: P](base: Base): P[Number] =
   )
 
 def numberFull[$: P](base: Base): P[Number] =
-  dotNumber(base) | numberDotNumber(base) | number(base)
+  dotDigits(base) | digitsDotDigits(base) | digits(base)
 
 def numberP[$: P]: P[Number] =
   basePrefix.flatMap(numberFull)
