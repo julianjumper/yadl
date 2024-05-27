@@ -50,6 +50,56 @@ class Scope(
     this
 end Scope
 
+def evalFunctionCall(
+    identifier: String,
+    callArgs: Seq[Value],
+    scope: Scope
+): Scope =
+  if (identifier == "print") {
+    for (arg <- callArgs)
+      val tmp = evalValue(arg, scope)
+      val Some(res) = tmp.result: @unchecked
+      printValue(res)
+    print("\n")
+    scope
+  } else {
+    scope.lookup(Identifier(identifier)) match {
+      case Some(Function(args, body)) =>
+        val res =
+          body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
+        val Some(value) = res.result: @unchecked
+        scope.returnValue(value)
+      case Some(_) => assert(false, "Only functions may be called")
+      case None =>
+        assert(
+          false,
+          s"TODO: case None in function call in eval '$identifier'"
+        )
+    }
+  }
+
+def evalReturn(value: Value, scope: Scope): Scope =
+  if (scope.isGlobal) assert(false, "can not return from global scope")
+  else
+    value match {
+      case id: Identifier =>
+        (scope.result, scope.lookup(id)) match {
+          case (None, Some(v)) => scope.returnValue(v)
+          case (Some(v), _)    => scope.returnValue(v)
+          case (None, None) =>
+            assert(
+              false,
+              s"identifier '${id.name}' does not exist that could be returned"
+            )
+        }
+
+      case va =>
+        scope.result match {
+          case None    => scope.returnValue(va)
+          case Some(v) => scope.returnValue(v)
+        }
+    }
+
 def evalStatement(
     scope: Scope,
     st: Statement
@@ -74,46 +124,9 @@ def evalStatement(
         scope.update(Identifier(name), newValue)
         scope
       case FunctionCall(identifier, callArgs) =>
-        if (identifier == "print") {
-          for (arg <- callArgs)
-            val tmp = evalValue(arg, scope)
-            val Some(res) = tmp.result: @unchecked
-            printValue(res)
-          print("\n")
-          scope
-        } else {
-          scope.lookup(Identifier(identifier)) match {
-            case Some(Function(args, body)) =>
-              call(body, Scope(scope, args, callArgs))
-            case Some(_) => assert(false, "Only functions may be called")
-            case None =>
-              assert(
-                false,
-                s"TODO: case None in function call in eval '$identifier'"
-              )
-          }
-        }
+        evalFunctionCall(identifier, callArgs, scope)
       case Return(value) =>
-        if (scope.isGlobal) assert(false, "can not return from global scope")
-        else
-          value match {
-            case id: Identifier =>
-              (scope.result, scope.lookup(id)) match {
-                case (None, Some(v)) => scope.returnValue(v)
-                case (Some(v), _)    => scope.returnValue(v)
-                case (None, None) =>
-                  assert(
-                    false,
-                    s"identifier '${id.name}' does not exist that could be returned"
-                  )
-              }
-
-            case va =>
-              scope.result match {
-                case None    => scope.returnValue(va)
-                case Some(v) => scope.returnValue(v)
-              }
-          }
+        evalReturn(value, scope)
       case Expression(expr) =>
         val result = evalValue(expr, scope)
         val Some(return_value) = result.result: @unchecked
@@ -128,14 +141,7 @@ def evalValue(
     case Function(args, body) =>
       scope.returnValue(Function(args, body))
     case FunctionCall(identifier, callArgs) =>
-      scope.lookup(Identifier(identifier)) match {
-        case Some(Function(args, body)) =>
-          call(body, Scope(scope, args, callArgs))
-        case None =>
-          assert(false, s"function '$identifier' not found")
-        case Some(_) =>
-          assert(false, s"the identifier '$identifier' is not a function")
-      }
+      evalFunctionCall(identifier, callArgs, scope)
     case BinaryOp(left, op, right) =>
       val left_result = evalValue(left, scope)
       val Some(new_left) = left_result.result: @unchecked
@@ -280,12 +286,6 @@ def extractNumber(value: Value): Double = value match {
   case Bool(b)   => if (b) 1.0 else 0.0
   case _         => assert(false, "Expected number or boolean in comparison.")
 }
-
-def call(
-    body: Seq[Statement],
-    scope: Scope
-): Scope =
-  body.foldLeft(scope)(evalStatement)
 
 def printValue(value: Value) =
   // NOTE: We assume we have only primitive values
