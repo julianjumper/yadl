@@ -28,7 +28,6 @@ def parse_comment(comment_line: str):
 
 def parse_yadl(filepath):
     test_cfg = {
-        "run": "yadl-interpreter " + filepath,
         "out": [],
         "file-eq": [],
         "remove": [],
