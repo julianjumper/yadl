@@ -164,12 +164,47 @@ def binaryOperator[$: P]: P[Operator] =
     BooleanOp(_)
   ) | compareOperatorP.map(CompareOp(_))
 
+// Some operators should be calculated before other operators.
+// eg. 4 - 4 * 4 => 4*4 gets calculated before 4-4.
+// So the "precedence" of * is higher than of -. This is handled here.
+def precedence(op: ArithmaticOps) = op match {
+  case ArithmaticOps.Add  => 4
+  case ArithmaticOps.Sub  => 4
+  case ArithmaticOps.Mul  => 5
+  case ArithmaticOps.Div  => 5
+  case ArithmaticOps.Expo => 6
+}
+
+def precedence(op: BooleanOps) = op match {
+  case BooleanOps.And => 2
+  case BooleanOps.Or  => 1
+  case BooleanOps.Not => 3
+}
+
+def precedenceOf(value: Value): Int = value match {
+  case BinaryOp(_, ArithmaticOp(op), _) => precedence(op)
+  case BinaryOp(_, BooleanOp(op), _)    => precedence(op)
+  case BinaryOp(_, CompareOp(_), _)     => 0
+  case _                                => 100000
+}
+
 def valueBinaryOpP[$: P]: P[Value] = (
   (valueWrappedP | valueTerminalP./) ~ (ws ~ binaryOperator ~ ws ~ valueP).?
 ).map((l, rest) =>
   rest match {
-    case Some((op, r)) => BinaryOp(l, op, r)
-    case None          => l
+    case Some((op, r)) =>
+      r match {
+        case b: BinaryOp =>
+          if (precedenceOf(BinaryOp(l, op, r)) >= precedenceOf(b))
+            val left = l
+            val middle = b.left
+            val right = b.right
+            BinaryOp(BinaryOp(left, op, middle), b.op, right)
+          else BinaryOp(l, op, b)
+        case right =>
+          BinaryOp(l, op, right)
+      }
+    case None => l
   }
 )
 
