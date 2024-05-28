@@ -75,12 +75,11 @@ The arguments are passed as an array
 ### Example
 ```
 x = (y, args...) => {
-    while (y < len(args)): 
-        {
+    while (y < len(args)){
         print(args[y])
         y += 1
-        }
     }
+}
 
 x(0, 1, 2, 3, 4)
 
