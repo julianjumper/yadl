@@ -149,7 +149,7 @@ Default serialization format is always json.
 ## load as (keyword)
 `load EXPR (as EXPR)?` - loads the file.
 
-## printnal (build in)
+## printnal (built in)
 `printnal(EXPR, EXPR)` - prints the result of the first epxr to the console. May convert objects to a string. print not a line (nal). Takes the file format as optional second parameter.
 
 
