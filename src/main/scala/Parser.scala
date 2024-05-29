@@ -172,7 +172,7 @@ def precedence(op: ArithmaticOps) = op match {
   case ArithmaticOps.Sub  => 4
   case ArithmaticOps.Mul  => 5
   case ArithmaticOps.Div  => 5
-  case ArithmaticOps.Expo => 6
+  case ArithmaticOps.Expo => 7
 }
 
 def precedence(op: BooleanOps) = op match {
@@ -181,29 +181,29 @@ def precedence(op: BooleanOps) = op match {
   case BooleanOps.Not => 3
 }
 
-def precedenceOf(value: Value): Int = value match {
+def precedenceOf(value: BinaryOp): Int = value match {
   case BinaryOp(_, ArithmaticOp(op), _) => precedence(op)
   case BinaryOp(_, BooleanOp(op), _)    => precedence(op)
   case BinaryOp(_, CompareOp(_), _)     => 0
-  case _                                => 100000
 }
+
+def orderBy(binOp: BinaryOp, pred: BinaryOp => Int): BinaryOp =
+  val BinaryOp(left, op, right) = binOp
+  right match {
+    case b: BinaryOp =>
+      if (pred(binOp) >= pred(b))
+        val inner = orderBy(BinaryOp(left, op, b.left), pred)
+        BinaryOp(inner, b.op, b.right)
+      else binOp
+    case _ => binOp
+  }
 
 def valueBinaryOpP[$: P]: P[Value] = (
   (valueWrappedP | valueTerminalP./) ~ (ws ~ binaryOperator ~ ws ~ valueP).?
 ).map((l, rest) =>
   rest match {
     case Some((op, r)) =>
-      r match {
-        case b: BinaryOp =>
-          if (precedenceOf(BinaryOp(l, op, r)) >= precedenceOf(b))
-            val left = l
-            val middle = b.left
-            val right = b.right
-            BinaryOp(BinaryOp(left, op, middle), b.op, right)
-          else BinaryOp(l, op, b)
-        case right =>
-          BinaryOp(l, op, right)
-      }
+      orderBy(BinaryOp(l, op, r), precedenceOf)
     case None => l
   }
 )

@@ -171,4 +171,46 @@ class OperatorPrecedence extends munit.FunSuite {
         assert(false, f"number parsing for test case '$input' failed")
     }
   }
+
+  test("case '1 - 2 / 3 + 4 * 5 ^ 6 + 7'") {
+    val input = "1 - 2 / 3 + 4 * 5 ^ 6 + 7"
+    val expected = 1 - 2.0 / 3.0 + 4 * scala.math.pow(5, 6) + 7
+    parse(input, valueBinaryOpP(using _)) match {
+      case Success(result, index) =>
+        val resultScope = evalValue(result, new Scope)
+        val Some(Number(value)) = resultScope.result: @unchecked
+        assertEquals(value, expected)
+        assertEquals(index, input.length, "input has not been parsed fully")
+      case _: Failure =>
+        assert(false, f"number parsing for test case '$input' failed")
+    }
+  }
+
+  test("case '1 - 2 / (3 + 4) * 5 ^ (6 + 7)'") {
+    val input = "1 - 2 / (3 + 4) * 5 ^ (6 + 7)"
+    val expected = 1 - 2.0 / (3.0 + 4) * scala.math.pow(5, 6 + 7)
+    parse(input, valueBinaryOpP(using _)) match {
+      case Success(result, index) =>
+        val resultScope = evalValue(result, new Scope)
+        val Some(Number(value)) = resultScope.result: @unchecked
+        assertEquals(value, expected)
+        assertEquals(index, input.length, "input has not been parsed fully")
+      case _: Failure =>
+        assert(false, f"number parsing for test case '$input' failed")
+    }
+  }
+
+  test("case '1 - 2 / 3 + 4 * 5 ^ 6 + 7 * 8'") {
+    val input = "1 - 2 / 3 + 4 * 5 ^ 6 + 7 * 8"
+    val expected = 1 - 2.0 / 3.0 + 4 * scala.math.pow(5, 6) + 7 * 8
+    parse(input, valueBinaryOpP(using _)) match {
+      case Success(result, index) =>
+        val resultScope = evalValue(result, new Scope)
+        val Some(Number(value)) = resultScope.result: @unchecked
+        assertEquals(value, expected)
+        assertEquals(index, input.length, "input has not been parsed fully")
+      case _: Failure =>
+        assert(false, f"number parsing for test case '$input' failed")
+    }
+  }
 }
