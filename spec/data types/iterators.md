@@ -152,7 +152,7 @@ The following functions are provided by the language:
 
 `map(it: iterator[object], fn: func[object -> object]) -> iterator[object]` - Returns an iterator, that returns every element in `it` and applies `fn` to it.
 
-`reduce(it: iterator[object], fn: func[object, object -> object], default=undefined) -> object` - Applies `fn` first to the first 2 elements, then to the result of this operation and the thrid, and so on. If `default` is set, use it as the zero'th item in `it`. Otherwise `it` must have at least one arguments. 
+`reduce(it: iterator[object], fn: func[object, object -> object], default=undefined) -> object` - Applies `fn` first to the first 2 elements, then to the result of this operation and the third, and so on. If `default` is set, use it as the zero'th item in `it`. Otherwise `it` must have at least one arguments. 
 
 `first(it: iterator, fn: func[object -> bool], default=undefined) -> object` - Returns the first object in `it` that satisfies `fn`. If no such object exists, throw an error if `default` is not set. Otherwise return `default`.
 
