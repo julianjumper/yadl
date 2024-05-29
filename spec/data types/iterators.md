@@ -28,9 +28,10 @@ if (hasnext(it)) {
 }
 ```
 
+Where `next` and `hasnext` are functions provided by the language.
+
 ## Examples
 
-Where `next` and `hasnext` are functions provided by the language.
 
 These are meant to give an understanding of how iterators are expected to work. 
 They should not be taken as a guideline for how iterators need to be implemented
