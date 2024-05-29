@@ -79,10 +79,10 @@ filter = (it, filterFn) => {
 listToIterator = (lst) => {
     hasnext_ = (d) => {
        return curInd < len(lst) 
-}
-  t_ = (        if (not hasnext_(d)) {
-    next    {
-        )
+    }
+    next_ = {
+    if (not hasnext_(d)) {
+            error()
         }
     
         e = lst[curInd]
@@ -95,12 +95,19 @@ listToIterator = (lst) => {
     return iterator(next_, hasnext_, d)
 }
 
-t
-// This function expects a list a
-umblingWindow = (it, window_size,nd needs an array data that conforms to containiyng an array as well as tracking the current ind
 
-xe step_size) => {
-xexT    hasnext_ = (d) => hasnext(d.it)
+// This function expects a list and uses a dict data that contains a copy of the passed list as well as tracking the current index
+
+// hasnext_ returns true if the list in data contains another element, else false
+
+// next_ returns the next element in the list contained in data if it exists, else it throws an error
+
+// Then a new iterator is created and returned using hasnext_, next_ and data
+
+
+
+TumblingWindow = (it, window_size, step_size) => {
+    hasnext_ = (d) => hasnext(d.it)
     
     next_ = (d) => {
     
@@ -125,6 +132,14 @@ xexT    hasnext_ = (d) => hasnext(d.it)
     
     return iterator(hasnext_, next_, d)
 }
+// This function expects an iterator, as well as a window size and a step size for how many values the window should be moved inbetween each call of. It also uses a dict data to keep track of the iterator, window size, step size and a buffer containing the values in a window
+
+// hasnext_ simply checks if the iterator in data contains another element
+
+// next_ reads elements from the iterator and writes them to the buffer until the buffer is 'full' (contains window_size many elements) or there are no more elements in the iterator. It then writes them to an array. Then it removes step_size many from the front of the array in order to guarantee that the next call of next_ returns the next window. Then it returns the array containing the window. If next_ is called and both the buffer is empty and no more elements are in the iterator we are windowing over, an error is thrown.
+
+// Then a new iterator using hasnext_, next_ and data is returned
+
 ```
 
 ## Built-ins
