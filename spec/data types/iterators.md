@@ -11,7 +11,7 @@ You can access elements one by one. Convenient usecasses are for example:
 An iterator itself is an opaque datatype. Which can be created the following eay:
 
 ```
-custom_iterator = iterator(next_function, hasnext_fu,ction it)erator_data
+custom_iterator = iterator(next_function, hasnext_function, iterator_data)
 ```
 Where `iterator` is a function supplied by the language.
 
