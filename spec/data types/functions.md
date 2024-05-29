@@ -64,6 +64,23 @@ print(x(5)) // prints 6
 y = (u=2, w) => u + w //causes an error because an optional argument is followd by a nonoptional argument
 ```
 
+## undefined
+In a function, the default value of optional arguments can be set to `undefined`. This is a value that can only be used for this purpose. Checking whether a value is `undefined` can be done using the `is_undefined()` function. 
+
+### Example
+```
+x = (x=undefined) => {
+    if (is_undefined(x)){
+        return ":("
+    }
+    return ":)"
+}
+
+x() // returns ":("
+
+x(2) // returns ":)"
+```
+
 ## arglist
 
 You can have a function expect multiple arguments by following an argument with `...`
