@@ -7,7 +7,7 @@ You can access elements one by one. Convenient usecasses are for example:
 - Data that is being created in real time. For example Network Packet streams.
 
 
-You can c and Semantic
+## Syntax and Semantic
 An iterator itself is an opaque datatype. Which can be created the following eay:
 
 ```
@@ -27,6 +27,8 @@ if (hasnext(it)) {
     element = next(it)
 }
 ```
+
+## Examples
 
 Where `next` and `hasnext` are functions provided by the language.
 
