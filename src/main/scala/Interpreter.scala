@@ -131,8 +131,8 @@ def evalStatement(
         val result = evalValue(expr, scope)
         val Some(return_value) = result.result: @unchecked
         result.returnValue(return_value)
-      case If(initial, elifs, end) => {
-        evalIf(initial, elifs, end, scope)
+      case If(ifBranch, elifBranches, elseBranch) => {
+        evalIf(ifBranch, elifBranches, elseBranch, scope)
       }
 
     }
