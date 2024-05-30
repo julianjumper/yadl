@@ -1,11 +1,8 @@
+x = 0
 
-f = (count) => {
-    r = 0
-    while ( count > 0 ) {
-        r = r + 2
-        count = count - 1
-    }
-    return r
+while(x < 5) {
+    print(x)
+    x = x + 1
 }
 
-print( f(5) )
+print(x)

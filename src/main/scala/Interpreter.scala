@@ -134,8 +134,20 @@ def evalStatement(
       case If(initial, elifs, end) => {
         evalIf(initial, elifs, end, scope)
       }
-
+      case WhileLoop(loop) =>
+        evalWhileLoop(loop, scope)
     }
+
+def evalWhileLoop(whileLoop: Branch, scope: Scope): Scope = {
+  var currentScope = scope
+  while (evalValue(whileLoop.condition, currentScope).result.contains(Bool(true))) {
+    currentScope = whileLoop.body.foldLeft(currentScope)((accScope, statement) => {
+      if (accScope.hasResult) accScope // Early exit if result is set (like return statements)
+      else evalStatement(accScope, statement)
+    })
+  }
+  currentScope
+}
 
 def evalIf(
             initialBranch: Branch,
