@@ -1,14 +1,14 @@
+x=4
 
-f = (x) => {
-    if (true) {
-        i = x + 3
-        break()
-    } elif (false) {
-        i = x + 5
-    } else {
-        i = 23
-    }
-    return i
+if (x==5) {
+    x=1
+    print(10)
+} elif (x==4) {
+    x=2
+    print(20)
+} else {
+    x=3
+    print(30)
 }
 
-print(f(4))
+print(x)

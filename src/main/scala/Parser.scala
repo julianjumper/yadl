@@ -60,11 +60,11 @@ case class StdString(value: String) extends Value
 case class FormatString(value: List[Value]) extends Value
 
 case class Assignment(varName: String, value: Value) extends Statement
-class Branch(condition: Value, boby: Seq[Statement])
+case class Branch(condition: Value, body: Seq[Statement])
 case class If(
-    inital: Branch,
-    elifs: Seq[Branch],
-    end: Option[Seq[Statement]]
+    ifBranch: Branch,
+    elifBranches: Seq[Branch],
+    elseBranch: Option[Seq[Statement]]
 ) extends Statement
 case class WhileLoop(loop: Branch) extends Statement
 case class Expression(expr: Value) extends Statement
@@ -96,8 +96,8 @@ def endBranch[$: P]: P[Seq[Statement]] =
   P("else" ~ ws ~ codeBlock)
 
 def ifStatement[$: P]: P[Statement] =
-  (initialBranch ~ ws ~ elif.rep ~ ws ~ endBranch.?).map((i, m, e) =>
-    If(i, m, e)
+  (initialBranch ~ ws ~ elif.? ~ ws ~ endBranch.?).map((i, m, e) =>
+    If(i, m.toSeq, e)
   )
 
 def returnP[$: P]: P[Statement] =
@@ -107,7 +107,7 @@ def statementP[$: P]: P[Statement] =
   returnP | whileloop | ifStatement | functionCallP | assignmentP
 
 def codeBlock[$: P]: P[Seq[Statement]] =
-  P("{" ~ newline ~ (ws ~ statementP ~ ws ~ newline).rep ~ ws ~ "}")
+  P("{" ~ newline.? ~ (ws ~ statementP ~ ws ~ newline.?).rep ~ ws ~ "}")
 
 def functionDefBodyP[$: P]: P[Seq[Statement]] =
   codeBlock | valueP.map((v) => Seq(Expression(v)))

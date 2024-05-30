@@ -1,6 +1,7 @@
 import ArithmaticOps.{Add, Div, Expo, Mul, Sub}
 import BooleanOps.{And, Or}
 import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
+import scala.util.control.Breaks._
 
 type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
 
@@ -130,7 +131,63 @@ def evalStatement(
         val result = evalValue(expr, scope)
         val Some(return_value) = result.result: @unchecked
         result.returnValue(return_value)
+      case If(initial, elifs, end) => {
+        evalIf(initial, elifs, end, scope)
+      }
+
     }
+
+def evalIf(
+            initialBranch: Branch,
+            elifBranches: Seq[Branch],
+            elseBranch: Option[Seq[Statement]],
+            scope: Scope
+          ): Scope = {
+
+  def evalBranch(branch: Branch, scope: Scope): Option[Scope] = {
+    val result = evalValue(branch.condition, scope)
+    result.result match {
+      case Some(Bool(true)) =>
+        Some(branch.body.foldLeft(scope)((currentScope, statement) => evalStatement(currentScope, statement)))
+      case _ =>
+        None
+    }
+  }
+
+  // Check initial branch condition
+  var resultScope = scope
+  evalBranch(initialBranch, scope) match {
+    case Some(updatedScope) => return updatedScope // Return updated scope if the initial branch is true
+    case None =>
+  }
+
+  // Check elif branches by iteration.
+  var conditionMet = false
+  breakable {
+    for (branch <- elifBranches) {
+      evalBranch(branch, resultScope) match {
+        case Some(updatedScope) =>
+          conditionMet = true
+          resultScope = updatedScope
+          break // Break out of the loop as soon as one branch is true
+        case None => // Continue to the next elif if the current one fails
+      }
+    }
+  }
+
+  // Check if the else branch should be executed
+  if (!conditionMet && elseBranch.isDefined) {
+    elseBranch match {
+      case Some(statements) =>
+        for (statement <- statements) {
+          resultScope = evalStatement(resultScope, statement)
+        }
+      case None =>
+    }
+  }
+
+  resultScope // Return the updated or original scope
+}
 
 def evalValue(
     v: Value,
