@@ -177,11 +177,8 @@ def evalIf(
 
   // Check if the else branch should be executed
   if (!conditionMet && elseBranch.isDefined) {
-    elseBranch match {
-      case Some(statements) =>
-        for (statement <- statements) {
-          resultScope = evalStatement(resultScope, statement)
-        }
+    evalBranch(Branch(Bool(true), elseBranch.get), resultScope) match { // Create a mock branch with a true condition and the else branch body
+      case Some(updatedScope) => return updatedScope
       case None =>
     }
   }
