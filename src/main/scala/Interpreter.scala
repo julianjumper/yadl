@@ -148,7 +148,7 @@ def evalIf(
     val result = evalValue(branch.condition, scope)
     result.result match {
       case Some(Bool(true)) =>
-        Some(branch.body.foldLeft(scope)((currentScope, statement) => evalStatement(currentScope, statement)))
+        Some(branch.body.foldLeft(scope)(evalStatement))
       case _ =>
         None
     }
