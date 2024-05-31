@@ -58,6 +58,9 @@ case class Function(args: Seq[String], body: Seq[Statement]) extends Value
 case class Wrapped(value: Value) extends Value
 case class StdString(value: String) extends Value
 case class FormatString(value: List[Value]) extends Value
+class DictionaryEntry(var key: Value, var value: Value)
+case class Dictionary(entries: Seq[DictionaryEntry]) extends Value
+case class StructureAccess(identifier: Identifier, key: Value) extends Value
 
 case class Assignment(varName: String, value: Value) extends Statement
 case class Branch(condition: Value, body: Seq[Statement])
@@ -131,7 +134,7 @@ def functionDefP[$: P]: P[Value] = (
 )
 
 def valueTerminalP[$: P]: P[Value] =
-  booleanP | functionCallP./ | identifierP | numberP
+  dictionaryP | structureAccess | booleanP | functionCallP | identifierP | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -181,7 +184,7 @@ def valueP[$: P]: P[Value] = (
 )
 
 def identifierP[$: P]: P[Identifier] = P(
-  (CharIn("a-zA-Z") ~ CharIn("a-zA-z0-9_").rep).!.map(x => Identifier(x))
+  (CharIn("a-zA-Z") ~ CharIn("a-zA-z0-9_").rep).!.map(Identifier(_))
 )
 
 def assignmentP[$: P]: P[Statement] =
@@ -306,3 +309,33 @@ def stdMultiStringP[$: P] = P(
     StdString(unescape(x))
   )
 )
+
+// @language-team because you are indecisive of where to put the comma
+// could be simpler
+def dictionaryEntry[$: P]: P[DictionaryEntry] =
+  (valueTerminalP ~ ws ~ ":" ~ ws ~ valueTerminalP).map(DictionaryEntry(_, _))
+
+def dictionaryEntries[$: P]: P[Dictionary] =
+  def entryCommaRight[$: P]: P[DictionaryEntry] =
+    dictionaryEntry ~ ws ~ ","
+
+  def repeatedEntries[$: P](
+      entry: => P[DictionaryEntry]
+  ): P[Seq[DictionaryEntry]] =
+    (ws ~ entry ~/ ws ~ newline.?).rep
+
+  (repeatedEntries(entryCommaRight) ~ ws ~ dictionaryEntry ~/ ws ~ newline.?)
+    .map((es, e) => Dictionary(es :+ e))
+
+def dictionaryP[$: P]: P[Dictionary] =
+  P("{" ~ ws ~ newline.? ~ dictionaryEntries.? ~ ws ~ "}")
+    .map {
+      case Some(value) => value
+      case None        => Dictionary(Seq())
+    }
+
+def structureAccess[$: P]: P[Value] =
+  P(
+    (!"[" ~ CharIn("a-zA-z0-9_")).rep.! ~ "[" ~ ws ~ valueTerminalP ~ ws ~ "]"
+  )
+    .map((i, v) => StructureAccess(Identifier(i), v))
