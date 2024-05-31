@@ -155,35 +155,32 @@ def evalIf(
   }
 
   // Check initial branch condition
-  var resultScope = scope
+  var conditionsMet = false
   evalBranch(initialBranch, scope) match {
-    case Some(updatedScope) => return updatedScope // Return updated scope if the initial branch is true
+    case Some(updatedScope) =>  updatedScope // Return updated scope if the initial branch is true
     case None =>
-  }
+      val finalScope = elifBranches.foldLeft(scope) { (currentScope, branch) =>
+        evalBranch(branch, currentScope) match {
+          case Some(updatedScope) =>
+            conditionsMet = true
+            updatedScope
+          case None => currentScope
+        }
+      }
 
-  // Check elif branches by iteration.
-  var conditionMet = false
-  breakable {
-    for (branch <- elifBranches) {
-      evalBranch(branch, resultScope) match {
-        case Some(updatedScope) =>
-          conditionMet = true
-          resultScope = updatedScope
-          break // Break out of the loop as soon as one branch is true
-        case None => // Continue to the next elif if the current one fails
+      if (conditionsMet) {
+        return finalScope
+      } else if (elseBranch.isEmpty) {
+        return scope
+      }
+
+      // Evaluate the else branch if no conditions were met
+      elseBranch match {
+        case Some(statements) =>
+          statements.foldLeft(finalScope)(evalStatement)
+        case _ => finalScope
       }
     }
-  }
-
-  // Check if the else branch should be executed
-  if (!conditionMet && elseBranch.isDefined) {
-    evalBranch(Branch(Bool(true), elseBranch.get), resultScope) match { // Create a mock branch with a true condition and the else branch body
-      case Some(updatedScope) => return updatedScope
-      case None =>
-    }
-  }
-
-  resultScope // Return the updated or original scope
 }
 
 def evalValue(

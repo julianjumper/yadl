@@ -1,14 +1,17 @@
-x=4
+x=7
 
 if (x==5) {
-    x=1
+    x=100
     print(10)
-} elif (x==4) {
-    x=2
+} elif (x==7) {
+    x=200
     print(20)
-} else {
-    x=3
+} elif (x==4) {
+    x=300
     print(30)
+} else {
+    x=400
+    print(40)
 }
 
 print(x)
