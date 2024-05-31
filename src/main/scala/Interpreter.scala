@@ -1,6 +1,7 @@
 import ArithmaticOps.{Add, Div, Expo, Mul, Sub}
 import BooleanOps.{And, Or}
 import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
+import scala.util.control.Breaks._
 
 type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
 
@@ -130,7 +131,57 @@ def evalStatement(
         val result = evalValue(expr, scope)
         val Some(return_value) = result.result: @unchecked
         result.returnValue(return_value)
+      case If(ifBranch, elifBranches, elseBranch) => {
+        evalIf(ifBranch, elifBranches, elseBranch, scope)
+      }
+
     }
+
+def evalIf(
+            initialBranch: Branch,
+            elifBranches: Seq[Branch],
+            elseBranch: Option[Seq[Statement]],
+            scope: Scope
+          ): Scope = {
+
+  def evalBranch(branch: Branch, scope: Scope): Option[Scope] = {
+    val result = evalValue(branch.condition, scope)
+    result.result match {
+      case Some(Bool(true)) =>
+        Some(branch.body.foldLeft(scope)(evalStatement))
+      case _ =>
+        None
+    }
+  }
+
+  // Check initial branch condition
+  var conditionsMet = false
+  evalBranch(initialBranch, scope) match {
+    case Some(updatedScope) =>  updatedScope // Return updated scope if the initial branch is true
+    case None =>
+      val finalScope = elifBranches.foldLeft(scope) { (currentScope, branch) =>
+        evalBranch(branch, currentScope) match {
+          case Some(updatedScope) =>
+            conditionsMet = true
+            updatedScope
+          case None => currentScope
+        }
+      }
+
+      if (conditionsMet) {
+        return finalScope
+      } else if (elseBranch.isEmpty) {
+        return scope
+      }
+
+      // Evaluate the else branch if no conditions were met
+      elseBranch match {
+        case Some(statements) =>
+          statements.foldLeft(finalScope)(evalStatement)
+        case _ => finalScope
+      }
+    }
+}
 
 def evalValue(
     v: Value,

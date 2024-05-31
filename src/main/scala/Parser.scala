@@ -60,11 +60,11 @@ case class StdString(value: String) extends Value
 case class FormatString(value: List[Value]) extends Value
 
 case class Assignment(varName: String, value: Value) extends Statement
-class Branch(condition: Value, boby: Seq[Statement])
+case class Branch(condition: Value, body: Seq[Statement])
 case class If(
-    inital: Branch,
-    elifs: Seq[Branch],
-    end: Option[Seq[Statement]]
+    ifBranch: Branch,
+    elifBranches: Seq[Branch],
+    elseBranch: Option[Seq[Statement]]
 ) extends Statement
 case class WhileLoop(loop: Branch) extends Statement
 case class Expression(expr: Value) extends Statement
@@ -96,7 +96,7 @@ def endBranch[$: P]: P[Seq[Statement]] =
   P("else" ~ ws ~ codeBlock)
 
 def ifStatement[$: P]: P[Statement] =
-  (initialBranch ~ ws ~ elif.rep ~ ws ~ endBranch.?).map((i, m, e) =>
+  (initialBranch ~ (ws ~ elif).rep ~ ws ~ endBranch.?).map((i, m, e) =>
     If(i, m, e)
   )
 
@@ -107,7 +107,7 @@ def statementP[$: P]: P[Statement] =
   returnP | whileloop | ifStatement | functionCallP | assignmentP
 
 def codeBlock[$: P]: P[Seq[Statement]] =
-  P("{" ~ newline ~ (ws ~ statementP ~ ws ~ newline).rep ~ ws ~ "}")
+  P("{" ~ newline.? ~ (ws ~ statementP ~ ws ~ newline).rep ~ ws ~ "}")
 
 def functionDefBodyP[$: P]: P[Seq[Statement]] =
   codeBlock | valueP.map((v) => Seq(Expression(v)))
@@ -202,18 +202,14 @@ def fileP[$: P]: P[Seq[Statement]] =
   // This can be repeated any number of times (signaled by .rep). As regex: (statement whitespace* newline)*
 
 //Hilfsparser Number
-def numberDezimalP[$: P] = P(
-  CharIn("0-9") ~ (("_" ~ CharIn("0-9")) | CharIn("0-9")).rep
-)
-def numberBinaryP[$: P] = P(
-  CharIn("01") ~ (("_" ~ CharIn("01")) | CharIn("01")).rep
-)
-def numberOctalP[$: P] = P(
-  CharIn("0-7") ~ (("_" ~ CharIn("0-7")) | CharIn("0-7")).rep
-)
-def numberHexadezimal[$: P] = P(
-  CharIn("0-9a-z") ~ (("_" ~ CharIn("0-9a-z")) | CharIn("0-9a-z")).rep
-)
+def digitsP[$: P](digitParser: => P[Char]): P[String] =
+  (digitParser ~ (("_" ~ digitParser) | digitParser).rep)
+    .map((f, r) => r.foldLeft(StringBuffer().append(f))(_.append(_)).toString)
+
+def dezimalP[$: P] = P(CharIn("0-9").!).map(_.head)
+def binaryP[$: P] = P(CharIn("01").!).map(_.head)
+def octalP[$: P] = P(CharIn("0-7").!).map(_.head)
+def hexadezimalP[$: P] = P(CharIn("0-9a-fA-F").!).map(_.head)
 
 //Hilffunktion für Number map
 def basisToDecimal(
@@ -221,51 +217,62 @@ def basisToDecimal(
     restString: String,
     basis: Int
 ): Double =
-  println(
-    "numberString: " + numberString + "; restString: " + restString + "; basis: " + basis
-  )
-  val numberLong =
-    java.lang.Long.parseLong(numberString.replaceAll("_", ""), basis)
-  val restLong = java.lang.Long
-    .parseLong(restString.replaceAll("\\.", "").replaceAll("_", ""), basis)
-  val resultString = numberLong.toString + "." + restLong.toString
-  resultString.toDouble
+  val numberLong = java.lang.Long.parseLong(numberString, basis).toDouble
+  val restLong = java.lang.Long.parseLong(restString, basis).toDouble
+  val fraction = restLong / scala.math.pow(basis, restString.length)
+  numberLong + fraction
 
 //Parser Number
-def numberP[$: P]: P[Number] = P(
-  (
-    ("0b".! ~ numberBinaryP.!.? ~ ("." ~ numberBinaryP).!.?) |
-      ("0o".! ~ numberOctalP.!.? ~ ("." ~ numberOctalP).!.?) |
-      ("0x".! ~ numberHexadezimal.!.? ~ ("." ~ numberHexadezimal).!.?) |
-      (numberDezimalP.!.? ~ ("." ~ numberDezimalP).!.?)
-  ).map(x =>
-    x match {
-      // Dezimal Number Cases
-      case (Some(number), None) => Number(number.replaceAll("_", "").toDouble)
-      case (Some(number), Some(rest)) =>
-        Number((number + rest).replaceAll("_", "").toDouble)
-      case (None, Some(rest)) => Number(rest.replaceAll("_", "").toDouble)
-      // Binary Number Cases
-      case ("0b", Some(number), None) => Number(basisToDecimal(number, ".0", 2))
-      case ("0b", Some(number), Some(rest)) =>
-        Number(basisToDecimal(number, rest, 2))
-      case ("0b", None, Some(rest)) => Number(basisToDecimal("0", rest, 2))
-      // Octal Number Cases
-      case ("0o", Some(number), None) => Number(basisToDecimal(number, ".0", 8))
-      case ("0o", Some(number), Some(rest)) =>
-        Number(basisToDecimal(number, rest, 8))
-      case ("0o", None, Some(rest)) => Number(basisToDecimal("0", rest, 8))
-      // Hexadezimal Number Cases
-      case ("0x", Some(number), None) =>
-        Number(basisToDecimal(number, ".0", 16))
-      case ("0x", Some(number), Some(rest)) =>
-        Number(basisToDecimal(number, rest, 16))
-      case ("0x", None, Some(rest)) => Number(basisToDecimal("0", rest, 16))
-      // Default Case
-      case _ => assert(false, "error occured while parsing a number")
-    }
+enum Base:
+  case Binary, Octal, Decimal, Hexadecimal
+
+def basePrefix[$: P] =
+  P("0b".! | "0o".! | "0x".!).?.map {
+    case Some("0b") => Base.Binary
+    case Some("0o") => Base.Octal
+    case Some("0x") => Base.Hexadecimal
+    case None       => Base.Decimal
+  }
+
+def numberDigits[$: P](baseType: Base) = baseType match {
+  case Base.Decimal     => digitsP(dezimalP)
+  case Base.Octal       => digitsP(octalP)
+  case Base.Binary      => digitsP(binaryP)
+  case Base.Hexadecimal => digitsP(hexadezimalP)
+}
+
+def dotDigits[$: P](base: Base): P[Number] =
+  ("." ~ numberDigits(base)).map(s =>
+    base match
+      case Base.Binary      => Number(basisToDecimal("0", s, 2))
+      case Base.Octal       => Number(basisToDecimal("0", s, 8))
+      case Base.Decimal     => Number(("0." + s).toDouble)
+      case Base.Hexadecimal => Number(basisToDecimal("0", s, 16))
   )
-)
+
+def digitsDotDigits[$: P](base: Base): P[Number] =
+  (numberDigits(base) ~ "." ~ numberDigits(base)).map((f, r) =>
+    base match
+      case Base.Binary      => Number(basisToDecimal(f, r, 2))
+      case Base.Octal       => Number(basisToDecimal(f, r, 8))
+      case Base.Decimal     => Number((f + "." + r).toDouble)
+      case Base.Hexadecimal => Number(basisToDecimal(f, r, 16))
+  )
+
+def digits[$: P](base: Base): P[Number] =
+  (numberDigits(base)).map(s =>
+    base match
+      case Base.Binary      => Number(basisToDecimal(s, "0", 2))
+      case Base.Octal       => Number(basisToDecimal(s, "0", 8))
+      case Base.Decimal     => Number(s.toDouble)
+      case Base.Hexadecimal => Number(basisToDecimal(s, "0", 16))
+  )
+
+def numberFull[$: P](base: Base): P[Number] =
+  dotDigits(base) | digitsDotDigits(base) | digits(base)
+
+def numberP[$: P]: P[Number] =
+  basePrefix.flatMap(numberFull)
 
 //Hilfsparser String
 def unescape(input: String): String =
