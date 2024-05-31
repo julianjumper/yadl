@@ -313,7 +313,7 @@ def stdMultiStringP[$: P] = P(
 // @language-team because you are indecisive of where to put the comma
 // could be simpler
 def dictionaryEntry[$: P]: P[DictionaryEntry] =
-  (valueTerminalP ~ ws ~ ":" ~ ws ~ valueTerminalP).map(DictionaryEntry(_, _))
+  (valueP ~ ws ~ ":" ~ ws ~ valueP).map(DictionaryEntry(_, _))
 
 def dictionaryEntries[$: P]: P[Dictionary] =
   def entryCommaRight[$: P]: P[DictionaryEntry] =
@@ -336,6 +336,6 @@ def dictionaryP[$: P]: P[Dictionary] =
 
 def structureAccess[$: P]: P[Value] =
   P(
-    (!"[" ~ CharIn("a-zA-z0-9_")).rep.! ~ "[" ~ ws ~ valueTerminalP ~ ws ~ "]"
+    (!"[" ~ CharIn("a-zA-z0-9_")).rep.! ~ "[" ~ ws ~ valueP ~ ws ~ "]"
   )
     .map((i, v) => StructureAccess(Identifier(i), v))
