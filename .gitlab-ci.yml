@@ -17,10 +17,6 @@ stages:
   - unit-testing
   - file-testing
 
-before_script:
-  - eval '$(ssh-agent -s)'
-  - ssh-add - $SSH_PRIVATE_KEY
-
 build:
   stage: build
   script:
