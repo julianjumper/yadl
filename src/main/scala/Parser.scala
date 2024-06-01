@@ -82,7 +82,7 @@ def initialBranch[$: P]: P[Branch] =
     "if" ~ ws ~ condition ~ ws ~ codeBlock
   ).map((v, sts) => Branch(v, sts))
 
-def whileloop[$: P]: P[Statement] =
+def whileLoop[$: P]: P[Statement] =
   P("while" ~ ws ~ condition ~ ws ~ codeBlock).map((c, cb) =>
     WhileLoop(Branch(c, cb))
   )
@@ -104,7 +104,7 @@ def returnP[$: P]: P[Statement] =
   P("return" ~ ws ~ valueP).map(Return(_))
 
 def statementP[$: P]: P[Statement] =
-  returnP | whileloop | ifStatement | functionCallP | assignmentP
+  returnP | whileLoop | ifStatement | functionCallP | assignmentP
 
 def codeBlock[$: P]: P[Seq[Statement]] =
   P("{" ~ newline.? ~ (ws ~ statementP ~ ws ~ newline).rep ~ ws ~ "}")
