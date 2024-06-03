@@ -8,12 +8,16 @@ from pathlib import Path
 DEFAULT_RUN_COMMAND = f"java -jar {os.getenv('YADL_JAR')} %s"
 
 def parse_yadl(filepath):
+<<<<<<< HEAD
     test_cfg = {
         "filepath": filepath,
         "out": [],
         "file-eq": [],
         "remove": [],
     }
+=======
+    test_cfg = { "filepath": filepath }
+>>>>>>> 776e5c7 (added filepath to test config for easier debugging)
 
     with open(filepath, "r") as file:
         lines = file.readlines()
