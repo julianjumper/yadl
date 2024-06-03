@@ -7,32 +7,8 @@ from pathlib import Path
 
 DEFAULT_RUN_COMMAND = "yadl-interpreter %s"
 
-
-def parse_comment(comment_line: str):
-    if not comment_line.startswith("//"):
-        raise SyntaxError("Expected commented line")
-    if not comment_line.startswith("// "):
-        raise SyntaxError("Expected space after slashes")
-    comment_line = comment_line.split("// ")[1:].join("// ")
-    comment_line.split(":")
-    if len(comment_line) < 2:
-        raise SyntaxError("Expected command")
-    cmd = comment_line[0]
-    comment_line.join(":")
-
-    if not comment_line.startswith(" "):
-        raise SyntaxError("Expected Space after colon")
-
-    return {"cmd": cmd, "payload": comment_line}
-
-
 def parse_yadl(filepath):
-    test_cfg = {
-        "run": "yadl-interpreter " + filepath,
-        "out": [],
-        "file-eq": [],
-        "remove": [],
-    }
+    test_cfg = {}
 
     with open(filepath, "r") as file:
         lines = file.readlines()
@@ -101,6 +77,19 @@ for posix_path in Path(TEST_DIR).rglob("*.yadl"):
     configurations.append(parse_yadl(str(full_path)))
 
 
+def fill_missing(config):
+    if "run" not in config: 
+        assert False, "No run command specified in this config"
+    
+    if "out" not in config:
+        config["out"] = []
+
+    if "file-eq" not in config:
+        config["file-eq"] = []
+
+    if "remove" not in config:
+        config["remove"] = []
+
 @pytest.mark.parametrize("config", configurations)
 def test_config(config):
-    run_test(config)
+    run_test(fill_missing(config))

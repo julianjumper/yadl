@@ -59,6 +59,6 @@ python-test-script:
     - if-branches-exprs
     - while-loop-exprs
   script:
-    - python3 test/testing.py
+    - pytest
   timeout: 3 min
 
