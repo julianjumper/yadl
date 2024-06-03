@@ -64,3 +64,11 @@ while-loop-exprs:
     - sbt clean 'run tests/whileloop.yadl'
   timeout: 3 min
 
+python-test-script:
+  stage: file-testing
+  needs:
+    - unit-tests
+  script:
+    - python3 test/testing.py
+  timeout: 3 min
+
