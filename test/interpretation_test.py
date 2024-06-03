@@ -42,12 +42,21 @@ def parse_yadl(filepath):
                     test_cfg["run"] = " ".join(tokens[2:])
             # check output
             elif tokens[1] == "CHECK-OUT:":
+                if "out" not in test_cfg:
+                    test_cfg["out"] = []
+
                 test_cfg["out"].append(" ".join(tokens[2:]))
             # check if two files are equal
             elif tokens[1] == "CHECK-FILE-EQ:":
+                if "file-eq" not in test_cfg:
+                    test_cfg["file-eq"] = []
+
                 test_cfg["file-eq"].append(tokens[2:4])
             # remove a file after the test
             elif tokens[1] == "REMOVE:":
+                if "remove" not in test_cfg:
+                    test_cfg["remove"] = []
+
                 test_cfg["remove"].append(tokens[2])
 
     return test_cfg
