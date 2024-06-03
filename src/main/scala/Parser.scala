@@ -312,27 +312,21 @@ def stdMultiStringP[$: P] = P(
 
 // @language-team because you are indecisive of where to put the comma
 // could be simpler
-def dictionaryEntry[$: P]: P[DictionaryEntry] =
-  (valueP ~ ws ~ ":" ~ ws ~ valueP).map(DictionaryEntry(_, _))
 
 def dictionaryEntries[$: P]: P[Dictionary] =
-  def entryCommaRight[$: P]: P[DictionaryEntry] =
-    dictionaryEntry ~ ws ~ ","
+  def dictionaryEntry[$: P]: P[DictionaryEntry] =
+    (valueP ~ ws ~ ":" ~ ws ~ valueP).map(DictionaryEntry(_, _))
 
   def repeatedEntries[$: P](
       entry: => P[DictionaryEntry]
   ): P[Seq[DictionaryEntry]] =
-    (ws ~ entry ~/ ws ~ newline.?).rep
+    P((ws ~ entry).rep(sep = (ws ~ "," ~ ws ~ newline.?)))
 
-  (repeatedEntries(entryCommaRight) ~ ws ~ dictionaryEntry ~/ ws ~ newline.?)
-    .map((es, e) => Dictionary(es :+ e))
+  (ws ~ repeatedEntries(dictionaryEntry) ~/ ws ~ newline.?)
+    .map(Dictionary(_))
 
 def dictionaryP[$: P]: P[Dictionary] =
-  P("{" ~ ws ~ newline.? ~ dictionaryEntries.? ~ ws ~ "}")
-    .map {
-      case Some(value) => value
-      case None        => Dictionary(Seq())
-    }
+  P("{" ~ ws ~ newline.? ~ dictionaryEntries ~ ws ~ "}")
 
 def structureAccess[$: P]: P[Value] =
   P(
