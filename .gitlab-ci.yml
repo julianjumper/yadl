@@ -1,21 +1,9 @@
-# This file is a template, and might need editing before it works on your project.
-# You can copy and paste this template into a new `.gitlab-ci.yml` file.
-# You should not add this template to an existing `.gitlab-ci.yml` file by using the `include:` keyword.
-#
-# To contribute improvements to CI/CD templates, please follow the Development guide at:
-# https://docs.gitlab.com/ee/development/cicd/templates.html
-# This specific template is located at:
-# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Scala.gitlab-ci.yml
-
-# Official OpenJDK Java image. Look for the different tagged releases at
-# https://hub.docker.com/_/openjdk/ . A Java image is not required
-# but an image with a JVM speeds up the build a bit.
-
 
 stages:
   - build
   - unit-testing
-  - file-testing
+  - interpretation-testing
+  - run-testing
 
 build:
   stage: build
@@ -28,46 +16,48 @@ unit-tests:
   needs:
     - build
   script:
-    - sbt clean test
+    - sbt test
   timeout: 5 min
 
-
 simple-exprs:
-  stage: file-testing
+  stage: interpretation-testing
   needs:
     - unit-tests
   script:
-    - sbt clean 'run tests/simple.yadl'
+    - sbt 'run tests/simple.yadl'
   timeout: 3 min
 
 function-exprs:
-  stage: file-testing
+  stage: interpretation-testing
   needs:
     - unit-tests
   script:
-    - sbt clean 'run tests/function.yadl'
+    - sbt 'run tests/function.yadl'
   timeout: 3 min
 
 if-branches-exprs:
-  stage: file-testing
+  stage: interpretation-testing
   needs:
     - unit-tests
   script:
-    - sbt clean 'run tests/if-branches.yadl'
+    - sbt 'run tests/if-branches.yadl'
   timeout: 3 min
 
 while-loop-exprs:
-  stage: file-testing
+  stage: interpretation-testing
   needs:
     - unit-tests
   script:
-    - sbt clean 'run tests/whileloop.yadl'
+    - sbt 'run tests/whileloop.yadl'
   timeout: 3 min
 
 python-test-script:
-  stage: file-testing
+  stage: run-testing
   needs:
-    - unit-tests
+    - simple-exprs
+    - function-exprs
+    - if-branches-exprs
+    - while-loop-exprs
   script:
     - python3 test/testing.py
   timeout: 3 min
