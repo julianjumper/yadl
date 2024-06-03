@@ -99,6 +99,8 @@ def fill_missing(config):
     if "remove" not in config:
         config["remove"] = []
 
+    return config
+
 @pytest.mark.parametrize("config", configurations)
 def test_config(config):
     run_test(fill_missing(config))
