@@ -8,7 +8,7 @@ from pathlib import Path
 DEFAULT_RUN_COMMAND = "yadl-interpreter %s"
 
 def parse_yadl(filepath):
-    test_cfg = {}
+    test_cfg = { "filepath": filepath }
 
     with open(filepath, "r") as file:
         lines = file.readlines()
@@ -63,7 +63,7 @@ def parse_yadl(filepath):
 
 
 def run_test(test_cfg):
-    # assert False, test_cfg['run']
+    print("trying to execute file:", test_cfg["filepath"])
     result = subprocess.run(test_cfg["run"], capture_output=True, shell=True, text=True)
 
     # check output

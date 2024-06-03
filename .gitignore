@@ -5,3 +5,4 @@
 /target
 /.bloop
 /.metals
+test/__pycache__
