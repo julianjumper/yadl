@@ -67,6 +67,7 @@ def run_test(test_cfg):
     result = subprocess.run(test_cfg["run"], capture_output=True, shell=True, text=True)
 
     # check output
+    assert result.returncode == 0, f"subprocess failed: {result.stderr}"
     output = result.stdout.strip().split("\n")
     assert output == test_cfg["out"]
 
