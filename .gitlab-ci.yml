@@ -9,6 +9,8 @@ build:
   stage: build
   script:
     - sbt clean compile
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
   timeout: 3 min
 
 unit-tests:
