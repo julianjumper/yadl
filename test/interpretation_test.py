@@ -8,7 +8,12 @@ from pathlib import Path
 DEFAULT_RUN_COMMAND = f"java -jar {os.getenv('YADL_JAR')} %s"
 
 def parse_yadl(filepath):
-    test_cfg = { "filepath": filepath }
+    test_cfg = {
+        "filepath": filepath,
+        "out": [],
+        "file-eq": [],
+        "remove": [],
+    }
 
     with open(filepath, "r") as file:
         lines = file.readlines()
@@ -87,21 +92,6 @@ for posix_path in Path(TEST_DIR).rglob("*.yadl"):
     configurations.append(parse_yadl(str(full_path)))
 
 
-def fill_missing(config):
-    if "run" not in config: 
-        assert False, "No run command specified in this config"
-    
-    if "out" not in config:
-        config["out"] = []
-
-    if "file-eq" not in config:
-        config["file-eq"] = []
-
-    if "remove" not in config:
-        config["remove"] = []
-
-    return config
-
 @pytest.mark.parametrize("config", configurations)
 def test_config(config):
-    run_test(fill_missing(config))
+    run_test(config)
