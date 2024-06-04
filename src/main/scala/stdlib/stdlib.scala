@@ -1,6 +1,6 @@
 package stdlib
 
-import parser.Value
+import parser.{Value, Number}
 
 type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
 
@@ -15,7 +15,7 @@ def getStdlibDictionary(): HashMap[String, BuiltinFunction] = {
 
 def sum2(params: Seq[Value]): Value = {
   params match {
-   case Seq(a, b) => a
+   case Seq(Number(a), Number(b)) => Number(a+b)
    case _ => throw IllegalArgumentException()
   }
 }
@@ -23,7 +23,7 @@ def sum2(params: Seq[Value]): Value = {
 
 def sum3(params: Seq[Value]): Value = {
   params match {
-   case Seq(a, b, c) => a
+   case Seq(Number(a), Number(b), Number(c)) => Number(a+b+c)
    case _ => throw IllegalArgumentException()
   }
 }
