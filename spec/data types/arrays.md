@@ -1,13 +1,13 @@
 # Arrays
 Arrays are Collections of values. These values can have the same value and can be the of different types
 
-Defining an Array is done using square brackes (Example: `arr = [1, 'a']`)
+Defining an Array is done using square brackets (Example: `arr = [1, 'a']`)
 
 Accessing an Element in an Array is done using square Brackets (Example: `arr[0]`)
 
 Indexing of arrays starts at `0`
 
-Note: leading and trailing commas are optinal and newlines don't apply (See Dictionary).
+Note: leading and trailing commas are optional and newlines don't apply (See Dictionary).
 
 
 ## Examples
@@ -30,6 +30,6 @@ arr_mixed[2]['second'] == 2
 ```
 
 
-## Build-ins
+## Built-ins
 `append(array, new1, new2, ...)` - Adds values to the existing array and returns the existing array.
 `len(array)` - Returns the length of the array. 
