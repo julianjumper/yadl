@@ -1,9 +1,15 @@
-import ArithmaticOps.{Add, Div, Expo, Mul, Sub}
-import BooleanOps.{And, Or}
-import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
 import scala.util.control.Breaks._
 
+import parser._ // TODO do not import everything.
+import parser.ArithmaticOps.{Add, Div, Expo, Mul, Sub}
+import parser.BooleanOps.{And, Or}
+import parser.CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
+
+import stdlib.{BuiltinFunction, getStdlibDictionary}
+
 type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
+
+// val builtinFunctions = stdlib.getStdlibDictionary()
 
 class Scope(
     parent: Scope = null,
