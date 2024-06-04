@@ -7,12 +7,13 @@ stages:
 
 .default:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if:  # $CI_PIPELINE_SOURCE == "schedule"
 
 
 build:
   stage: build
   script:
+    - sudo rm -r /etc/test
     - sbt clean compile
   rules:
     - !reference [.default, rules]
