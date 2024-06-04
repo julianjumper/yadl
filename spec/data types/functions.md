@@ -48,3 +48,59 @@ The function body is inside a new scope.
 x = (x) => x
 print(x(3)) // prints 3 not the function.
 ```
+
+## Optional Arguments
+
+You can assign default values for an argument in a function definition. This argument is then optional and doesn't
+require a value to be passed when calling the function. Optional arguments can only be followed by another optional 
+argument or an arglist
+
+### Example
+```
+x = (x=2) => x + 1
+print(x()) // prints 3
+print(x(5)) // prints 6
+
+y = (u=2, w) => u + w //causes an error because an optional argument is followd by a nonoptional argument
+```
+
+## undefined
+In a function, the default value of optional arguments can be set to `undefined`. This is a value that can only be used for this purpose. Checking whether a value is `undefined` can be done using the `is_undefined()` function. 
+
+### Example
+```
+x = (x=undefined) => {
+    if (is_undefined(x)){
+        return ":("
+    }
+    return ":)"
+}
+
+x() // returns ":("
+
+x(2) // returns ":)"
+```
+
+## arglist
+
+You can have a function expect multiple arguments by following an argument with `...`
+
+There can only be one such argument in a function definition and it needs to be the last argument in the definition
+
+The arguments are passed as an array
+
+### Example
+```
+x = (y, args...) => {
+    while (y < len(args)){
+        print(args[y])
+        y += 1
+    }
+}
+
+x(0, 1, 2, 3, 4)
+
+z = (args..., y) => y // This causes an error
+
+z = (args..., args2...) => y // This causes an error
+```
