@@ -5,7 +5,7 @@ import subprocess
 import filecmp
 from pathlib import Path
 
-DEFAULT_RUN_COMMAND = "yadl-interpreter %s"
+DEFAULT_RUN_COMMAND = f"java -jar {os.getenv('YADL_JAR')} %s"
 
 
 def parse_comment(comment_line: str):
