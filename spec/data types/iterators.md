@@ -83,7 +83,7 @@ listToIterator = (lst) => {
     hasnext_ = (d) => {
        return curInd < len(lst) 
     }
-    next_ = {
+    next_ = (d) => {
     if (not hasnext_(d)) {
             error()
         }
