@@ -2,6 +2,8 @@ import fastparse._, NoWhitespace._
 import java.io.*
 import java.{util => ju}
 
+import parser._ // TODO do not import everything
+
 // Thank you Java (-_-)
 def readFileContent(filepath: String): String =
   var file = new File(filepath);
