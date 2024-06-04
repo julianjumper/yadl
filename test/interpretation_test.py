@@ -36,7 +36,7 @@ def parse_yadl(filepath):
                     "run" not in test_cfg
                 ), f'RUN command found multiple times in file "{filepath}"'
 
-                if " ".join(tokens[2]) == "DEFAULT":
+                if tokens[2] == "DEFAULT":
                     test_cfg["run"] = DEFAULT_RUN_COMMAND.replace("%s", filepath)
                 else:
                     test_cfg["run"] = " ".join(tokens[2:])
