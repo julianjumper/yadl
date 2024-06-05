@@ -8,12 +8,23 @@ stages:
 .default:
   rules:
     - if:  # $CI_PIPELINE_SOURCE == "schedule"
+  script:
+    - java -jar $YADL_JAR $ARG
 
+default:
+  variables:
+    SCALA_VERSION: 3.4.1
+    YADL_PATH: target/scala-$SCALA_VERSION
+    YADL_JAR: $YADL_PATH/yadl.jar
+  cache:
+    key: build-cache
+    paths:
+      - $YADL_PATH
 
 build:
   stage: build
   script:
-    - sbt clean compile
+    - sbt clean compile assembly
   rules:
     - !reference [.default, rules]
   timeout: 3 min
@@ -33,7 +44,9 @@ simple-exprs:
   needs:
     - unit-tests
   script:
-    - sbt 'run tests/simple.yadl'
+    - !reference [.default, script]
+  variables:
+    ARG: tests/simple.yadl
   rules:
     - !reference [.default, rules]
   timeout: 3 min
@@ -43,7 +56,9 @@ function-exprs:
   needs:
     - unit-tests
   script:
-    - sbt 'run tests/function.yadl'
+    - !reference [.default, script]
+  variables:
+    ARG: tests/function.yadl
   rules:
     - !reference [.default, rules]
   timeout: 3 min
@@ -53,7 +68,9 @@ if-branches-exprs:
   needs:
     - unit-tests
   script:
-    - sbt 'run tests/if-branches.yadl'
+    - !reference [.default, script]
+  variables:
+    ARG: tests/if-branches.yadl
   rules:
     - !reference [.default, rules]
   timeout: 3 min
@@ -63,7 +80,9 @@ while-loop-exprs:
   needs:
     - unit-tests
   script:
-    - sbt 'run tests/whileloop.yadl'
+    - !reference [.default, script]
+  variables:
+    ARG: tests/whileloop.yadl
   rules:
     - !reference [.default, rules]
   timeout: 3 min
@@ -79,5 +98,8 @@ python-test-script:
     - pytest
   rules:
     - !reference [.default, rules]
+  artefacts:
+    paths:
+      - $YADL_JAR
   timeout: 3 min
 
