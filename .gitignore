@@ -1,8 +1,10 @@
 /shelf/
 /workspace.xml
 /.bsp
-/project
 /target
 /.bloop
 /.metals
 test/__pycache__
+project/.bloop
+project/project
+project/target
