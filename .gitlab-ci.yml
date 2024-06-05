@@ -10,16 +10,15 @@ stages:
     - if:  # $CI_PIPELINE_SOURCE == "schedule"
   script:
     - java -jar $YADL_JAR $ARG
+  variables:
+    YADL_PATH: target/scala-3.4.1
+    YADL_JAR: $YADL_PATH/yadl.jar
 
 default:
-  variables:
-    SCALA_VERSION: 3.4.1
-    YADL_PATH: target/scala-$SCALA_VERSION
-    YADL_JAR: $YADL_PATH/yadl.jar
   cache:
     key: build-cache
     paths:
-      - $YADL_PATH
+      - !reference [.default, variables, YADL_PATH]
 
 build:
   stage: build
@@ -45,8 +44,10 @@ simple-exprs:
     - unit-tests
   script:
     - !reference [.default, script]
-  variables:
+  variables: 
     ARG: tests/simple.yadl
+    YADL_PATH: !reference [.default, variables, YADL_PATH]
+    YADL_JAR: !reference [.default, variables, YADL_JAR]
   rules:
     - !reference [.default, rules]
   timeout: 3 min
@@ -59,6 +60,8 @@ function-exprs:
     - !reference [.default, script]
   variables:
     ARG: tests/function.yadl
+    YADL_PATH: !reference [.default, variables, YADL_PATH]
+    YADL_JAR: !reference [.default, variables, YADL_JAR]
   rules:
     - !reference [.default, rules]
   timeout: 3 min
@@ -71,6 +74,8 @@ if-branches-exprs:
     - !reference [.default, script]
   variables:
     ARG: tests/if-branches.yadl
+    YADL_PATH: !reference [.default, variables, YADL_PATH]
+    YADL_JAR: !reference [.default, variables, YADL_JAR]
   rules:
     - !reference [.default, rules]
   timeout: 3 min
@@ -83,6 +88,8 @@ while-loop-exprs:
     - !reference [.default, script]
   variables:
     ARG: tests/whileloop.yadl
+    YADL_PATH: !reference [.default, variables, YADL_PATH]
+    YADL_JAR: !reference [.default, variables, YADL_JAR]
   rules:
     - !reference [.default, rules]
   timeout: 3 min
@@ -98,7 +105,8 @@ python-test-script:
     - pytest
   rules:
     - !reference [.default, rules]
-  artefacts:
+  variables: !reference [.default, variables]
+  artifacts:
     paths:
       - $YADL_JAR
   timeout: 3 min
