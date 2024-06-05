@@ -23,7 +23,7 @@ default:
 build:
   stage: build
   script:
-    - sbt clean compile assembly
+    - sbt clean compile # assembly
   rules:
     - !reference [.default, rules]
   timeout: 3 min
