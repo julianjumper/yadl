@@ -9,7 +9,6 @@ stages:
   rules:
     - if:  # $CI_PIPELINE_SOURCE == "schedule"
   script:
-    - sbt assembly
     - java -jar $YADL_JAR $ARG
   variables:
     YADL_PATH: target/scala-3.4.1
@@ -103,7 +102,6 @@ python-test-script:
     - if-branches-exprs
     - while-loop-exprs
   script:
-    - sbt assembly
     - pytest
   rules:
     - !reference [.default, rules]
