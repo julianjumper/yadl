@@ -1,4 +1,4 @@
-// RUN: yadl-interpreter %s
+// RUN: DEFAULT
 
 x = "It is " + 42
 y = 42 + " it is"

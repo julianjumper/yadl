@@ -1,4 +1,4 @@
-// RUN: yadl-interpreter %s
+// RUN: DEFAULT
 
 x = not true and false 
 print(x)

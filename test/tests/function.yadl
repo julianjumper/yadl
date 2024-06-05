@@ -1,4 +1,4 @@
-// RUN: yadl-interpreter %s
+// RUN: DEFAULT
 
 test = (x) => x + 5
 f = (x, y) => {
