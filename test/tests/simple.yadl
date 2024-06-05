@@ -1,4 +1,4 @@
-// RUN: yadl-interpreter %s
+// RUN: DEFAULT
 
 x = 5 + 10
 
