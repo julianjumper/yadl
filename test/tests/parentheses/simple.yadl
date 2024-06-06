@@ -1,4 +1,4 @@
-// RUN DEFAULT
+// RUN: DEFAULT
 
 x = ("Hello"
 
