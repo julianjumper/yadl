@@ -5,27 +5,26 @@ stages:
   - interpretation-testing
   - run-testing
 
-.default:
-  rules:
+.config: &config
+  rules: &default_rules
     - if:  # $CI_PIPELINE_SOURCE == "schedule"
   script:
     - java -jar $YADL_JAR $ARG
-  variables:
-    YADL_PATH: target/scala-3.4.1
-    YADL_JAR: $YADL_PATH/yadl.jar
+  variables: &vars
+    YADL_PATH: &path target/scala-3.4.1
+    YADL_JAR: &jar $YADL_PATH/yadl.jar
 
 default:
   cache:
     key: build-cache
     paths:
-      - !reference [.default, variables, YADL_PATH]
+      - *path
 
 build:
   stage: build
   script:
     - sbt clean compile assembly
-  rules:
-    - !reference [.default, rules]
+  rules: *default_rules
   timeout: 3 min
 
 unit-tests:
@@ -34,80 +33,58 @@ unit-tests:
     - build
   script:
     - sbt test
-  rules:
-    - !reference [.default, rules]
+  rules: *default_rules
   timeout: 5 min
 
 simple-exprs:
+  <<: *config
   stage: interpretation-testing
   needs:
     - unit-tests
-  script:
-    - !reference [.default, script]
-  variables: 
+  variables:
+    <<: *vars
     ARG: tests/simple.yadl
-    YADL_PATH: !reference [.default, variables, YADL_PATH]
-    YADL_JAR: !reference [.default, variables, YADL_JAR]
-  rules:
-    - !reference [.default, rules]
   timeout: 3 min
 
 function-exprs:
+  <<: *config
   stage: interpretation-testing
   needs:
     - unit-tests
-  script:
-    - !reference [.default, script]
   variables:
+    <<: *vars
     ARG: tests/function.yadl
-    YADL_PATH: !reference [.default, variables, YADL_PATH]
-    YADL_JAR: !reference [.default, variables, YADL_JAR]
-  rules:
-    - !reference [.default, rules]
   timeout: 3 min
 
 if-branches-exprs:
+  <<: *config
   stage: interpretation-testing
   needs:
     - unit-tests
-  script:
-    - !reference [.default, script]
   variables:
+    <<: *vars
     ARG: tests/if-branches.yadl
-    YADL_PATH: !reference [.default, variables, YADL_PATH]
-    YADL_JAR: !reference [.default, variables, YADL_JAR]
-  rules:
-    - !reference [.default, rules]
   timeout: 3 min
 
 while-loop-exprs:
+  <<: *config
   stage: interpretation-testing
   needs:
     - unit-tests
-  script:
-    - !reference [.default, script]
   variables:
+    <<: *vars
     ARG: tests/whileloop.yadl
-    YADL_PATH: !reference [.default, variables, YADL_PATH]
-    YADL_JAR: !reference [.default, variables, YADL_JAR]
-  rules:
-    - !reference [.default, rules]
   timeout: 3 min
 
 python-test-script:
+  <<: *config
   stage: run-testing
   needs:
-    - simple-exprs
-    - function-exprs
-    - if-branches-exprs
-    - while-loop-exprs
+    - unit-tests
   script:
     - pytest
-  rules:
-    - !reference [.default, rules]
-  variables: !reference [.default, variables]
   artifacts:
     paths:
-      - $YADL_JAR
+      - *jar
   timeout: 3 min
 
