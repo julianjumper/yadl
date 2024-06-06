@@ -288,7 +288,7 @@ def expression[$: P]: P[Value] = (
 
 def identifierP[$: P]: P[Identifier] = P(
   (CharIn("a-zA-Z") ~ CharIn("a-zA-z0-9_").rep).!.map(Identifier(_))
-)
+).opaque("<identifier>")
 
 def assignmentP[$: P]: P[Statement] =
   (identifierP.! ~/ ws ~ "=" ~ ws ~ expression).map((n, v) => Assignment(n, v))
@@ -380,7 +380,7 @@ def numberFull[$: P](base: Base): P[Number] =
   dotDigits(base) | digitsDotDigits(base) | digits(base)
 
 def numberP[$: P]: P[Number] =
-  basePrefix.flatMap(numberFull)
+  basePrefix.flatMap(numberFull).opaque("<number>")
 
 //Hilfsparser String
 def unescape(input: String): String =
@@ -417,7 +417,9 @@ def stdMultiStringP[$: P] = P(
 
 def dictionaryEntries[$: P]: P[Dictionary] =
   def dictionaryEntry[$: P]: P[DictionaryEntry] =
-    (valueP ~ ws ~ ":" ~ ws ~ valueP).map(DictionaryEntry(_, _))
+    (valueP ~ ws ~ ":" ~ ws ~ valueP)
+      .opaque("<dictionary entry>")
+      .map(DictionaryEntry(_, _))
 
   def repeatedEntries[$: P](
       entry: => P[DictionaryEntry]
@@ -433,5 +435,5 @@ def dictionaryP[$: P]: P[Dictionary] =
 def structureAccess[$: P]: P[Value] =
   P(
     (!"[" ~ CharIn("a-zA-z0-9_")).rep(min = 1).! ~ "[" ~ ws ~ valueP ~ ws ~ "]"
-  )
+  ).opaque("<structure access>")
     .map((i, v) => StructureAccess(Identifier(i), v))
