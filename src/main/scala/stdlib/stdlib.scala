@@ -1,30 +1,31 @@
 package stdlib
 
-import parser.{Value, Number}
+import interpreterdata._
 
-type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
+private type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
 
-case class BuiltinFunction(n_args: Int, fn: Seq[Value] => Value)
-
-def getStdlibDictionary(): HashMap[String, BuiltinFunction] = {
-  var m: HashMap[String, BuiltinFunction] = new HashMap
-  m.addOne("sum2", BuiltinFunction(2, sum2))
-  m.addOne("sum3", BuiltinFunction(3, sum3))
-  m
+/**
+ * TODO: we should find a way to add new functions without having to modify this file.
+ *    But since the interface of the stdlib function wont change we can leave it like this for now.
+ * This is THE way to supply prebuild functions to the interpreter.
+ * @return A map of all function names and their corresponding Function Objects.
+ */
+def stdlib: HashMap[String, FunctionObj] = {
+  new HashMap[String, FunctionObj]
+    .addOne("sum2", FunctionObj(Seq("a", "b"), Seq(), None, sum2))
+    
+    .addOne("filter", FunctionObj(Seq("iterable", "filterFunction"), Seq(), None, filterBuiltIn))
+    
+    .addOne("string", FunctionObj(Seq("object"), Seq(), None, {
+      case Seq(x) => toStringObj(x)
+      case _ => throw IllegalArgumentException()
+    }))
+    .addOne("bool", FunctionObj(Seq("object"), Seq(), None, {
+      case Seq(x) => toBooleanObj(x)
+      case _ => throw IllegalArgumentException()
+    }))
+    .addOne("type", FunctionObj(Seq("object"), Seq(), None, (params: Seq[DataObject]) => params match {
+      case Seq(x) => StringObj(x.typeName)
+      case _ => throw IllegalArgumentException()
+    }))
 }
-
-def sum2(params: Seq[Value]): Value = {
-  params match {
-   case Seq(Number(a), Number(b)) => Number(a+b)
-   case _ => throw IllegalArgumentException()
-  }
-}
-
-
-def sum3(params: Seq[Value]): Value = {
-  params match {
-   case Seq(Number(a), Number(b), Number(c)) => Number(a+b+c)
-   case _ => throw IllegalArgumentException()
-  }
-}
-
