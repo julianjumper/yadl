@@ -237,4 +237,42 @@ class JsonParsing extends FunSuite{
       case _ => fail("Expected a JsonIterator for the second array element")
     }
   }
+
+  test("JsonIterator should handle multi-line formatted JSON") {
+    val json =
+      """[
+        |{"id": 1, "name": "Item1", "details": {"color": "red", "size": "large"}},
+        |{"id": 2, "name": "Item2", "properties": [true, 99.99, "available", {"date": "2022-01-01"}]},
+        |{"id": 3, "type": "Item3", "misc": {"info": "Testing"}},
+        |{"id": 4, "complex": [{"nestedLevel1": [{"nestedLevel2": "deepValue"}]}]}
+        |]""".stripMargin
+    val iterator = new JsonIterator(Source.fromString(json))
+
+    def extractValues(it: JsonIterator): List[(String, Any)] = {
+      var results = List.empty[(String, Any)]
+      while (it.hasNext) {
+        it.next() match {
+          case Right((key, value: JsonIterator)) =>
+            results ::= (key, extractValues(value))
+          case Right((key, value)) =>
+            results ::= (key, value)
+          case Left(error) =>
+            fail(s"Error: $error")
+        }
+      }
+      results.reverse
+    }
+
+    val results = extractValues(iterator)
+
+    val expectedResults = List(
+      ("[0]", List(("id", BigDecimal(1)), ("name", "Item1"), ("details", List(("color", "red"), ("size", "large"))))),
+      ("[1]", List(("id", BigDecimal(2)), ("name", "Item2"), ("properties", List(("[0]", true), ("[1]", BigDecimal(99.99)), ("[2]", "available"), ("[3]", List(("date", "2022-01-01"))))))),
+      ("[2]", List(("id", BigDecimal(3)), ("type", "Item3"), ("misc", List(("info", "Testing"))))),
+      ("[3]", List(("id", BigDecimal(4)), ("complex", List(("[0]", List(("nestedLevel1", List(("[0]", List(("nestedLevel2", "deepValue")))))))))))
+    )
+
+    assertEquals(results, expectedResults)
+  }
+
 }
