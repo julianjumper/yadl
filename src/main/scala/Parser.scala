@@ -239,7 +239,9 @@ def commentP[$: P] = P(inlineCommentP)
 
 // Root rule
 def fileP[$: P]: P[Seq[Statement]] =
-  ((statementP.? ~ ws ~ (commentP | newline))).rep.map(mapper(_))
+  ((statementP.? ~ ws ~ (commentP | newline))).rep.map(l =>
+    l.map(_.toList).flatten
+  )
   // fastparse (the parsing library that we use) syntax:
   // This code means that we call a parser for a statement, then a parser for whitespaces, then for newlines.
   // This can be repeated any number of times (signaled by .rep). As regex: (statement whitespace* newline)*
