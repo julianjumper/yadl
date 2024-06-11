@@ -250,6 +250,20 @@ def evalValue(
       val right_result = evalValue(right, scope)
       val Some(new_right) = right_result.result: @unchecked
       evalBinaryOp(op, new_left, new_right, scope)
+    case UnaryOp(op, value) =>
+      val Some(result) = evalValue(value, scope).result: @unchecked
+      op match {
+        case ArithmaticOp(Add) => scope.returnValue(result)
+        case ArithmaticOp(Sub) =>
+          result match {
+            case n: Number =>
+              scope.returnValue(Number(-n.value))
+            case v =>
+              assert(false, s"unary op: value case '$v' is not implemented")
+          }
+        // TODO: Add missing case BooleanOps.Not
+        case o => assert(false, s"unary op: op case '$o' is not implemented")
+      }
     case StructureAccess(id, v) => {
       val returnVal: Value = scope.lookup(id) match {
         case Some(Dictionary(entries)) =>
