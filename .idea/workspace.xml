@@ -5,7 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="25bbbdef-0c99-4217-84e3-057a90cf073f" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/tests/multiline_comment.yadl" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/scala/Parser.scala" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/scala/Parser.scala" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -56,15 +58,16 @@
     "Application.hello.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "parser-impl",
+    "git-widget-placeholder": "15-multi-line-comments",
     "kotlin-language-version-configured": "true",
+    "node.js.selected.package.tslint": "(autodetect)",
     "sbt Task.Plain Run.executor": "Run",
     "sbt Task.Run 'simple'.executor": "Run",
     "sbt Task.Unit Testing.executor": "Run",
-    "settings.editor.selected.configurable": "preferences.pluginManager"
+    "settings.editor.selected.configurable": "project.propCompiler"
   }
 }]]></component>
-  <component name="RunManager" selected="sbt Task.Unit Testing">
+  <component name="RunManager" selected="sbt Task.run 'multiline_comment'">
     <configuration name="Plain Run" type="SbtRunConfiguration" factoryName="sbt Task" show_console_on_std_err="false" show_console_on_std_out="false">
       <option name="allowRunningInParallel" value="false" />
       <option name="projectPathOnTarget" />
@@ -121,9 +124,24 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="run 'multiline_comment'" type="SbtRunConfiguration" factoryName="sbt Task" show_console_on_std_err="false" show_console_on_std_out="false">
+      <option name="allowRunningInParallel" value="false" />
+      <option name="projectPathOnTarget" />
+      <option name="selectedOptions">
+        <list />
+      </option>
+      <option name="tasks" value="&quot;run tests/multiline_comment.yadl&quot;" />
+      <option name="useSbtShell" value="true" />
+      <option name="vmparams" value="-Xms512M -Xmx1024M -Xss1M -XX:+CMSClassUnloadingEnabled" />
+      <option name="workingDir" value="$PROJECT_DIR$" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <list>
       <item itemvalue="sbt Task.Plain Run" />
       <item itemvalue="sbt Task.Run 'simple'" />
+      <item itemvalue="sbt Task.run 'multiline_comment'" />
       <item itemvalue="sbt Task.Unit Testing" />
     </list>
   </component>
