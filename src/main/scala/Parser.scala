@@ -225,13 +225,6 @@ def identifierP[$: P]: P[Identifier] = P(
 def assignmentP[$: P]: P[Statement] =
   (identifierP.! ~/ ws ~ "=" ~ ws ~ valueP).map((n, v) => Assignment(n, v))
 
-def mapper(sts: Seq[Option[Statement]]): Seq[Statement] =
-  sts match {
-    case Some(st) :: rest => st +: mapper(rest)
-    case None :: rest     => mapper(rest)
-    case Seq()            => Seq()
-  }
-
 def inlineTextP[$: P]: P[Unit] = P(!newline ~ AnyChar).rep
 def inlineCommentP[$: P]: P[Unit] = P("//" ~ inlineTextP ~ newline)
 
