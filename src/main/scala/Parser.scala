@@ -1,7 +1,7 @@
 import fastparse._, NoWhitespace._
 
 def wsSingle[$: P] = P(" " | "\t")
-def ws[$: P] = P(wsSingle.rep)
+def ws[$: P] = P((wsSingle | multilineCommentP).rep)
 def newline[$: P] = P("\n\r" | "\r" | "\n")
 
 def stringP[$: P] = P("'" ~ AnyChar.rep.! ~ "'")
@@ -235,7 +235,9 @@ def mapper(sts: Seq[Option[Statement]]): Seq[Statement] =
 def inlineTextP[$: P]: P[Unit] = P(!newline ~ AnyChar).rep
 def inlineCommentP[$: P]: P[Unit] = P("//" ~ inlineTextP ~ newline)
 
-def commentP[$: P] = P(inlineCommentP)
+def multilineCommentP[$: P]: P[Unit] = P("/*" ~ (!("*/") ~ AnyChar).rep ~ "*/")
+
+def commentP[$: P] = P(inlineCommentP | multilineCommentP)
 
 // Root rule
 def fileP[$: P]: P[Seq[Statement]] =
