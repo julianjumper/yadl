@@ -232,9 +232,14 @@ def mapper(sts: Seq[Option[Statement]]): Seq[Statement] =
     case Seq()            => Seq()
   }
 
+def inlineTextP[$: P]: P[Unit] = P(!newline ~ AnyChar).rep
+def inlineCommentP[$: P]: P[Unit] = P("//" ~ inlineTextP ~ newline)
+
+def commentP[$: P] = P(inlineCommentP)
+
 // Root rule
 def fileP[$: P]: P[Seq[Statement]] =
-  ((statementP.? ~ ws ~ newline).rep).map(mapper(_))
+  ((statementP.? ~ ws ~ (commentP | newline))).rep.map(mapper(_))
   // fastparse (the parsing library that we use) syntax:
   // This code means that we call a parser for a statement, then a parser for whitespaces, then for newlines.
   // This can be repeated any number of times (signaled by .rep). As regex: (statement whitespace* newline)*
