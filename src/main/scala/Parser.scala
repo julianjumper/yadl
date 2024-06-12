@@ -4,9 +4,6 @@ def wsSingle[$: P] = P(" " | "\t")
 def ws[$: P] = P(wsSingle.rep)
 def newline[$: P] = P("\n\r" | "\r" | "\n")
 
-def stringP[$: P] = P("'" ~ AnyChar.rep.! ~ "'")
-def stringConcatP[$: P] = P("++")
-
 enum BooleanOps:
   case And, Or, Not
 
@@ -134,7 +131,7 @@ def functionDefP[$: P]: P[Value] = (
 )
 
 def valueTerminalP[$: P]: P[Value] =
-  dictionaryP | structureAccess | booleanP | functionCallP | identifierP | numberP
+  dictionaryP | structureAccess | booleanP | functionCallP | identifierP | numberP | stringP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -329,26 +326,28 @@ def unescape(input: String): String =
     .replace("\\\"", "\"")
     .replace("\\\'", "\'")
 
-def charForString1P[$: P] = P(!("\"" | "\\r" | "\\n") ~ AnyChar)
-def charForString2P[$: P] = P(!("\'" | "\\r" | "\\n") ~ AnyChar)
-def charForMultilineString1P[$: P] = P(!"\"\"\"" ~ AnyChar)
-def charForMultilineString2P[$: P] = P(!"\'\'\'" ~ AnyChar)
+def charForStringDoubleQuote[$: P] = P(!("\"" | newline) ~ AnyChar)
+def charForStringSingleQuote[$: P] = P(!("\'" | newline) ~ AnyChar)
+def charForMultilineStringDoubleQuote[$: P] = P(!"\"\"\"" ~ AnyChar)
+def charForMultilineStringSingleQuote[$: P] = P(!"\'\'\'" ~ AnyChar)
 
 //Parser String
 //def formatStringP[$: P] = P()
 def stdStringP[$: P] = P(
-  (("\"\"\"" ~ charForMultilineString1P.rep.! ~ "\"\"\"") |
-    ("\'\'\'" ~ charForMultilineString1P.rep.! ~ "\'\'\'") |
-    ("\"" ~ charForString1P.rep.! ~ "\"") |
-    ("\'" ~ charForString2P.rep.! ~ "\'")).map(x => StdString(unescape(x)))
-)
-
-def stdMultiStringP[$: P] = P(
-  (("\"\"\"" ~ charForMultilineString1P.rep.! ~ "\"\"\"") ~ End |
-    ("\'\'\'" ~ charForMultilineString1P.rep.! ~ "\'\'\'") ~ End).map(x =>
+  (("\"" ~ charForStringDoubleQuote.rep.! ~ "\"") |
+    ("\'" ~ charForStringSingleQuote.rep.! ~ "\'")).map(x =>
     StdString(unescape(x))
   )
 )
+
+def stdMultiStringP[$: P] = P(
+  (("\"\"\"" ~ charForMultilineStringDoubleQuote.rep.! ~ "\"\"\"") ~ End |
+    ("\'\'\'" ~ charForMultilineStringSingleQuote.rep.! ~ "\'\'\'") ~ End).map(
+    x => StdString(unescape(x))
+  )
+)
+
+def stringP[$: P]: P[StdString] = stdStringP | stdMultiStringP
 
 // @language-team because you are indecisive of where to put the comma
 // could be simpler

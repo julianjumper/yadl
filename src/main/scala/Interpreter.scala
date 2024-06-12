@@ -128,9 +128,8 @@ def evalStatement(
       case Return(value) =>
         evalReturn(value, scope)
       case Expression(expr) =>
-        val result = evalValue(expr, scope)
-        val Some(return_value) = result.result: @unchecked
-        result.returnValue(return_value)
+        val Some(result) = evalValue(expr, scope).result: @unchecked
+        scope.returnValue(result)
       case If(ifBranch, elifBranches, elseBranch) => {
         evalIf(ifBranch, elifBranches, elseBranch, scope)
       }
@@ -140,11 +139,15 @@ def evalStatement(
 
 def evalWhileLoop(whileLoop: Branch, scope: Scope): Scope = {
   var currentScope = scope
-  while (evalValue(whileLoop.condition, currentScope).result.contains(Bool(true))) {
-    currentScope = whileLoop.body.foldLeft(currentScope)((accScope, statement) => {
-      if (accScope.hasResult) accScope // Early exit if result is set (like return statements)
-      else evalStatement(accScope, statement)
-    })
+  while (
+    evalValue(whileLoop.condition, currentScope).result.contains(Bool(true))
+  ) {
+    currentScope =
+      whileLoop.body.foldLeft(currentScope)((accScope, statement) => {
+        if (accScope.hasResult)
+          accScope // Early exit if result is set (like return statements)
+        else evalStatement(accScope, statement)
+      })
   }
   currentScope
 }
@@ -246,6 +249,8 @@ def evalValue(
       }
     case Number(value) =>
       scope.returnValue(Number(value))
+    case StdString(value) =>
+      scope.returnValue(StdString(value))
     case Bool(value) =>
       scope.returnValue(Bool(value))
     case Wrapped(value) =>
@@ -381,8 +386,9 @@ def extractNumber(value: Value): Double = value match {
 def printValue(value: Value): Unit =
   // NOTE: We assume we have only primitive values
   value match {
-    case Number(value) =>
-      print(value)
+    case Number(value)    => print(value)
+    case Bool(value)      => print(value)
+    case StdString(value) => print(value)
     case Dictionary(entries) =>
       print("{")
       val _ = entries.foldLeft(None) { (_, e) =>
