@@ -3,7 +3,7 @@ package parser
 import fastparse._, NoWhitespace._
 
 def wsSingle[$: P] = P(" " | "\t")
-def ws[$: P] = P((wsSingle | multilineCommentP).rep)
+def ws[$: P] = P((multilineCommentP | wsSingle).rep)
 def newline[$: P] = P("\n\r" | "\r" | "\n")
 
 def stringP[$: P] = P("'" ~ AnyChar.rep.! ~ "'")
@@ -86,38 +86,36 @@ case class WhileLoop(loop: Branch) extends Statement
 case class Expression(expr: Value) extends Statement
 case class Return(value: Value) extends Statement
 
-case class FunctionCall(identifier: String, args: Seq[Value])
+case class FunctionCall(functionExpr: Value, args: Seq[Value])
     extends Value,
       Statement
 
 def condition[$: P]: P[Value] =
-  P("(" ~ ws ~ valueP ~ ws ~ ")")
+  P("(" ~ ws ~ expression ~ ws ~ ")")
 
 def initialBranch[$: P]: P[Branch] =
   P(
     "if" ~ ws ~ condition ~ ws ~ codeBlock
-  ).map((v, sts) => Branch(v, sts))
+  ).map(Branch(_, _))
 
 def whileLoop[$: P]: P[Statement] =
-  P("while" ~ ws ~ condition ~ ws ~ codeBlock).map((c, cb) =>
-    WhileLoop(Branch(c, cb))
+  P("while" ~ ws ~ condition ~ ws ~ codeBlock).map((c, sts) =>
+    WhileLoop(Branch(c, sts))
   )
 
 def elif[$: P]: P[Branch] =
   P(
     "elif" ~ ws ~ condition ~ ws ~ codeBlock
-  ).map((v, sts) => Branch(v, sts))
+  ).map(Branch(_, _))
 
 def endBranch[$: P]: P[Seq[Statement]] =
   P("else" ~ ws ~ codeBlock)
 
 def ifStatement[$: P]: P[Statement] =
-  (initialBranch ~ (ws ~ elif).rep ~ ws ~ endBranch.?).map((i, m, e) =>
-    If(i, m, e)
-  )
+  (initialBranch ~ (ws ~ elif).rep ~ ws ~ endBranch.?).map(If(_, _, _))
 
 def returnP[$: P]: P[Statement] =
-  P("return" ~ ws ~ valueP).map(Return(_))
+  P("return" ~ ws ~ expression).map(Return(_))
 
 def statementP[$: P]: P[Statement] =
   returnP | whileLoop | ifStatement | functionCallP | assignmentP
@@ -126,7 +124,7 @@ def codeBlock[$: P]: P[Seq[Statement]] =
   P("{" ~ newline.? ~ (ws ~ statementP ~ ws ~ newline).rep ~ ws ~ "}")
 
 def functionDefBodyP[$: P]: P[Seq[Statement]] =
-  codeBlock | valueP.map((v) => Seq(Expression(v)))
+  codeBlock | expression.map((v) => Seq(Expression(v)))
 
 def functionDefArgsP[$: P]: P[Seq[String]] = (
   identifierP ~ (ws ~ "," ~ ws ~ functionDefArgsP).?
@@ -146,7 +144,7 @@ def functionDefP[$: P]: P[Value] = (
   }
 )
 
-def valueTerminalP[$: P]: P[Value] =
+def valueP[$: P]: P[Value] =
   dictionaryP | structureAccess | booleanP | functionCallP | identifierP | numberP
 
 def booleanP[$: P]: P[Value] = P(
@@ -158,7 +156,7 @@ def booleanP[$: P]: P[Value] = P(
 }
 
 def functionCallArgsP[$: P]: P[Seq[Value]] = (
-  valueP ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
+  expression ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
 ).map((v, vs) =>
   vs match {
     case None     => Seq(v)
@@ -166,8 +164,11 @@ def functionCallArgsP[$: P]: P[Seq[Value]] = (
   }
 )
 
+def functionName[$: P]: P[Value] =
+  identifierP | wrappedExpression
+
 def functionCallP[$: P]: P[FunctionCall] = (
-  identifierP.! ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
+  functionName ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
 ).map((n, bs) =>
   bs match {
     case None     => FunctionCall(n, Seq())
@@ -214,8 +215,8 @@ def orderBy(binOp: BinaryOp, pred: BinaryOp => Int): BinaryOp =
     case _ => binOp
   }
 
-def valueBinaryOpP[$: P]: P[Value] = (
-  (valueWrappedP | valueTerminalP./) ~ (ws ~ binaryOperator ~ ws ~ valueP).?
+def binaryOpExpression[$: P]: P[Value] = (
+  (wrappedExpression | valueP./) ~ (ws ~ binaryOperator ~ ws ~ expression).?
 ).map((l, rest) =>
   rest match {
     case Some((op, r)) =>
@@ -224,11 +225,11 @@ def valueBinaryOpP[$: P]: P[Value] = (
   }
 )
 
-def valueWrappedP[$: P]: P[Value] =
-  ("(" ~ valueP ~ ")").map(Wrapped(_))
+def wrappedExpression[$: P]: P[Value] =
+  ("(" ~ expression ~ ")").map(Wrapped(_))
 
-def valueP[$: P]: P[Value] = (
-  functionDefP | valueBinaryOpP | valueWrappedP | valueTerminalP./
+def expression[$: P]: P[Value] = (
+  functionDefP | binaryOpExpression
 )
 
 def identifierP[$: P]: P[Identifier] = P(
@@ -236,7 +237,7 @@ def identifierP[$: P]: P[Identifier] = P(
 )
 
 def assignmentP[$: P]: P[Statement] =
-  (identifierP.! ~/ ws ~ "=" ~ ws ~ valueP).map((n, v) => Assignment(n, v))
+  (identifierP.! ~/ ws ~ "=" ~ ws ~ expression).map((n, v) => Assignment(n, v))
 
 def mapper(sts: Seq[Option[Statement]]): Seq[Statement] =
   sts match {
