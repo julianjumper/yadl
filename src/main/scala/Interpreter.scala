@@ -74,6 +74,10 @@ def evalFunctionCall(
       interpreterdata.toDataObject(v)
     }
     val Some(func) = builtins.get(identifier): @unchecked
+    assert(
+      func.n_args == callArgs.length,
+      s"function call: expected ${func.n_args} arguments but got ${callArgs.length}"
+    )
     val result = func.function(callArgsNew)
     scope.returnValue(interpreterdata.toAstNode(result))
   } else {
