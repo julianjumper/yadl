@@ -2,6 +2,8 @@ import fastparse._
 import fastparse.Parsed.Success
 import fastparse.Parsed.Failure
 
+import parser.{StructureAccess, Identifier, Number, structureAccess}
+
 class StructureAccessing extends munit.FunSuite {
   test("case 'hello[5]'") {
     val input = "hello[5]"
