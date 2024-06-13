@@ -57,40 +57,59 @@ class Scope(
 end Scope
 
 def evalFunctionCall(
-    identifier: String,
+    functionExpr: Value,
     callArgs: Seq[Value],
     scope: Scope
 ): Scope =
-  if (identifier == "print") {
-    printValues(callArgs, scope)
-    print("\n")
-    scope
-  } else if (builtins.contains(identifier)) {
-    val callArgsNew = callArgs.map { value =>
-      val Some(v) = evalValue(value, scope).result: @unchecked
-      interpreterdata.toDataObject(v)
-    }
-    val Some(func) = builtins.get(identifier): @unchecked
-    assert(
-      func.n_args == callArgs.length,
-      s"function call: expected ${func.n_args} arguments but got ${callArgs.length}"
-    )
-    val result = func.function(callArgsNew)
-    scope.returnValue(interpreterdata.toAstNode(result))
-  } else {
-    scope.lookup(Identifier(identifier)) match {
-      case Some(Function(args, body)) =>
-        val res =
-          body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
-        val Some(value) = res.result: @unchecked
-        scope.returnValue(value)
-      case Some(_) => assert(false, "Only functions may be called")
-      case None =>
+  functionExpr match {
+    case Identifier(identifier) =>
+      if (identifier == "print") {
+        printValues(callArgs, scope)
+        print("\n")
+        scope
+      } else if (builtins.contains(identifier)) {
+        val callArgsNew = callArgs.map { value =>
+          val Some(v) = evalValue(value, scope).result: @unchecked
+          interpreterdata.toDataObject(v)
+        }
+        val Some(func) = builtins.get(identifier): @unchecked
         assert(
-          false,
-          s"TODO: case None in function call in eval '$identifier'"
+          func.n_args == callArgs.length,
+          s"function call: expected ${func.n_args} arguments but got ${callArgs.length}"
         )
-    }
+        val result = func.function(callArgsNew)
+        scope.returnValue(interpreterdata.toAstNode(result))
+      } else {
+        scope.lookup(Identifier(identifier)) match {
+          case Some(Function(args, body)) =>
+            val res =
+              body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
+            val Some(value) = res.result: @unchecked
+            scope.returnValue(value)
+          case Some(_) => assert(false, "Only functions may be called")
+          case None =>
+            assert(
+              false,
+              s"TODO: case None in function call in eval '$identifier'"
+            )
+        }
+      }
+    case Wrapped(value) =>
+      evalFunctionCall(value, callArgs, scope)
+
+    case Function(args, body) =>
+      val res =
+        body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
+      val Some(value) = res.result: @unchecked
+      scope.returnValue(value)
+
+    case FunctionCall(functionExpr, args) =>
+      val Some(Function(args1, body1)) =
+        evalFunctionCall(functionExpr, args, scope).result: @unchecked
+      val res =
+        body1.foldLeft(Scope(scope, args1, callArgs))(evalStatement)
+      val Some(value) = res.result: @unchecked
+      scope.returnValue(value)
   }
 
 def evalReturn(value: Value, scope: Scope): Scope =
@@ -110,7 +129,9 @@ def evalReturn(value: Value, scope: Scope): Scope =
 
       case va =>
         scope.result match {
-          case None    => scope.returnValue(va)
+          case None =>
+            val Some(res) = evalValue(va, scope).result: @unchecked
+            scope.returnValue(res)
           case Some(v) => scope.returnValue(v)
         }
     }
