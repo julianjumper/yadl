@@ -25,6 +25,16 @@ lst | stack [avg, max] // {0: 2, 1: 3}
 lst1 = listToIterator([1,2,3])
 
 lst1 | stack [avg, max] ["avg", 'max'] // {"avg": 2, "max": 3}
+
+
+lst2 = listToIterator([1,2,3])
+
+d = lst2 | stack [(it) => map(it, (x) => x + 1), (it) => map(it, (x) => x + 2)]
+
+next(d[0]) // returns 2
+// now for d[1] the 3 is already calculated and buffered.
+next(d[1]) // returns 3, which was buffered.
+
 ```
 
 Under the hood, every time one resulting iterator is queried, it applies all retrieved elements from `it` to all iterators, even though they where not invoked explicitly. The not jet queried data of the other iterators will be buffered until read.
@@ -37,6 +47,24 @@ This will be very useful if you want to know multiple things from one iterator, 
 
 `check_none(it: iterator, cond: func[object -> bool])` - returns true, iff no elements in `it` satisfy `cond`
 
-`zip(it...: iterator...)` - returns an `it` that returns a tupel containing one element of each input `it`, until the first `it` is empty.
+`zip(it...: iterator...) -> iteartor` - returns an `it` that returns a tupel containing one element of each input `it`, until the first `it` is empty.
 `zip([1,2,3], ['a', 'b']) | list` - returns `[[1,'a'],[2,'b']]`
 
+`sort(it: iterator, sorter: func[object, object -> int] = undefined) -> iterator` - sorts the iterator in regarts to the sorter. The default sorter is 
+```
+(x, y) => {
+    if (x > y) {
+        return 1
+    }
+    if (x == y) {
+        return 0
+    }
+    if (x < y) {
+        return -1
+    }
+    error()
+}
+ ```
+This means the entire it data must be buffered.
+
+`count(it: iterator, obj) -> number` - counts the number of times the `obj` appears in `it`.
