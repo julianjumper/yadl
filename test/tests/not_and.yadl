@@ -3,4 +3,4 @@
 x = not true and false 
 print(x)
 
-// CHECK-EQ: false
+// CHECK-OUT: false

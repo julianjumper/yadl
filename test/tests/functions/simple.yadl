@@ -8,4 +8,4 @@ two = add(1)
 print(two)
 
 
-// CHECK-OUT: 2
+// CHECK-OUT: 2.0

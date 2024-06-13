@@ -1,4 +1,4 @@
-
+// RUN: DEFAULT
 test = (x) => x + 5
 f = (x, y) => {
     v = test(x)
@@ -7,3 +7,4 @@ f = (x, y) => {
 }
 
 print(f(15, 2))
+// CHECK-OUT: 27.0

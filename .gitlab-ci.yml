@@ -3,14 +3,11 @@ stages:
   - build
   - unit-testing
   - interpretation-testing
-  - run-testing
 
 .config: &config
   rules: &default_rules
-    - if:  # $CI_PIPELINE_SOURCE == "schedule"
-  script:
-    - java -jar $YADL_JAR $ARG
-  variables: &vars
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
     YADL_PATH: &path target/scala-3.4.1
     YADL_JAR: &jar $YADL_PATH/yadl.jar
 
@@ -36,49 +33,9 @@ unit-tests:
   rules: *default_rules
   timeout: 5 min
 
-simple-exprs:
-  <<: *config
-  stage: interpretation-testing
-  needs:
-    - unit-tests
-  variables:
-    <<: *vars
-    ARG: tests/simple.yadl
-  timeout: 3 min
-
-function-exprs:
-  <<: *config
-  stage: interpretation-testing
-  needs:
-    - unit-tests
-  variables:
-    <<: *vars
-    ARG: tests/function.yadl
-  timeout: 3 min
-
-if-branches-exprs:
-  <<: *config
-  stage: interpretation-testing
-  needs:
-    - unit-tests
-  variables:
-    <<: *vars
-    ARG: tests/if-branches.yadl
-  timeout: 3 min
-
-while-loop-exprs:
-  <<: *config
-  stage: interpretation-testing
-  needs:
-    - unit-tests
-  variables:
-    <<: *vars
-    ARG: tests/whileloop.yadl
-  timeout: 3 min
-
 python-test-script:
   <<: *config
-  stage: run-testing
+  stage: interpretation-testing
   needs:
     - unit-tests
   script:
