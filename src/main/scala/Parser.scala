@@ -53,15 +53,26 @@ case class CompareOp(op: CompareOps) extends Operator
 case class BooleanOp(op: BooleanOps) extends Operator
 
 case class Identifier(name: String) extends Value
-case class Number(value: Double) extends Value
-case class Bool(b: Boolean) extends Value
+case class Number(value: Double) extends Value:
+  override def toString(): String = value.toString
+
+case class Bool(b: Boolean) extends Value:
+  override def toString(): String = b.toString
+
 case class BinaryOp(left: Value, op: Operator, right: Value) extends Value
 case class Function(args: Seq[String], body: Seq[Statement]) extends Value
 case class Wrapped(value: Value) extends Value
-case class StdString(value: String) extends Value
+case class StdString(value: String) extends Value:
+  override def toString(): String = value.toString
+
 case class FormatString(value: List[Value]) extends Value
-class DictionaryEntry(var key: Value, var value: Value)
-case class Dictionary(entries: Seq[DictionaryEntry]) extends Value
+class DictionaryEntry(var key: Value, var value: Value):
+  override def toString(): String = key.toString + ":" + value.toString
+
+case class Dictionary(entries: Seq[DictionaryEntry]) extends Value:
+  override def toString(): String =
+    "{" + entries.map { _.toString }.mkString(", ") + "}"
+
 case class StructureAccess(identifier: Identifier, key: Value) extends Value
 
 case class Assignment(varName: String, value: Value) extends Statement

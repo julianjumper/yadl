@@ -62,10 +62,7 @@ def evalFunctionCall(
     scope: Scope
 ): Scope =
   if (identifier == "print") {
-    for (arg <- callArgs)
-      val tmp = evalValue(arg, scope)
-      val Some(res) = tmp.result: @unchecked
-      printValue(res)
+    printValues(callArgs, scope)
     print("\n")
     scope
   } else if (builtins.contains(identifier)) {
@@ -399,21 +396,11 @@ def extractNumber(value: Value): Double = value match {
   case _         => assert(false, "Expected number or boolean in comparison.")
 }
 
-def printValue(value: Value): Unit =
-  // NOTE: We assume we have only primitive values
-  value match {
-    case Number(value) =>
-      print(value)
-    case Dictionary(entries) =>
-      print("{")
-      val _ = entries.foldLeft(None) { (_, e) =>
-        printValue(e.key)
-        print("-> ")
-        printValue(e.value)
-        None
-      }
-      print("}")
-    case err =>
-      assert(false, s"Value is not printable: $err")
-  }
-  print(" ")
+def printValues(values: Seq[Value], scope: Scope): Unit =
+  val output = values
+    .map { e =>
+      val Some(r) = evalValue(e, scope).result: @unchecked
+      r.toString
+    }
+    .mkString(" ")
+  print(output)
