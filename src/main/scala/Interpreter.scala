@@ -1,15 +1,14 @@
 import scala.util.control.Breaks._
 
-import parser._ // TODO do not import everything.
-import parser.ArithmaticOps.{Add, Div, Expo, Mul, Sub}
-import parser.BooleanOps.{And, Or}
-import parser.CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
+import parser._ // To lazy to import all types individually
 
-import stdlib.{BuiltinFunction, getStdlibDictionary}
+import ArithmaticOps.{Add, Div, Expo, Mul, Sub}
+import BooleanOps.{And, Or}
+import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
+
+val builtins = stdlib.stdlib
 
 type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
-
-// val builtinFunctions = stdlib.getStdlibDictionary()
 
 class Scope(
     parent: Scope = null,
@@ -69,6 +68,14 @@ def evalFunctionCall(
       printValue(res)
     print("\n")
     scope
+  } else if (builtins.contains(identifier)) {
+    val callArgsNew = callArgs.map { value =>
+      val Some(v) = evalValue(value, scope).result: @unchecked
+      interpreterdata.toDataObject(v)
+    }
+    val Some(func) = builtins.get(identifier): @unchecked
+    val result = func.function(callArgsNew)
+    scope.returnValue(interpreterdata.toAstNode(result))
   } else {
     scope.lookup(Identifier(identifier)) match {
       case Some(Function(args, body)) =>
@@ -146,21 +153,25 @@ def evalStatement(
 
 def evalWhileLoop(whileLoop: Branch, scope: Scope): Scope = {
   var currentScope = scope
-  while (evalValue(whileLoop.condition, currentScope).result.contains(Bool(true))) {
-    currentScope = whileLoop.body.foldLeft(currentScope)((accScope, statement) => {
-      if (accScope.hasResult) accScope // Early exit if result is set (like return statements)
-      else evalStatement(accScope, statement)
-    })
+  while (
+    evalValue(whileLoop.condition, currentScope).result.contains(Bool(true))
+  ) {
+    currentScope =
+      whileLoop.body.foldLeft(currentScope)((accScope, statement) => {
+        if (accScope.hasResult)
+          accScope // Early exit if result is set (like return statements)
+        else evalStatement(accScope, statement)
+      })
   }
   currentScope
 }
 
 def evalIf(
-            initialBranch: Branch,
-            elifBranches: Seq[Branch],
-            elseBranch: Option[Seq[Statement]],
-            scope: Scope
-          ): Scope = {
+    initialBranch: Branch,
+    elifBranches: Seq[Branch],
+    elseBranch: Option[Seq[Statement]],
+    scope: Scope
+): Scope = {
 
   def evalBranch(branch: Branch, scope: Scope): Option[Scope] = {
     val result = evalValue(branch.condition, scope)
@@ -175,7 +186,8 @@ def evalIf(
   // Check initial branch condition
   var conditionsMet = false
   evalBranch(initialBranch, scope) match {
-    case Some(updatedScope) =>  updatedScope // Return updated scope if the initial branch is true
+    case Some(updatedScope) =>
+      updatedScope // Return updated scope if the initial branch is true
     case None =>
       val finalScope = elifBranches.foldLeft(scope) { (currentScope, branch) =>
         evalBranch(branch, currentScope) match {
@@ -198,7 +210,7 @@ def evalIf(
           statements.foldLeft(finalScope)(evalStatement)
         case _ => finalScope
       }
-    }
+  }
 }
 
 def evalValue(
