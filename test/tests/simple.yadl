@@ -12,6 +12,6 @@ print(x)
 print(y, 3)
 print(z)
 
-// CHECK-OUT: 15
-// CHECK-OUT: 45 3
-// CHECK-OUT: 9765625
+// CHECK-OUT: 15.0
+// CHECK-OUT: 45.0 3.0
+// CHECK-OUT: 9765625.0
