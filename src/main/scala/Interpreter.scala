@@ -232,6 +232,32 @@ def evalValue(
       val right_result = evalValue(right, scope)
       val Some(new_right) = right_result.result: @unchecked
       evalBinaryOp(op, new_left, new_right, scope)
+    case StructureAccess(id, v) => {
+      val returnVal: Value = scope.lookup(id) match {
+        case Some(Dictionary(entries)) =>
+          val result: Option[Value] = entries.foldLeft(None) { (acc, curr) =>
+            acc match {
+              case None =>
+                val res = evalValue(curr.key, scope)
+                val Some(value) = res.result: @unchecked
+                val res2 = evalCompareOps(Eq, value, v, scope)
+                res2.result match {
+                  case Some(Bool(true)) =>
+                    Some(curr.value)
+                  case _ => None
+                }
+              case r => r
+            }
+          }
+          result match {
+            case Some(value) => value
+            case None => assert(false, s"structure '${id.name}' does not exist")
+          }
+        case _ =>
+          assert(false, s"no structure found by the name '${id.name}'")
+      }
+      scope.returnValue(returnVal)
+    }
     case Identifier(name) =>
       scope.lookup(Identifier(name)) match {
         case Some(value) =>
@@ -245,6 +271,8 @@ def evalValue(
       scope.returnValue(Bool(value))
     case Wrapped(value) =>
       evalValue(value, scope)
+    case Dictionary(entries) =>
+      scope.returnValue(Dictionary(entries))
     case err =>
       assert(false, f"TODO: not implemented '$err'")
   }
@@ -371,11 +399,20 @@ def extractNumber(value: Value): Double = value match {
   case _         => assert(false, "Expected number or boolean in comparison.")
 }
 
-def printValue(value: Value) =
+def printValue(value: Value): Unit =
   // NOTE: We assume we have only primitive values
   value match {
     case Number(value) =>
       print(value)
+    case Dictionary(entries) =>
+      print("{")
+      val _ = entries.foldLeft(None) { (_, e) =>
+        printValue(e.key)
+        print("-> ")
+        printValue(e.value)
+        None
+      }
+      print("}")
     case err =>
       assert(false, s"Value is not printable: $err")
   }

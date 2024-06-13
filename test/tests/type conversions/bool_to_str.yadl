@@ -1,0 +1,5 @@
+// RUN: DEFAULT
+
+print("Hello " + true)
+
+// CHECK OUT: Hello true

@@ -1,0 +1,12 @@
+// RUN: DEFAULT
+
+
+id = (x) => {
+    return ((x) => x - 1)(x + 1)
+}
+
+x = 5
+
+print(id(x) == x)
+
+// CHECK-OUT: true

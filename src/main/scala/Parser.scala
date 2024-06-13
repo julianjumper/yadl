@@ -60,6 +60,9 @@ case class Function(args: Seq[String], body: Seq[Statement]) extends Value
 case class Wrapped(value: Value) extends Value
 case class StdString(value: String) extends Value
 case class FormatString(value: List[Value]) extends Value
+class DictionaryEntry(var key: Value, var value: Value)
+case class Dictionary(entries: Seq[DictionaryEntry]) extends Value
+case class StructureAccess(identifier: Identifier, key: Value) extends Value
 
 case class Assignment(varName: String, value: Value) extends Statement
 case class Branch(condition: Value, body: Seq[Statement])
@@ -133,7 +136,7 @@ def functionDefP[$: P]: P[Value] = (
 )
 
 def valueTerminalP[$: P]: P[Value] =
-  booleanP | functionCallP./ | identifierP | numberP
+  dictionaryP | structureAccess | booleanP | functionCallP | identifierP | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -218,7 +221,7 @@ def valueP[$: P]: P[Value] = (
 )
 
 def identifierP[$: P]: P[Identifier] = P(
-  (CharIn("a-zA-Z") ~ CharIn("a-zA-z0-9_").rep).!.map(x => Identifier(x))
+  (CharIn("a-zA-Z") ~ CharIn("a-zA-z0-9_").rep).!.map(Identifier(_))
 )
 
 def assignmentP[$: P]: P[Statement] =
@@ -231,9 +234,14 @@ def mapper(sts: Seq[Option[Statement]]): Seq[Statement] =
     case Seq()            => Seq()
   }
 
+def inlineTextP[$: P]: P[Unit] = P(!newline ~ AnyChar).rep
+def inlineCommentP[$: P]: P[Unit] = P("//" ~ inlineTextP ~ newline)
+
+def commentP[$: P] = P(inlineCommentP)
+
 // Root rule
 def fileP[$: P]: P[Seq[Statement]] =
-  ((statementP.? ~ ws ~ newline).rep).map(mapper(_))
+  ((statementP.? ~ ws ~ (commentP | newline))).rep.map(mapper(_))
   // fastparse (the parsing library that we use) syntax:
   // This code means that we call a parser for a statement, then a parser for whitespaces, then for newlines.
   // This can be repeated any number of times (signaled by .rep). As regex: (statement whitespace* newline)*
@@ -343,3 +351,27 @@ def stdMultiStringP[$: P] = P(
     StdString(unescape(x))
   )
 )
+
+// @language-team because you are indecisive of where to put the comma
+// could be simpler
+
+def dictionaryEntries[$: P]: P[Dictionary] =
+  def dictionaryEntry[$: P]: P[DictionaryEntry] =
+    (valueP ~ ws ~ ":" ~ ws ~ valueP).map(DictionaryEntry(_, _))
+
+  def repeatedEntries[$: P](
+      entry: => P[DictionaryEntry]
+  ): P[Seq[DictionaryEntry]] =
+    P((ws ~ entry).rep(sep = (ws ~ "," ~ ws ~ newline.?)))
+
+  (ws ~ repeatedEntries(dictionaryEntry) ~/ ws ~ newline.?)
+    .map(Dictionary(_))
+
+def dictionaryP[$: P]: P[Dictionary] =
+  P("{" ~ ws ~ newline.? ~ dictionaryEntries ~ ws ~ "}")
+
+def structureAccess[$: P]: P[Value] =
+  P(
+    (!"[" ~ CharIn("a-zA-z0-9_")).rep.! ~ "[" ~ ws ~ valueP ~ ws ~ "]"
+  )
+    .map((i, v) => StructureAccess(Identifier(i), v))

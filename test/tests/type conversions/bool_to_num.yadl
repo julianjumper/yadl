@@ -1,0 +1,5 @@
+// RUN: DEFAULT
+
+print(true + 4)
+
+// CHECK-OUT: 5

@@ -1,0 +1,11 @@
+// RUN: DEFAULT
+
+x = 5
+
+if (true){
+    x = 7
+}
+
+print(x)
+
+// CHECK OUT: 7

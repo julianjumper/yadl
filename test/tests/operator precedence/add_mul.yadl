@@ -1,0 +1,7 @@
+// RUN: DEFAULT
+
+print(2*4+5)
+print(2+4*5)
+
+// CHECK-OUT: 13
+// CHECK-OUT: 22
