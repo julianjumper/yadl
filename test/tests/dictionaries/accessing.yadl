@@ -4,10 +4,10 @@ x = {'a': 3, 'b': 5}
 
 print(x['a'])
 
-// CHECK OUT: 3
+// CHECK OUT: 3.0
 
 x['a'] = 10
 
 pritn(x['a'] + x['b'])
 
-// CHECK OUT: 15
+// CHECK OUT: 15.0

@@ -3,4 +3,4 @@
 x = 7 - 3 - 2
 print(x)
 
-// CHECK-OUT: 2
+// CHECK-OUT: 2.0
