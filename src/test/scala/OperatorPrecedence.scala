@@ -2,6 +2,8 @@ import fastparse._
 import fastparse.Parsed.Success
 import fastparse.Parsed.Failure
 
+import parser.{valueBinaryOpP, Number}
+
 class OperatorPrecedence extends munit.FunSuite {
 
   test("case '3 + 4 * 5'") {

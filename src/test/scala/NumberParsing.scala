@@ -2,6 +2,8 @@ import fastparse._
 import fastparse.Parsed.Success
 import fastparse.Parsed.Failure
 
+import parser.{numberP, Number}
+
 class NumberParsing extends munit.FunSuite {
 
   test("case '0'") {

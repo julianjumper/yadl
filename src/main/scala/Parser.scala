@@ -1,3 +1,5 @@
+package parser
+
 import fastparse._, NoWhitespace._
 
 def wsSingle[$: P] = P(" " | "\t")
