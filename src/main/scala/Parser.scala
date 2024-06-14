@@ -231,7 +231,7 @@ def inlineCommentP[$: P]: P[Unit] = P("//" ~ inlineTextP ~ newline)
 def commentP[$: P] = P(inlineCommentP)
 
 // Root rule
-def fileP[$: P]: P[Seq[Statement]] =
+def yadlParser[$: P]: P[Seq[Statement]] =
   ((statementP.? ~ ws ~ (commentP | newline))).rep.map(l =>
     l.map(_.toList).flatten
   )
