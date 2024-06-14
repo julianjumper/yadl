@@ -1,8 +1,8 @@
-// RUN: echo "1\n2\n"
+// RUN: DEFAULT
 
 x = (x) => x + 1
 print(x(0))
-print(x(x(0))
+print(x(x(0)))
 
 // CHECK-OUT: 1
 // CHECK-OUT: 2

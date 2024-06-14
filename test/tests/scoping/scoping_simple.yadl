@@ -8,4 +8,4 @@ if (true){
 
 print(x)
 
-// CHECK OUT: 7
+// CHECK-OUT: 7

@@ -1,7 +1,12 @@
+import scala.util.control.Breaks._
+
+import parser._ // To lazy to import all types individually
+
 import ArithmaticOps.{Add, Div, Expo, Mul, Sub}
 import BooleanOps.{And, Or}
 import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
-import scala.util.control.Breaks._
+
+val builtins = stdlib.stdlib
 
 type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
 
@@ -52,31 +57,59 @@ class Scope(
 end Scope
 
 def evalFunctionCall(
-    identifier: String,
+    functionExpr: Value,
     callArgs: Seq[Value],
     scope: Scope
 ): Scope =
-  if (identifier == "print") {
-    for (arg <- callArgs)
-      val tmp = evalValue(arg, scope)
-      val Some(res) = tmp.result: @unchecked
-      printValue(res)
-    print("\n")
-    scope
-  } else {
-    scope.lookup(Identifier(identifier)) match {
-      case Some(Function(args, body)) =>
-        val res =
-          body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
-        val Some(value) = res.result: @unchecked
-        scope.returnValue(value)
-      case Some(_) => assert(false, "Only functions may be called")
-      case None =>
+  functionExpr match {
+    case Identifier(identifier) =>
+      if (identifier == "print") {
+        printValues(callArgs, scope)
+        print("\n")
+        scope
+      } else if (builtins.contains(identifier)) {
+        val callArgsNew = callArgs.map { value =>
+          val Some(v) = evalValue(value, scope).result: @unchecked
+          interpreterdata.toDataObject(v)
+        }
+        val Some(func) = builtins.get(identifier): @unchecked
         assert(
-          false,
-          s"TODO: case None in function call in eval '$identifier'"
+          func.n_args == callArgs.length,
+          s"function call: expected ${func.n_args} arguments but got ${callArgs.length}"
         )
-    }
+        val result = func.function(callArgsNew)
+        scope.returnValue(interpreterdata.toAstNode(result))
+      } else {
+        scope.lookup(Identifier(identifier)) match {
+          case Some(Function(args, body)) =>
+            val res =
+              body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
+            val Some(value) = res.result: @unchecked
+            scope.returnValue(value)
+          case Some(_) => assert(false, "Only functions may be called")
+          case None =>
+            assert(
+              false,
+              s"TODO: case None in function call in eval '$identifier'"
+            )
+        }
+      }
+    case Wrapped(value) =>
+      evalFunctionCall(value, callArgs, scope)
+
+    case Function(args, body) =>
+      val res =
+        body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
+      val Some(value) = res.result: @unchecked
+      scope.returnValue(value)
+
+    case FunctionCall(functionExpr, args) =>
+      val Some(Function(args1, body1)) =
+        evalFunctionCall(functionExpr, args, scope).result: @unchecked
+      val res =
+        body1.foldLeft(Scope(scope, args1, callArgs))(evalStatement)
+      val Some(value) = res.result: @unchecked
+      scope.returnValue(value)
   }
 
 def evalReturn(value: Value, scope: Scope): Scope =
@@ -96,7 +129,9 @@ def evalReturn(value: Value, scope: Scope): Scope =
 
       case va =>
         scope.result match {
-          case None    => scope.returnValue(va)
+          case None =>
+            val Some(res) = evalValue(va, scope).result: @unchecked
+            scope.returnValue(res)
           case Some(v) => scope.returnValue(v)
         }
     }
@@ -383,22 +418,11 @@ def extractNumber(value: Value): Double = value match {
   case _         => assert(false, "Expected number or boolean in comparison.")
 }
 
-def printValue(value: Value): Unit =
-  // NOTE: We assume we have only primitive values
-  value match {
-    case Number(value)    => print(value)
-    case Bool(value)      => print(value)
-    case StdString(value) => print(value)
-    case Dictionary(entries) =>
-      print("{")
-      val _ = entries.foldLeft(None) { (_, e) =>
-        printValue(e.key)
-        print("-> ")
-        printValue(e.value)
-        None
-      }
-      print("}")
-    case err =>
-      assert(false, s"Value is not printable: $err")
-  }
-  print(" ")
+def printValues(values: Seq[Value], scope: Scope): Unit =
+  val output = values
+    .map { e =>
+      val Some(r) = evalValue(e, scope).result: @unchecked
+      r.toString
+    }
+    .mkString(" ")
+  print(output)

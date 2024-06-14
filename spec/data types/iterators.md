@@ -144,16 +144,3 @@ TumblingWindow = (it, window_size, step_size) => {
 // Then a new iterator using hasnext_, next_ and data is returned
 
 ```
-## Built-ins
-
-The following functions are provided by the language:
-
-`filter(it: iterator[object], fn: func[object -> bool]) -> iterator[object]` - Returns an iterator, which will returns all elements of `it` that satisfy `fn`.
-
-`map(it: iterator[object], fn: func[object -> object]) -> iterator[object]` - Returns an iterator, that returns every element in `it` and applies `fn` to it.
-
-`reduce(it: iterator[object], fn: func[object, object -> object], default=undefined) -> object` - Applies `fn` first to the first 2 elements, then to the result of this operation and the third, and so on. If `default` is set, use it as the zero'th item in `it`. Otherwise `it` must have at least one arguments. 
-
-`first(it: iterator, fn: func[object -> bool], default=undefined) -> object` - Returns the first object in `it` that satisfies `fn`. If no such object exists, throw an error if `default` is not set. Otherwise return `default`.
-
-`groupBy(it: iterator, fn: func[object -> object]) -> iterator[iterator[object]]` - Returns an an iterator `i1`. `i1` number Of dictionaries corresponging to the groups, `fn` returns `{key: ..., values: i2}`. `i2` is an iterator that returns all values corresponding to that key.

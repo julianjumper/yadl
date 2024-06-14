@@ -1,0 +1,15 @@
+// RUN: DEFAULT
+x = 0
+
+while(x < 5) {
+    print(x)
+    x = x + 1
+}
+
+print(x)
+// CHECK-OUT: 0
+// CHECK-OUT: 1
+// CHECK-OUT: 2
+// CHECK-OUT: 3
+// CHECK-OUT: 4
+// CHECK-OUT: 5
