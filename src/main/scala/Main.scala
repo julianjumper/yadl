@@ -41,6 +41,6 @@ object Main {
           // parsing was not successful.
           val fail = Parsed.Failure(v, s, s2)
           val trace = fail.trace().longAggregateMsg
-          println(trace)
+          scala.sys.error(trace)
       }
 }

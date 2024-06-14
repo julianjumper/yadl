@@ -6,7 +6,7 @@ add = (x) => {
 
 print(add(1))
 
-// CHECK-OUT: 2.0
+// CHECK-OUT: 2
 
 complex_add = (x, y) => {
     x = x + 1
@@ -19,8 +19,8 @@ y = 2
 
 print(complex_add(x, y))
 
-// CHECK-OUT: 5.0
+// CHECK-OUT: 5
 
 print(x)
 
-// CHECK-OUT: 1.0
+// CHECK-OUT: 1

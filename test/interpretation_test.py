@@ -95,3 +95,8 @@ for posix_path in Path(TEST_DIR).rglob("*.yadl"):
 @pytest.mark.parametrize("config", configurations)
 def test_config(config):
     run_test(config)
+
+def pytest_collection_modifyitems(items):
+    for item in items:
+        if item.get_marker('timeout') is None:
+            item.add_marker(pytest.mark.timeout(10))

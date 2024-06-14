@@ -5,6 +5,6 @@ print(1)
 // asdfasdf */
 print(/*3
 asfasdfasdf*/ 8)
-// CHECK-OUT: 2.0
-// CHECK-OUT: 1.0
-// CHECK-OUT: 8.0
+// CHECK-OUT: 2
+// CHECK-OUT: 1
+// CHECK-OUT: 8

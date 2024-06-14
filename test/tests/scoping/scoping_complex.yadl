@@ -9,11 +9,11 @@ add = (x) => {
 
 print(add(x))
 
-// CHECK OUT: 7.0
+// CHECK OUT: 7
 
 print(x)
 
-// CHECK OUTPUT: 5.0
+// CHECK OUTPUT: 5
 
 add_mutate = () => {x = x + 2}
 
@@ -21,4 +21,4 @@ add_mutate()
 
 print(x)
 
-// CHECK OUT: 7.0
+// CHECK OUT: 7
