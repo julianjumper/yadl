@@ -5,7 +5,7 @@ x = - 5
 y = 10 * x
 
 print( x )
-// CHECK-OUT: -5.0
+// CHECK-OUT: -5
 print( y )
-// CHECK-OUT: -50.0
+// CHECK-OUT: -50
 

@@ -16,14 +16,15 @@ enum CompareOps:
   case Less, LessEq, Greater, GreaterEq, Eq, NotEq
 
 enum ArithmaticOps:
-  case Add, Sub, Mul, Div, Expo
+  case Add, Sub, Mul, Div, Expo, Mod
 
-def arihmeticOperatorP[$: P] = P((CharIn("*/+^") | "-").!).map {
+def arihmeticOperatorP[$: P] = P((CharIn("*/+^%") | "-").!).map {
   case "*" => ArithmaticOps.Mul
   case "+" => ArithmaticOps.Add
   case "-" => ArithmaticOps.Sub
   case "/" => ArithmaticOps.Div
   case "^" => ArithmaticOps.Expo
+  case "%" => ArithmaticOps.Mod
   case _   => assert(false, "arithmatic operator not defined")
 }
 
@@ -148,7 +149,7 @@ def functionDefP[$: P]: P[Value] = (
 )
 
 def valueP[$: P]: P[Value] =
-  dictionaryP | structureAccess | booleanP | functionCallP | identifierP | numberP
+  booleanP | dictionaryP | structureAccess | functionCallP | identifierP | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -168,7 +169,7 @@ def functionCallArgsP[$: P]: P[Seq[Value]] = (
 )
 
 def functionName[$: P]: P[Value] =
-  identifierP | wrappedExpression
+  wrappedExpression | identifierP
 
 def functionCallP[$: P]: P[FunctionCall] = (
   functionName ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
@@ -218,6 +219,7 @@ def precedence(op: ArithmaticOps, ctxt: OperatorContext) = op match {
     else 6
   case ArithmaticOps.Mul  => 5
   case ArithmaticOps.Div  => 5
+  case ArithmaticOps.Mod  => 5
   case ArithmaticOps.Expo => 7
 }
 
@@ -270,7 +272,7 @@ def unaryOpExpression[$: P]: P[Value] =
     .map((op, value) => orderBy(UnaryOp(op, value), precedenceOf))
 
 def binaryOpExpression[$: P]: P[Value] = (
-  (unaryOpExpression | wrappedExpression | valueP./) ~ (ws ~ binaryOperator ~ ws ~ expression).?
+  (wrappedExpression | unaryOpExpression | valueP./) ~ (ws ~ binaryOperator ~ ws ~ expression).?
 ).map((l, rest) =>
   rest match {
     case Some((op, r)) =>

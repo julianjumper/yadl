@@ -2,7 +2,7 @@ import scala.util.control.Breaks._
 
 import parser._ // To lazy to import all types individually
 
-import ArithmaticOps.{Add, Div, Expo, Mul, Sub}
+import ArithmaticOps.{Add, Div, Expo, Mul, Sub, Mod}
 import BooleanOps.{And, Or}
 import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
 
@@ -418,6 +418,7 @@ def evalArithmeticOps(
     case Sub  => leftNumber - rightNumber
     case Mul  => leftNumber * rightNumber
     case Div  => leftNumber / rightNumber
+    case Mod  => leftNumber % rightNumber
     case Expo => scala.math.pow(leftNumber, rightNumber)
     case null => assert(false, "Arithmetic operation is null")
   }
