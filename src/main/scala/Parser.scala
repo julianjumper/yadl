@@ -171,7 +171,7 @@ def functionName[$: P]: P[Value] =
   identifierP | wrappedExpression
 
 def functionCallP[$: P]: P[FunctionCall] = (
-  functionName.! ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
+  functionName ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
 ).opaque("<function call>")
   .map((n, bs) =>
     bs match {
