@@ -2,7 +2,7 @@ import fastparse._, NoWhitespace._
 import java.io.*
 import java.{util => ju}
 
-import parser.{fileP}
+import parser.yadlParser
 
 // Thank you Java (-_-)
 def readFileContent(filepath: String): String =
@@ -27,7 +27,7 @@ object Main {
       // read file
       val content = readFileContent(f)
       // parse this file using the starting rule `fileP`
-      val result = parse(content, fileP(using _)): @unchecked
+      val result = parse(content, yadlParser(using _)): @unchecked
       result match {
         case Parsed.Success(stmt_seq, _) =>
           // parsing successful, ready to be interpreted
