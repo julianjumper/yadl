@@ -2,7 +2,7 @@ import fastparse._, NoWhitespace._
 import java.io.*
 import java.{util => ju}
 
-import parser.{fileP}
+import parser.yadlParser
 
 // Thank you Java (-_-)
 def readFileContent(filepath: String): String =
