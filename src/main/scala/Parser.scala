@@ -241,43 +241,43 @@ def precedenceOf(value: Value): Int = value match {
   case UnaryOp(_, _) => 0
 }
 
-def orderBy(binOp: BinaryOp, pred: Value => Int): BinaryOp =
-  val BinaryOp(left, op, right) = binOp
-  right match {
-    case b: BinaryOp =>
-      if (pred(binOp) >= pred(b))
-        val inner = orderBy(BinaryOp(left, op, b.left), pred)
-        BinaryOp(inner, b.op, b.right)
-      else binOp
-    case _ => binOp
+def orderBy(opExpr: BinaryOp | UnaryOp, pred: Value => Int): Value =
+  opExpr match {
+    case BinaryOp(left, op, right) =>
+      right match {
+        case b: BinaryOp =>
+          if (pred(opExpr) >= pred(b))
+            val inner = orderBy(BinaryOp(left, op, b.left), pred)
+            BinaryOp(inner, b.op, b.right)
+          else opExpr
+        case _ => opExpr
+      }
+
+    case UnaryOp(op, value) =>
+      value match {
+        case b: BinaryOp =>
+          if (pred(opExpr) >= pred(b))
+            val inner = orderBy(UnaryOp(op, b.left), pred)
+            BinaryOp(inner, b.op, b.right)
+          else opExpr
+        case _ => opExpr
+      }
   }
 
-def orderBy(unOp: UnaryOp, pred: Value => Int): Value =
-  val UnaryOp(op, value) = unOp
-  value match {
-    case b: BinaryOp =>
-      if (pred(unOp) >= pred(b))
-        val inner = orderBy(UnaryOp(op, b.left), pred)
-        BinaryOp(inner, b.op, b.right)
-      else unOp
-    case _ => unOp
-  }
-
-def valueBinaryOpP[$: P]: P[Value] = (
-  (wrappedExpression | valueP./) ~ (ws ~ binaryOperator ~ ws ~ expression).?
-  ).opaque("<binary operator>")
-  .map((l, rest) =>
-    rest match {
-      case Some((op, r)) =>
-        orderBy(BinaryOp(l, op, r), precedenceOf)
-      case None => l
-    }
-  )
-
-def valueUnaryOpP[$: P]: P[Value] =
-  (unaryOperator ~ ws ~ valueP)
+def unaryOpExpression[$: P]: P[Value] =
+  (unaryOperator ~ ws ~ expression)
     .opaque("<unary operator>")
     .map((op, value) => orderBy(UnaryOp(op, value), precedenceOf))
+
+def binaryOpExpression[$: P]: P[Value] = (
+  (unaryOpExpression | wrappedExpression | valueP./) ~ (ws ~ binaryOperator ~ ws ~ expression).?
+).map((l, rest) =>
+  rest match {
+    case Some((op, r)) =>
+      orderBy(BinaryOp(l, op, r), precedenceOf)
+    case None => l
+  }
+)
 
 def wrappedExpression[$: P]: P[Value] =
   ("(" ~ expression ~ ")").map(Wrapped(_))
