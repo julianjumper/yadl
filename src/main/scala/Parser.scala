@@ -54,7 +54,9 @@ case class BooleanOp(op: BooleanOps) extends Operator
 
 case class Identifier(name: String) extends Value
 case class Number(value: Double) extends Value:
-  override def toString(): String = value.toString
+  override def toString(): String =
+    if (value - value.toInt == 0) value.toInt.toString
+    else value.toString
 
 case class Bool(b: Boolean) extends Value:
   override def toString(): String = b.toString
@@ -67,7 +69,7 @@ case class StdString(value: String) extends Value:
 
 case class FormatString(value: List[Value]) extends Value
 class DictionaryEntry(var key: Value, var value: Value):
-  override def toString(): String = key.toString + ":" + value.toString
+  override def toString(): String = key.toString + ": " + value.toString
 
 case class Dictionary(entries: Seq[DictionaryEntry]) extends Value:
   override def toString(): String =
@@ -386,6 +388,6 @@ def dictionaryP[$: P]: P[Dictionary] =
 
 def structureAccess[$: P]: P[Value] =
   P(
-    (!"[" ~ CharIn("a-zA-z0-9_")).rep.! ~ "[" ~ ws ~ valueP ~ ws ~ "]"
+    (!"[" ~ CharIn("a-zA-z0-9_")).rep(min = 1).! ~ "[" ~ ws ~ valueP ~ ws ~ "]"
   )
     .map((i, v) => StructureAccess(Identifier(i), v))

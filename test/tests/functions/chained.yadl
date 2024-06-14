@@ -7,5 +7,5 @@ x = () => () => 3
 //    be left-recursive and which causes a stackoverflow garenteed
 print((x())())
 
-// CHECK-OUT: 3.0
+// CHECK-OUT: 3
 
