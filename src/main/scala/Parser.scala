@@ -3,7 +3,7 @@ package parser
 import fastparse._, NoWhitespace._
 
 def wsSingle[$: P] = P(" " | "\t")
-def ws[$: P] = P((wsSingle | multilineCommentP).rep)
+def ws[$: P] = P((multilineCommentP | wsSingle).rep)
 def newline[$: P] = P("\n\r" | "\r" | "\n")
 
 def stringP[$: P] = P("'" ~ AnyChar.rep.! ~ "'")
@@ -53,15 +53,28 @@ case class CompareOp(op: CompareOps) extends Operator
 case class BooleanOp(op: BooleanOps) extends Operator
 
 case class Identifier(name: String) extends Value
-case class Number(value: Double) extends Value
-case class Bool(b: Boolean) extends Value
+case class Number(value: Double) extends Value:
+  override def toString(): String =
+    if (value - value.toInt == 0) value.toInt.toString
+    else value.toString
+
+case class Bool(b: Boolean) extends Value:
+  override def toString(): String = b.toString
+
 case class BinaryOp(left: Value, op: Operator, right: Value) extends Value
 case class Function(args: Seq[String], body: Seq[Statement]) extends Value
 case class Wrapped(value: Value) extends Value
-case class StdString(value: String) extends Value
+case class StdString(value: String) extends Value:
+  override def toString(): String = value.toString
+
 case class FormatString(value: List[Value]) extends Value
-class DictionaryEntry(var key: Value, var value: Value)
-case class Dictionary(entries: Seq[DictionaryEntry]) extends Value
+class DictionaryEntry(var key: Value, var value: Value):
+  override def toString(): String = key.toString + ": " + value.toString
+
+case class Dictionary(entries: Seq[DictionaryEntry]) extends Value:
+  override def toString(): String =
+    "{" + entries.map { _.toString }.mkString(", ") + "}"
+
 case class StructureAccess(identifier: Identifier, key: Value) extends Value
 
 case class Assignment(varName: String, value: Value) extends Statement
@@ -75,38 +88,36 @@ case class WhileLoop(loop: Branch) extends Statement
 case class Expression(expr: Value) extends Statement
 case class Return(value: Value) extends Statement
 
-case class FunctionCall(identifier: String, args: Seq[Value])
+case class FunctionCall(functionExpr: Value, args: Seq[Value])
     extends Value,
       Statement
 
 def condition[$: P]: P[Value] =
-  P("(" ~ ws ~ valueP ~ ws ~ ")")
+  P("(" ~ ws ~ expression ~ ws ~ ")")
 
 def initialBranch[$: P]: P[Branch] =
   P(
     "if" ~ ws ~ condition ~ ws ~ codeBlock
-  ).map((v, sts) => Branch(v, sts))
+  ).map(Branch(_, _))
 
 def whileLoop[$: P]: P[Statement] =
-  P("while" ~ ws ~ condition ~ ws ~ codeBlock).map((c, cb) =>
-    WhileLoop(Branch(c, cb))
+  P("while" ~ ws ~ condition ~ ws ~ codeBlock).map((c, sts) =>
+    WhileLoop(Branch(c, sts))
   )
 
 def elif[$: P]: P[Branch] =
   P(
     "elif" ~ ws ~ condition ~ ws ~ codeBlock
-  ).map((v, sts) => Branch(v, sts))
+  ).map(Branch(_, _))
 
 def endBranch[$: P]: P[Seq[Statement]] =
   P("else" ~ ws ~ codeBlock)
 
 def ifStatement[$: P]: P[Statement] =
-  (initialBranch ~ (ws ~ elif).rep ~ ws ~ endBranch.?).map((i, m, e) =>
-    If(i, m, e)
-  )
+  (initialBranch ~ (ws ~ elif).rep ~ ws ~ endBranch.?).map(If(_, _, _))
 
 def returnP[$: P]: P[Statement] =
-  P("return" ~ ws ~ valueP).map(Return(_))
+  P("return" ~ ws ~ expression).map(Return(_))
 
 def statementP[$: P]: P[Statement] =
   returnP | whileLoop | ifStatement | functionCallP | assignmentP
@@ -115,7 +126,7 @@ def codeBlock[$: P]: P[Seq[Statement]] =
   P("{" ~ newline.? ~ (ws ~ statementP ~ ws ~ newline).rep ~ ws ~ "}")
 
 def functionDefBodyP[$: P]: P[Seq[Statement]] =
-  codeBlock | valueP.map((v) => Seq(Expression(v)))
+  codeBlock | expression.map((v) => Seq(Expression(v)))
 
 def functionDefArgsP[$: P]: P[Seq[String]] = (
   identifierP ~ (ws ~ "," ~ ws ~ functionDefArgsP).?
@@ -135,7 +146,7 @@ def functionDefP[$: P]: P[Value] = (
   }
 )
 
-def valueTerminalP[$: P]: P[Value] =
+def valueP[$: P]: P[Value] =
   dictionaryP | structureAccess | booleanP | functionCallP | identifierP | numberP
 
 def booleanP[$: P]: P[Value] = P(
@@ -147,7 +158,7 @@ def booleanP[$: P]: P[Value] = P(
 }
 
 def functionCallArgsP[$: P]: P[Seq[Value]] = (
-  valueP ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
+  expression ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
 ).map((v, vs) =>
   vs match {
     case None     => Seq(v)
@@ -155,8 +166,11 @@ def functionCallArgsP[$: P]: P[Seq[Value]] = (
   }
 )
 
+def functionName[$: P]: P[Value] =
+  identifierP | wrappedExpression
+
 def functionCallP[$: P]: P[FunctionCall] = (
-  identifierP.! ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
+  functionName ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
 ).map((n, bs) =>
   bs match {
     case None     => FunctionCall(n, Seq())
@@ -203,8 +217,8 @@ def orderBy(binOp: BinaryOp, pred: BinaryOp => Int): BinaryOp =
     case _ => binOp
   }
 
-def valueBinaryOpP[$: P]: P[Value] = (
-  (valueWrappedP | valueTerminalP./) ~ (ws ~ binaryOperator ~ ws ~ valueP).?
+def binaryOpExpression[$: P]: P[Value] = (
+  (wrappedExpression | valueP./) ~ (ws ~ binaryOperator ~ ws ~ expression).?
 ).map((l, rest) =>
   rest match {
     case Some((op, r)) =>
@@ -213,11 +227,11 @@ def valueBinaryOpP[$: P]: P[Value] = (
   }
 )
 
-def valueWrappedP[$: P]: P[Value] =
-  ("(" ~ valueP ~ ")").map(Wrapped(_))
+def wrappedExpression[$: P]: P[Value] =
+  ("(" ~ expression ~ ")").map(Wrapped(_))
 
-def valueP[$: P]: P[Value] = (
-  functionDefP | valueBinaryOpP | valueWrappedP | valueTerminalP./
+def expression[$: P]: P[Value] = (
+  functionDefP | binaryOpExpression
 )
 
 def identifierP[$: P]: P[Identifier] = P(
@@ -225,7 +239,7 @@ def identifierP[$: P]: P[Identifier] = P(
 )
 
 def assignmentP[$: P]: P[Statement] =
-  (identifierP.! ~/ ws ~ "=" ~ ws ~ valueP).map((n, v) => Assignment(n, v))
+  (identifierP.! ~/ ws ~ "=" ~ ws ~ expression).map((n, v) => Assignment(n, v))
 
 def mapper(sts: Seq[Option[Statement]]): Seq[Statement] =
   sts match {
@@ -374,6 +388,6 @@ def dictionaryP[$: P]: P[Dictionary] =
 
 def structureAccess[$: P]: P[Value] =
   P(
-    (!"[" ~ CharIn("a-zA-z0-9_")).rep.! ~ "[" ~ ws ~ valueP ~ ws ~ "]"
+    (!"[" ~ CharIn("a-zA-z0-9_")).rep(min = 1).! ~ "[" ~ ws ~ valueP ~ ws ~ "]"
   )
     .map((i, v) => StructureAccess(Identifier(i), v))

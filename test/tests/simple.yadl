@@ -13,5 +13,5 @@ print(y, 3)
 print(z)
 
 // CHECK-OUT: 15
-// CHECK-OUT: 45, 3
+// CHECK-OUT: 45 3
 // CHECK-OUT: 9765625
