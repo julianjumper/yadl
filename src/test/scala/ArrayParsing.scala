@@ -2,6 +2,17 @@ import fastparse._
 import fastparse.Parsed.Success
 import fastparse.Parsed.Failure
 
+import parser.{
+  ArrayLiteral,
+  Number,
+  arrayLiteralP,
+  arrayAccessP,
+  ArrayAccess,
+  ArithmaticOp,
+  ArithmaticOps,
+  BinaryOp
+}
+
 class ArrayParsing extends munit.FunSuite {
 
   // Test cases for array literals
@@ -43,10 +54,12 @@ class ArrayParsing extends munit.FunSuite {
 
   test("nested arrays") {
     val input = "[[1, 2], [3, 4]]"
-    val expected = ArrayLiteral(Seq(
-      ArrayLiteral(Seq(Number(1), Number(2))),
-      ArrayLiteral(Seq(Number(3), Number(4)))
-    ))
+    val expected = ArrayLiteral(
+      Seq(
+        ArrayLiteral(Seq(Number(1), Number(2))),
+        ArrayLiteral(Seq(Number(3), Number(4)))
+      )
+    )
     parse(input, arrayLiteralP(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
@@ -71,7 +84,10 @@ class ArrayParsing extends munit.FunSuite {
 
   test("array access with expression index") {
     val input = "arr [1 + 1]"
-    val expected = ArrayAccess("arr", BinaryOp(Number(1), ArithmaticOp(ArithmaticOps.Add), Number(1)))
+    val expected = ArrayAccess(
+      "arr",
+      BinaryOp(Number(1), ArithmaticOp(ArithmaticOps.Add), Number(1))
+    )
     parse(input, arrayAccessP(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
@@ -80,9 +96,6 @@ class ArrayParsing extends munit.FunSuite {
         assert(false, f"array access parsing for test case '$input' failed")
     }
   }
-
-  
-  
 
   // Invalid array literal test cases
   test("invalid array literal - missing closing bracket") {
@@ -126,3 +139,4 @@ class ArrayParsing extends munit.FunSuite {
     }
   }
 }
+
