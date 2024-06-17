@@ -3,7 +3,7 @@ import scala.util.control.Breaks._
 import parser._ // To lazy to import all types individually
 
 import ArithmaticOps.{Add, Div, Expo, Mul, Sub, Mod}
-import BooleanOps.{And, Or}
+import BooleanOps.{And, Or, Not}
 import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
 
 val builtins = stdlib.stdlib
@@ -261,7 +261,13 @@ def evalValue(
             case v =>
               assert(false, s"unary op: value case '$v' is not implemented")
           }
-        // TODO: Add missing case BooleanOps.Not
+        case BooleanOp(Not) =>
+          val tmp = result match {
+            case Bool(value) => Bool(!value)
+            case v =>
+              assert(false, s"unary operator 'not' is not defined for '$v'")
+          }
+          scope.returnValue(tmp)
         case o => assert(false, s"unary op: op case '$o' is not implemented")
       }
     case StructureAccess(id, v) => {
