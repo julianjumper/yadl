@@ -150,7 +150,7 @@ def functionDefP[$: P]: P[Value] = (
 )
 
 def valueP[$: P]: P[Value] =
-  booleanP | dictionaryP | structureAccess | functionCallP | identifierP | numberP
+  booleanP | stringP | dictionaryP | structureAccess | functionCallP | identifierP | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -427,13 +427,13 @@ def stdStringP[$: P] = P(
 )
 
 def stdMultiStringP[$: P] = P(
-  (("\"\"\"" ~ charForMultilineStringDoubleQuote.rep.! ~ "\"\"\"") ~ End |
-    ("\'\'\'" ~ charForMultilineStringSingleQuote.rep.! ~ "\'\'\'") ~ End).map(
-    x => StdString(unescape(x))
+  (("\"\"\"" ~ charForMultilineStringDoubleQuote.rep.! ~ "\"\"\"") |
+    ("\'\'\'" ~ charForMultilineStringSingleQuote.rep.! ~ "\'\'\'")).map(x =>
+    StdString(unescape(x))
   )
 )
 
-def stringP[$: P]: P[StdString] = stdStringP | stdMultiStringP
+def stringP[$: P]: P[StdString] = stdMultiStringP | stdStringP
 
 // @language-team because you are indecisive of where to put the comma
 // could be simpler
