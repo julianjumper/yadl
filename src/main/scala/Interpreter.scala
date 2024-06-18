@@ -17,8 +17,9 @@ class Scope(
 ):
   private var parentScope: Scope = parent
   private var _result: Value = null
-  private var local: HashMap[String, Value] =
+  private var localVars: HashMap[String, Value] =
     new HashMap().addAll(funArgs.zip(callArgs))
+  private var localFuncs: HashMap[String, parser.Function] = new HashMap
 
   def result: Option[Value] =
     if (this._result == null) None
@@ -35,14 +36,24 @@ class Scope(
     this
 
   def lookup(identifier: Identifier): Option[Value] =
-    this.local.get(identifier.name) match {
+    this.localVars.get(identifier.name) match {
       case Some(Identifier(name)) =>
-        if (name == identifier.name)
+        if (name == identifier.name) // 'x' -> 'x'
           lookupInParent(identifier)
         else
           this.lookup(Identifier(name))
       case Some(value) => Some(value)
-      case None        => lookupInParent(identifier)
+      case None =>
+        lookupInParent(identifier) match {
+          case v: Some[Value] => v
+          case None           => lookupFunction(identifier)
+        }
+    }
+
+  def lookupFunction(identifier: Identifier): Option[parser.Function] =
+    this.localFuncs.get(identifier.name) match {
+      case value: Some[parser.Function] => value
+      case None                         => lookupFunctionInParent(identifier)
     }
 
   private def lookupInParent(identifier: Identifier): Option[Value] =
@@ -51,8 +62,21 @@ class Scope(
     else
       None
 
+  private def lookupFunctionInParent(
+      identifier: Identifier
+  ): Option[parser.Function] =
+    if (this.parentScope != null)
+      this.parentScope.lookupFunction(identifier)
+    else
+      None
+
   def update(identifier: Identifier, value: Value): Scope =
-    this.local.update(identifier.name, value)
+    value match {
+      case f: Function =>
+        this.localFuncs.update(identifier.name, f)
+      case v: Value =>
+        this.localVars.update(identifier.name, v)
+    }
     this
 end Scope
 
@@ -75,22 +99,21 @@ def evalFunctionCall(
         val Some(func) = builtins.get(identifier): @unchecked
         assert(
           func.n_args == callArgs.length,
-          s"function call: expected ${func.n_args} arguments but got ${callArgs.length}"
+          s"function call: expected ${func.n_args} argument(s) but got ${callArgs.length}"
         )
         val result = func.function(callArgsNew)
         scope.returnValue(interpreterdata.toAstNode(result))
       } else {
-        scope.lookup(Identifier(identifier)) match {
+        scope.lookupFunction(Identifier(identifier)) match {
           case Some(Function(args, body)) =>
             val res =
               body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
             val Some(value) = res.result: @unchecked
             scope.returnValue(value)
-          case Some(_) => assert(false, "Only functions may be called")
           case None =>
             assert(
               false,
-              s"TODO: case None in function call in eval '$identifier'"
+              s"function '$identifier' not found"
             )
         }
       }
