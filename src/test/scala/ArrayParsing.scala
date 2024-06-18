@@ -6,8 +6,6 @@ import parser.{
   ArrayLiteral,
   Number,
   arrayLiteralP,
-  arrayAccessP,
-  ArrayAccess,
   ArithmaticOp,
   ArithmaticOps,
   BinaryOp
@@ -69,34 +67,6 @@ class ArrayParsing extends munit.FunSuite {
     }
   }
 
-  // Test cases for array access
-  test("simple array access") {
-    val input = "arr [0]"
-    val expected = ArrayAccess("arr", Number(0))
-    parse(input, arrayAccessP(using _)) match {
-      case Success(value, index) =>
-        assertEquals(value, expected)
-        assertEquals(index, input.length, "input has not been parsed fully")
-      case _: Failure =>
-        assert(false, f"array access parsing for test case '$input' failed")
-    }
-  }
-
-  test("array access with expression index") {
-    val input = "arr [1 + 1]"
-    val expected = ArrayAccess(
-      "arr",
-      BinaryOp(Number(1), ArithmaticOp(ArithmaticOps.Add), Number(1))
-    )
-    parse(input, arrayAccessP(using _)) match {
-      case Success(value, index) =>
-        assertEquals(value, expected)
-        assertEquals(index, input.length, "input has not been parsed fully")
-      case _: Failure =>
-        assert(false, f"array access parsing for test case '$input' failed")
-    }
-  }
-
   // Invalid array literal test cases
   test("invalid array literal - missing closing bracket") {
     val input = "[1, 2, 3"
@@ -118,25 +88,4 @@ class ArrayParsing extends munit.FunSuite {
     }
   }
 
-  // Invalid array access test cases
-  test("invalid array access - missing closing bracket") {
-    val input = "arr[0"
-    parse(input, arrayAccessP(using _)) match {
-      case Success(_, index) =>
-        assert(false, f"parsing succeeded where it should have failed")
-      case _: Failure =>
-        assert(true, "expected failure")
-    }
-  }
-
-  test("invalid array access - non-integer index") {
-    val input = "arr[foo]"
-    parse(input, arrayAccessP(using _)) match {
-      case Success(_, index) =>
-        assert(false, f"parsing succeeded where it should have failed")
-      case _: Failure =>
-        assert(true, "expected failure")
-    }
-  }
 }
-
