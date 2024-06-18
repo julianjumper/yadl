@@ -6,6 +6,9 @@ def wsSingle[$: P] = P(" " | "\t")
 def ws[$: P] = P((multilineCommentP | wsSingle).rep).opaque("<condition>")
 def newline[$: P] = P("\n\r" | "\r" | "\n").opaque("<newline>")
 
+enum DataFormats:
+  case characters, commas, lines, csv, json
+
 enum BooleanOps:
   case And, Or, Not
 
@@ -280,17 +283,19 @@ def binaryOpExpression[$: P]: P[Value] = (
 )
 
 def dataFormatsP[$: P]: P[DataFormats] =
-  P("characters" | "commas" | "lines" | "csv" | "json").!.map{
+  P("characters" | "commas" | "lines" | "csv" | "json").!.map {
     case "characters" => DataFormats.characters
-    case "commas" => DataFormats.commas
-    case "lines" => DataFormats.lines
-    case "csv" => DataFormats.csv
-    case "json" => DataFormats.json
-    case _ => assert(false, "Unexpected file format.")
+    case "commas"     => DataFormats.commas
+    case "lines"      => DataFormats.lines
+    case "csv"        => DataFormats.csv
+    case "json"       => DataFormats.json
+    case _            => assert(false, "Unexpected file format.")
   }
 
 def loadP[$: P]: P[Value] =
-  (P("load") ~ ws ~ (stdStringP | identifierP) ~ ws ~ P("as") ~ ws ~ dataFormatsP).map((file, format) => Load(file, format))
+  (P("load") ~ ws ~ (stdStringP | identifierP) ~ ws ~ P(
+    "as"
+  ) ~ ws ~ dataFormatsP).map((file, format) => Load(file, format))
 
 def wrappedExpression[$: P]: P[Value] =
   ("(" ~ expression ~ ")").map(Wrapped(_))
