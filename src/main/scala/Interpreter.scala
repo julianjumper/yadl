@@ -62,6 +62,14 @@ class Scope(
     else
       None
 
+  private def lookupFunctionInParent(
+      identifier: Identifier
+  ): Option[parser.Function] =
+    if (this.parentScope != null)
+      this.parentScope.lookupFunction(identifier)
+    else
+      None
+
   def update(identifier: Identifier, value: Value): Scope =
     value match {
       case f: Function =>
@@ -460,8 +468,9 @@ def evalValue(
       evalValue(value, scope)
     case Dictionary(entries) =>
       scope.returnValue(Dictionary(entries))
-    case FormatString(value) => assert(false, "TODO: Format strings in eval implementation")
-    case ArrayLiteral(elements) => 
+    case FormatString(value) =>
+      assert(false, "TODO: Format strings in eval implementation")
+    case ArrayLiteral(elements) =>
       scope.returnValue(ArrayLiteral(elements))
     case NoneValue() =>
       scope.returnValue(NoneValue())
@@ -539,9 +548,9 @@ def evalCompareOps(
       val lhs_num = extractNumber(value1)
       val rhs_num = extractNumber(value2)
       val result = op match {
-        case Less      => lhs_num <  rhs_num
+        case Less      => lhs_num < rhs_num
         case LessEq    => lhs_num <= rhs_num
-        case Greater   => lhs_num >  rhs_num
+        case Greater   => lhs_num > rhs_num
         case GreaterEq => lhs_num >= rhs_num
         case Eq        => lhs_num == rhs_num
         case NotEq     => lhs_num != rhs_num
