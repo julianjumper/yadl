@@ -3,11 +3,14 @@ package parser
 import fastparse._, NoWhitespace._
 
 def wsSingle[$: P] = P(" " | "\t")
-def ws[$: P] = P((multilineCommentP | wsSingle).rep)
-def newline[$: P] = P("\n\r" | "\r" | "\n")
+def ws[$: P] = P((multilineCommentP | wsSingle).rep).opaque("<condition>")
+def newline[$: P] = P("\n\r" | "\r" | "\n").opaque("<newline>")
 
 def stringP[$: P] = P("'" ~ AnyChar.rep.! ~ "'")
 def stringConcatP[$: P] = P("++")
+
+enum DataFormats:
+  case characters, commas, lines, csv, json
 
 enum BooleanOps:
   case And, Or, Not
@@ -16,14 +19,15 @@ enum CompareOps:
   case Less, LessEq, Greater, GreaterEq, Eq, NotEq
 
 enum ArithmaticOps:
-  case Add, Sub, Mul, Div, Expo
+  case Add, Sub, Mul, Div, Expo, Mod
 
-def arihmeticOperatorP[$: P] = P((CharIn("*/+^") | "-").!).map {
+def arihmeticOperatorP[$: P] = P((CharIn("*/+^%") | "-").!).map {
   case "*" => ArithmaticOps.Mul
   case "+" => ArithmaticOps.Add
   case "-" => ArithmaticOps.Sub
   case "/" => ArithmaticOps.Div
   case "^" => ArithmaticOps.Expo
+  case "%" => ArithmaticOps.Mod
   case _   => assert(false, "arithmatic operator not defined")
 }
 
@@ -62,7 +66,9 @@ case class Bool(b: Boolean) extends Value:
   override def toString(): String = b.toString
 
 case class BinaryOp(left: Value, op: Operator, right: Value) extends Value
+case class UnaryOp(op: Operator, operant: Value) extends Value
 case class Function(args: Seq[String], body: Seq[Statement]) extends Value
+case class Load(filename: Value, dataformat: DataFormats) extends Value
 case class Wrapped(value: Value) extends Value
 case class StdString(value: String) extends Value:
   override def toString(): String = value.toString
@@ -95,7 +101,7 @@ case class FunctionCall(functionExpr: Value, args: Seq[Value])
       Statement
 
 def condition[$: P]: P[Value] =
-  P("(" ~ ws ~ expression ~ ws ~ ")")
+  P("(" ~ ws ~ expression ~ ws ~ ")").opaque("<condition>")
 
 def initialBranch[$: P]: P[Branch] =
   P(
@@ -103,9 +109,9 @@ def initialBranch[$: P]: P[Branch] =
   ).map(Branch(_, _))
 
 def whileLoop[$: P]: P[Statement] =
-  P("while" ~ ws ~ condition ~ ws ~ codeBlock).map((c, sts) =>
-    WhileLoop(Branch(c, sts))
-  )
+  P("while" ~ ws ~ condition ~ ws ~ codeBlock)
+    .opaque("<while loop>")
+    .map((c, sts) => WhileLoop(Branch(c, sts)))
 
 def elif[$: P]: P[Branch] =
   P(
@@ -149,11 +155,11 @@ def functionDefP[$: P]: P[Value] = (
 )
 
 def valueP[$: P]: P[Value] =
-  dictionaryP | arrayLiteralP | structureAccess | booleanP | functionCallP | identifierP | numberP  
+   booleanP | dictionaryP | arrayLiteralP | structureAccess | functionCallP | identifierP | numberP  
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
-).map {
+).opaque("<boolean value>").map {
   case "true"  => Bool(true)
   case "false" => Bool(false)
   case _       => assert(false, "unreachable")
@@ -169,58 +175,110 @@ def functionCallArgsP[$: P]: P[Seq[Value]] = (
 )
 
 def functionName[$: P]: P[Value] =
-  identifierP | wrappedExpression
+  wrappedExpression | identifierP
 
 def functionCallP[$: P]: P[FunctionCall] = (
   functionName ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
-).map((n, bs) =>
-  bs match {
-    case None     => FunctionCall(n, Seq())
-    case Some(xs) => FunctionCall(n, xs)
-  }
-)
+).opaque("<function call>")
+  .map((n, bs) =>
+    bs match {
+      case None     => FunctionCall(n, Seq())
+      case Some(xs) => FunctionCall(n, xs)
+    }
+  )
 
 def binaryOperator[$: P]: P[Operator] =
   arihmeticOperatorP.map(ArithmaticOp(_)) | booleanOperatorP.map(
     BooleanOp(_)
   ) | compareOperatorP.map(CompareOp(_))
 
+def unaryOperator[$: P]: P[Operator] =
+  import ArithmaticOps._, BooleanOps._, CompareOps._
+  import ArithmaticOp as A, BooleanOp as B, CompareOp as C
+
+  def eq(left: Operator, right: Operator): Boolean = (left, right) match {
+    case (l: A, r: A) => l.op == r.op
+    case (l: B, r: B) => l.op == r.op
+    case (l: C, r: C) => l.op == r.op
+    case _            => false
+  }
+
+  def isAnyOf(op: Operator, targets: Seq[Operator]): Boolean =
+    targets.foldLeft(false)((acc: Boolean, x: Operator) => acc || eq(x, op))
+
+  val unaryOps = Seq(A(Add), A(Sub), B(Not))
+
+  binaryOperator.filter { isAnyOf(_, unaryOps) }
+
 // Some operators should be calculated before other operators.
 // eg. 4 - 4 * 4 => 4*4 gets calculated before 4-4.
 // So the "precedence" of * is higher than of -. This is handled here.
-def precedence(op: ArithmaticOps) = op match {
-  case ArithmaticOps.Add  => 4
-  case ArithmaticOps.Sub  => 4
+enum OperatorContext:
+  case Binary, Unary
+
+def precedence(op: ArithmaticOps, ctxt: OperatorContext) = op match {
+  case ArithmaticOps.Add =>
+    if (ctxt == OperatorContext.Binary) 4
+    else 6
+  case ArithmaticOps.Sub =>
+    if (ctxt == OperatorContext.Binary) 4
+    else 6
   case ArithmaticOps.Mul  => 5
   case ArithmaticOps.Div  => 5
+  case ArithmaticOps.Mod  => 5
   case ArithmaticOps.Expo => 7
 }
 
-def precedence(op: BooleanOps) = op match {
+def precedence(op: BooleanOps, ctxt: OperatorContext) = op match {
   case BooleanOps.And => 2
   case BooleanOps.Or  => 1
-  case BooleanOps.Not => 3
+  case BooleanOps.Not =>
+    if (ctxt == OperatorContext.Unary) 3
+    else assert(false, "Unary 'Not' in Binary context")
 }
 
-def precedenceOf(value: BinaryOp): Int = value match {
-  case BinaryOp(_, ArithmaticOp(op), _) => precedence(op)
-  case BinaryOp(_, BooleanOp(op), _)    => precedence(op)
-  case BinaryOp(_, CompareOp(_), _)     => 0
+def precedenceOf(value: Value): Int = value match {
+  case BinaryOp(_, ArithmaticOp(op), _) =>
+    precedence(op, OperatorContext.Binary)
+  case BinaryOp(_, BooleanOp(op), _) =>
+    precedence(op, OperatorContext.Binary)
+  case BinaryOp(_, CompareOp(_), _)          => 0
+  case UnaryOp(BooleanOp(BooleanOps.Not), _) => 3
+  case UnaryOp(op: ArithmaticOp, _) =>
+    precedence(op.op, OperatorContext.Unary)
+  case UnaryOp(_, _) => 0
 }
 
-def orderBy(binOp: BinaryOp, pred: BinaryOp => Int): BinaryOp =
-  val BinaryOp(left, op, right) = binOp
-  right match {
-    case b: BinaryOp =>
-      if (pred(binOp) >= pred(b))
-        val inner = orderBy(BinaryOp(left, op, b.left), pred)
-        BinaryOp(inner, b.op, b.right)
-      else binOp
-    case _ => binOp
+def orderBy(opExpr: BinaryOp | UnaryOp, pred: Value => Int): Value =
+  opExpr match {
+    case BinaryOp(left, op, right) =>
+      right match {
+        case b: BinaryOp =>
+          if (pred(opExpr) >= pred(b))
+            val inner = orderBy(BinaryOp(left, op, b.left), pred)
+            BinaryOp(inner, b.op, b.right)
+          else opExpr
+        case _ => opExpr
+      }
+
+    case UnaryOp(op, value) =>
+      value match {
+        case b: BinaryOp =>
+          if (pred(opExpr) >= pred(b))
+            val inner = orderBy(UnaryOp(op, b.left), pred)
+            BinaryOp(inner, b.op, b.right)
+          else opExpr
+        case _ => opExpr
+      }
   }
 
+def unaryOpExpression[$: P]: P[Value] =
+  (unaryOperator ~ ws ~ expression)
+    .opaque("<unary operator>")
+    .map((op, value) => orderBy(UnaryOp(op, value), precedenceOf))
+
 def binaryOpExpression[$: P]: P[Value] = (
-  (wrappedExpression | valueP./) ~ (ws ~ binaryOperator ~ ws ~ expression).?
+  (wrappedExpression | unaryOpExpression | valueP./) ~ (ws ~ binaryOperator ~ ws ~ expression).?
 ).map((l, rest) =>
   rest match {
     case Some((op, r)) =>
@@ -229,16 +287,29 @@ def binaryOpExpression[$: P]: P[Value] = (
   }
 )
 
+def dataFormatsP[$: P]: P[DataFormats] =
+  P("characters" | "commas" | "lines" | "csv" | "json").!.map{
+    case "characters" => DataFormats.characters
+    case "commas" => DataFormats.commas
+    case "lines" => DataFormats.lines
+    case "csv" => DataFormats.csv
+    case "json" => DataFormats.json
+    case _ => assert(false, "Unexpected file format.")
+  }
+
+def loadP[$: P]: P[Value] =
+  (P("load") ~ ws ~ (stdStringP | identifierP) ~ ws ~ P("as") ~ ws ~ dataFormatsP).map((file, format) => Load(file, format))
+
 def wrappedExpression[$: P]: P[Value] =
   ("(" ~ expression ~ ")").map(Wrapped(_))
 
 def expression[$: P]: P[Value] = (
-  functionDefP | binaryOpExpression
+  loadP | functionDefP | binaryOpExpression
 )
 
 def identifierP[$: P]: P[Identifier] = P(
   (CharIn("a-zA-Z") ~ CharIn("a-zA-z0-9_").rep).!.map(Identifier(_))
-)
+).opaque("<identifier>")
 
 def assignmentP[$: P]: P[Statement] =
   (identifierP.! ~/ ws ~ "=" ~ ws ~ expression).map((n, v) => Assignment(n, v))
@@ -330,7 +401,7 @@ def numberFull[$: P](base: Base): P[Number] =
   dotDigits(base) | digitsDotDigits(base) | digits(base)
 
 def numberP[$: P]: P[Number] =
-  basePrefix.flatMap(numberFull)
+  basePrefix.flatMap(numberFull).opaque("<number>")
 
 //Hilfsparser String
 def unescape(input: String): String =
@@ -365,12 +436,11 @@ def stdMultiStringP[$: P] = P(
   )
 )
 
-// @language-team because you are indecisive of where to put the comma
-// could be simpler
-
 def dictionaryEntries[$: P]: P[Dictionary] =
   def dictionaryEntry[$: P]: P[DictionaryEntry] =
-    (valueP ~ ws ~ ":" ~ ws ~ valueP).map(DictionaryEntry(_, _))
+    (valueP ~ ws ~ ":" ~ ws ~ valueP)
+      .opaque("<dictionary entry>")
+      .map(DictionaryEntry(_, _))
 
   def repeatedEntries[$: P](
       entry: => P[DictionaryEntry]
@@ -386,7 +456,7 @@ def dictionaryP[$: P]: P[Dictionary] =
 def structureAccess[$: P]: P[Value] =
   P(
     (!"[" ~ CharIn("a-zA-z0-9_")).rep(min = 1).! ~ "[" ~ ws ~ valueP ~ ws ~ "]"
-  )
+  ).opaque("<structure access>")
     .map((i, v) => StructureAccess(Identifier(i), v))
 
 
