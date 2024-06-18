@@ -392,4 +392,4 @@ def structureAccess[$: P]: P[Value] =
 
 //Parser Array (we use structureAccess for accessing arrays)
 def arrayLiteralP[$: P]: P[ArrayLiteral] =
-  P("[" ~ ws ~ valueP.rep(sep = ws ~ "," ~ ws) ~ ws ~ "]").map(ArrayLiteral.apply)
+  P("[" ~ ws ~ expression.rep(sep = ws ~ "," ~ ws) ~ ws ~ "]").map(ArrayLiteral.apply)
