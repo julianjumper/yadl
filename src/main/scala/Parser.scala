@@ -9,6 +9,9 @@ def newline[$: P] = P("\n\r" | "\r" | "\n").opaque("<newline>")
 def stringP[$: P] = P("'" ~ AnyChar.rep.! ~ "'")
 def stringConcatP[$: P] = P("++")
 
+enum DataFormats:
+  case characters, commas, lines, csv, json
+
 enum BooleanOps:
   case And, Or, Not
 
@@ -65,6 +68,7 @@ case class Bool(b: Boolean) extends Value:
 case class BinaryOp(left: Value, op: Operator, right: Value) extends Value
 case class UnaryOp(op: Operator, operant: Value) extends Value
 case class Function(args: Seq[String], body: Seq[Statement]) extends Value
+case class Load(filename: Value, dataformat: DataFormats) extends Value
 case class Wrapped(value: Value) extends Value
 case class StdString(value: String) extends Value:
   override def toString(): String = value.toString
@@ -281,11 +285,24 @@ def binaryOpExpression[$: P]: P[Value] = (
   }
 )
 
+def dataFormatsP[$: P]: P[DataFormats] =
+  P("characters" | "commas" | "lines" | "csv" | "json").!.map{
+    case "characters" => DataFormats.characters
+    case "commas" => DataFormats.commas
+    case "lines" => DataFormats.lines
+    case "csv" => DataFormats.csv
+    case "json" => DataFormats.json
+    case _ => assert(false, "Unexpected file format.")
+  }
+
+def loadP[$: P]: P[Value] =
+  (P("load") ~ ws ~ (stdStringP | identifierP) ~ ws ~ P("as") ~ ws ~ dataFormatsP).map((file, format) => Load(file, format))
+
 def wrappedExpression[$: P]: P[Value] =
   ("(" ~ expression ~ ")").map(Wrapped(_))
 
 def expression[$: P]: P[Value] = (
-  functionDefP | binaryOpExpression
+  loadP | functionDefP | binaryOpExpression
 )
 
 def identifierP[$: P]: P[Identifier] = P(
