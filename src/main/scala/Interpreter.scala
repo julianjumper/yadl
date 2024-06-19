@@ -44,10 +44,10 @@ class Scope(
           this.lookup(Identifier(name))
       case Some(value) => Some(value)
       case None =>
-        lookupInParent(identifier) match {
-          case v: Some[Value] => v
-          case None           => lookupFunction(identifier)
-        }
+        lookupInParent(identifier) match
+          case Some(value) => Some(value)
+          case None        => this.lookupFunction(identifier)
+
     }
 
   def lookupFunction(identifier: Identifier): Option[parser.Function] =
@@ -199,16 +199,16 @@ def evalFunctionCall(
     callArgs: Seq[Value],
     scope: Scope
 ): Scope =
+  val evaledCallArgs = callArgs.map(evalValue(_, scope).result.get)
   functionExpr match {
     case Identifier(identifier) =>
       if (identifier == "print") {
-        printValues(callArgs, scope)
+        printValues(evaledCallArgs, scope)
         print("\n")
         scope
       } else if (builtins.contains(identifier)) {
-        val callArgsNew = callArgs.map { value =>
-          val Some(v) = evalValue(value, scope).result: @unchecked
-          interpreterdata.toDataObject(v)
+        val callArgsNew = evaledCallArgs.map { value =>
+          interpreterdata.toDataObject(value)
         }
         val Some(func) = builtins.get(identifier): @unchecked
         assert(
@@ -232,11 +232,11 @@ def evalFunctionCall(
         }
       }
     case Wrapped(value) =>
-      evalFunctionCall(value, callArgs, scope)
+      evalFunctionCall(value, evaledCallArgs, scope)
 
     case Function(args, body) =>
       val res =
-        body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
+        body.foldLeft(Scope(scope, args, evaledCallArgs))(evalStatement)
       val Some(value) = res.result: @unchecked
       scope.returnValue(value)
 
@@ -244,7 +244,7 @@ def evalFunctionCall(
       val Some(Function(args1, body1)) =
         evalFunctionCall(functionExpr, args, scope).result: @unchecked
       val res =
-        body1.foldLeft(Scope(scope, args1, callArgs))(evalStatement)
+        body1.foldLeft(Scope(scope, args1, evaledCallArgs))(evalStatement)
       val Some(value) = res.result: @unchecked
       scope.returnValue(value)
   }
@@ -577,9 +577,6 @@ def extractNumber(value: Value): Double = value match {
 
 def printValues(values: Seq[Value], scope: Scope): Unit =
   val output = values
-    .map { e =>
-      val Some(r) = evalValue(e, scope).result: @unchecked
-      r.toString
-    }
+    .map(_.toString)
     .mkString(" ")
   print(output)
