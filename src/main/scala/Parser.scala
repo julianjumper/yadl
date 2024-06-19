@@ -79,7 +79,7 @@ class DictionaryEntry(var key: Value, var value: Value):
 
 case class Dictionary(entries: Seq[DictionaryEntry]) extends Value:
   override def toString(): String =
-    "{" + entries.map { _.toString }.mkString(", ") + "}"
+    "{" + entries.mkString(", ") + "}"
 
 case class ArrayLiteral(elements: Seq[Value]) extends Value
 
@@ -128,10 +128,12 @@ def returnP[$: P]: P[Statement] =
   P("return" ~ ws ~ expression).map(Return(_))
 
 def statementP[$: P]: P[Statement] =
-  returnP | whileLoop | ifStatement | functionCallP | assignmentP
+  returnP | whileLoop | ifStatement | functionCallStatement | assignmentP
 
 def codeBlock[$: P]: P[Seq[Statement]] =
-  P("{" ~ newline.? ~ (ws ~ statementP ~ ws ~ newline).rep ~ ws ~ "}")
+  P("{" ~ newline.? ~ (ws ~ statementP.? ~ ws ~ newline).rep ~ ws ~ "}").map(
+    l => l.map(_.toList).flatten
+  )
 
 def functionDefBodyP[$: P]: P[Seq[Statement]] =
   codeBlock | expression.map((v) => Seq(Expression(v)))
@@ -157,7 +159,7 @@ def functionDefP[$: P]: P[Value] = (
 def noneP[$: P]: P[Value] = P("none").!.map(_ => NoneValue())
 
 def valueP[$: P]: P[Value] =
-   noneP | booleanP | stringP | dictionaryP | arrayLiteralP | structureAccess | functionCallP | identifierP | numberP
+   noneP | booleanP | stringP | unaryOpExpression | dictionaryP | arrayLiteralP | structureAccess | functionCallValue | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -177,15 +179,35 @@ def functionCallArgsP[$: P]: P[Seq[Value]] = (
 )
 
 def functionName[$: P]: P[Value] =
-  wrappedExpression | identifierP
+  identifierP | wrappedExpression
 
-def functionCallP[$: P]: P[FunctionCall] = (
-  functionName ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")"
-).opaque("<function call>")
+def functionCallManyArgs[$: P]: P[Seq[Seq[Value]]] =
+  P(ws ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")")
+    .map(_.getOrElse(Seq()))
+    .rep
+
+def functionCallValue[$: P]: P[Value] = P(
+  functionName ~ functionCallManyArgs
+) // .opaque("<function call>")
   .map((n, bs) =>
-    bs match {
-      case None     => FunctionCall(n, Seq())
-      case Some(xs) => FunctionCall(n, xs)
+    bs.length match {
+      case 0 =>
+        n
+      case _ =>
+        bs.foldLeft(n)(FunctionCall(_, _)) match {
+          case fc: FunctionCall => fc
+        }
+    }
+  )
+
+def functionCallStatement[$: P]: P[Statement] = P(
+  functionName ~ functionCallManyArgs
+).opaque("<function call>")
+  .filter((_, bs) => bs.length > 0)
+  .map((n, bs) =>
+    bs.foldLeft(n)(FunctionCall(_, _)) match {
+      case fc: FunctionCall => fc
+      case _                => assert(false, "unreachable")
     }
   )
 
@@ -280,7 +302,7 @@ def unaryOpExpression[$: P]: P[Value] =
     .map((op, value) => orderBy(UnaryOp(op, value), precedenceOf))
 
 def binaryOpExpression[$: P]: P[Value] = (
-  (wrappedExpression | unaryOpExpression | valueP./) ~ (ws ~ binaryOperator ~ ws ~ expression).?
+  valueP ~/ (ws ~ binaryOperator ~ ws ~ expression).?
 ).map((l, rest) =>
   rest match {
     case Some((op, r)) =>
@@ -305,7 +327,7 @@ def loadP[$: P]: P[Value] =
   ) ~ ws ~ dataFormatsP).map((file, format) => Load(file, format))
 
 def wrappedExpression[$: P]: P[Value] =
-  ("(" ~ expression ~ ")").map(Wrapped(_))
+  P("(" ~ ws ~ expression ~ ws ~ ")").map(Wrapped(_))
 
 def expression[$: P]: P[Value] = (
   loadP | functionDefP | binaryOpExpression
