@@ -70,6 +70,93 @@ class Scope(
     else
       None
 
+  private def mapFunctionCalls(
+      id: String,
+      newId: String,
+      value: Value
+  ): Value =
+    value match {
+      case FunctionCall(Identifier(name), args) =>
+        if (name == id)
+          FunctionCall(
+            Identifier(newId),
+            args.map(mapFunctionCalls(id, newId, _))
+          )
+        else
+          FunctionCall(
+            Identifier(name),
+            args.map(mapFunctionCalls(id, newId, _))
+          )
+      case Wrapped(value) =>
+        Wrapped(mapFunctionCalls(id, newId, value))
+      case BinaryOp(left, op, right) =>
+        BinaryOp(
+          mapFunctionCalls(id, newId, left),
+          op,
+          mapFunctionCalls(id, newId, right)
+        )
+      case UnaryOp(op, operant) =>
+        UnaryOp(op, mapFunctionCalls(id, newId, operant))
+      case Function(args, body) =>
+        Function(args, body.map(mapStatement(id, newId, _)))
+      case Dictionary(entries) =>
+        Dictionary(
+          entries.map(entry =>
+            DictionaryEntry(
+              mapFunctionCalls(id, newId, entry.key),
+              mapFunctionCalls(id, newId, entry.value)
+            )
+          )
+        )
+      case StructureAccess(identifier, key) =>
+        StructureAccess(identifier, mapFunctionCalls(id, newId, key))
+      case v: Value => v
+    }
+
+  private def mapStatement(
+      id: String,
+      newId: String,
+      st: Statement
+  ): Statement =
+    st match {
+      case a: Assignment =>
+        Assignment(
+          a.varName,
+          mapFunctionCalls(
+            id,
+            newId,
+            a.value
+          )
+        )
+      case r: Return =>
+        Return(
+          mapFunctionCalls(
+            id,
+            newId,
+            r.value
+          )
+        )
+      case WhileLoop(branch) =>
+        WhileLoop(
+          Branch(
+            mapFunctionCalls(
+              id,
+              newId,
+              branch.condition
+            ),
+            branch.body.map(mapStatement(id, newId, _))
+          )
+        )
+      case Expression(expr) =>
+        Expression(
+          mapFunctionCalls(
+            id,
+            newId,
+            expr
+          )
+        )
+    }
+
   def update(identifier: Identifier, value: Value): Scope =
     value match {
       case f: Function =>
