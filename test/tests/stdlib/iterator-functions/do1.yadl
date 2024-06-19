@@ -1,0 +1,13 @@
+// RUN: DEFAULT
+
+lst = [1,2,3,4]
+
+rv = do(list, (x) => print(x))
+
+print(rv)
+
+// CHECK-OUT: 1
+// CHECK-OUT: 2
+// CHECK-OUT: 3
+// CHECK-OUT: 4
+// CHECK-OUT: [1, 2, 3, 4]

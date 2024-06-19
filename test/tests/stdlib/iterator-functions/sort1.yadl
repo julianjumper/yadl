@@ -1,0 +1,9 @@
+// RUN: DEFAULT
+
+lst = [1,2,4,3]
+
+rv = sort(lst)
+
+print(rv)
+
+// CHECK-OUT: [1, 2, 3, 4]

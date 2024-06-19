@@ -1,0 +1,16 @@
+// RUN: DEFAULT
+
+lst = [1,2,3,4]
+lst2 = [1,3]
+
+odd = (x) => x % 2 == 1
+
+rv = check_all(lst, odd)
+rv2 = check_all(lst2, odd)
+
+
+print(rv)
+print(rv2)
+
+// CHECK-OUT: false
+// CHECK-OUT: true

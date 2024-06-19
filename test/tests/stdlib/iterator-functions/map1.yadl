@@ -1,0 +1,11 @@
+// RUN: DEFAULT
+
+lst = [1,2,3,4]
+
+inc = (x) => x + 1
+
+rv = map(lst, inc)
+
+print(rv)
+
+// CHECK-OUT: [2, 3, 4, 5]

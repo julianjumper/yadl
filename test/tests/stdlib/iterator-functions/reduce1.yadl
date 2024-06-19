@@ -1,0 +1,9 @@
+// RUN: DEFAULT
+
+lst = [1,2,3,4]
+
+rv = reduce(lst, sum2)
+
+print(rv)
+
+// CHECK-OUT: 10

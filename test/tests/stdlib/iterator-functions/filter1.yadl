@@ -1,0 +1,11 @@
+// RUN: DEFAULT
+
+lst = [1,2,3,4]
+
+odd = (x) => x % 2 == 1
+
+filtered = filter(lst, odd)
+
+print(filtered)
+
+// CHECK-OUT: [1, 3]

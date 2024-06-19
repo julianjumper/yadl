@@ -1,0 +1,15 @@
+// RUN: DEFAULT
+
+lst = [1,2,3,4]
+
+odd = (x) => x % 2 == 1
+
+rv = groupBy(lst, odd)
+
+print(rv[true])
+print(rv[false])
+print(len(rv))
+
+// CHECK-OUT: [1, 3]
+// CHECK-OUT: [2, 4]
+// CHECK-OUT: 2

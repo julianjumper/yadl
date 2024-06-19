@@ -1,0 +1,13 @@
+// RUN: DEFAULT
+
+lst = [1,2,3,4, 5]
+lst2 = [2, 3, 4, 5]
+
+
+
+
+rv = zip(lst1, lst2)
+
+print(rv)
+
+// CHECK-OUT: [[0, 1], [1, 2], [3, 4], [4, 5]]

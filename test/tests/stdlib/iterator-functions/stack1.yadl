@@ -1,0 +1,12 @@
+// RUN: DEFAULT
+
+lst = [1,2,3,4]
+
+odd = (x) => x % 2 == 1
+inc = (x) => x + 1
+
+rv = stack(lst, [odd, inc])
+
+print(rv)
+
+// CHECK-OUT: {0: [2, 4], 1: [2, 3, 4, 5]}

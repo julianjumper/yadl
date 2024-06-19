@@ -1,0 +1,11 @@
+// RUN: DEFAULT
+
+lst = [1,2,3,4]
+
+odd = (x) => x % 2 == 1
+
+rv = first(lst, odd)
+
+print(rv)
+
+// CHECK-OUT: 1
