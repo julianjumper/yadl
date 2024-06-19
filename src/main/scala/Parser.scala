@@ -154,7 +154,7 @@ def functionDefP[$: P]: P[Value] = (
 )
 
 def valueP[$: P]: P[Value] =
-  booleanP | stringP | unaryOpExpression | dictionaryP | arrayLiteralP | structureAccess | functionCallValue | numberP
+  noneP | booleanP | stringP | unaryOpExpression | dictionaryP | arrayLiteralP | structureAccess | functionCallValue | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
