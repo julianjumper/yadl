@@ -70,10 +70,124 @@ class Scope(
     else
       None
 
+  private def mapFunctionCalls(
+      id: String,
+      newId: String,
+      value: Value
+  ): Value =
+    value match {
+      case FunctionCall(Identifier(name), args) =>
+        if (name == id)
+          FunctionCall(
+            Identifier(newId),
+            args.map(mapFunctionCalls(id, newId, _))
+          )
+        else
+          FunctionCall(
+            Identifier(name),
+            args.map(mapFunctionCalls(id, newId, _))
+          )
+      case Wrapped(value) =>
+        Wrapped(mapFunctionCalls(id, newId, value))
+      case BinaryOp(left, op, right) =>
+        BinaryOp(
+          mapFunctionCalls(id, newId, left),
+          op,
+          mapFunctionCalls(id, newId, right)
+        )
+      case UnaryOp(op, operant) =>
+        UnaryOp(op, mapFunctionCalls(id, newId, operant))
+      case Function(args, body) =>
+        Function(args, body.map(mapStatement(id, newId, _)))
+      case Dictionary(entries) =>
+        Dictionary(
+          entries.map(entry =>
+            DictionaryEntry(
+              mapFunctionCalls(id, newId, entry.key),
+              mapFunctionCalls(id, newId, entry.value)
+            )
+          )
+        )
+      case StructureAccess(identifier, key) =>
+        StructureAccess(identifier, mapFunctionCalls(id, newId, key))
+      case v: Value => v
+    }
+
+  private def mapStatement(
+      id: String,
+      newId: String,
+      st: Statement
+  ): Statement =
+    st match {
+      case a: Assignment =>
+        Assignment(
+          a.varName,
+          mapFunctionCalls(
+            id,
+            newId,
+            a.value
+          )
+        )
+      case r: Return =>
+        Return(
+          mapFunctionCalls(
+            id,
+            newId,
+            r.value
+          )
+        )
+      case WhileLoop(branch) =>
+        WhileLoop(
+          Branch(
+            mapFunctionCalls(
+              id,
+              newId,
+              branch.condition
+            ),
+            branch.body.map(mapStatement(id, newId, _))
+          )
+        )
+      case Expression(expr) =>
+        Expression(
+          mapFunctionCalls(
+            id,
+            newId,
+            expr
+          )
+        )
+    }
+
   def update(identifier: Identifier, value: Value): Scope =
     value match {
       case f: Function =>
-        this.localFuncs.update(identifier.name, f)
+        this.lookupFunction(identifier) match {
+          case None =>
+            this.localFuncs.update(identifier.name, f)
+          case Some(func: Function) =>
+            def isReassigned(id: Identifier, st: Statement): Boolean =
+              value match {
+                case Assignment(i, funct: parser.Function) => i == id.name
+                case _                                     => false
+              }
+            val newInstruction = Assignment("_" + identifier.name, func)
+            val beforeReassign = f.body.takeWhile(!isReassigned(identifier, _))
+            val atReassign = f.body.dropWhile(!isReassigned(identifier, _))
+            val reassign = atReassign
+              .take(1)
+              .map(
+                mapStatement(identifier.name, newInstruction.varName, _)
+              )
+            val reassignedInsts = beforeReassign.map(
+              mapStatement(identifier.name, newInstruction.varName, _)
+            )
+            val newBody = atReassign.length match {
+              case 0 =>
+                reassignedInsts ++ reassign
+              case _ => reassignedInsts ++ reassign ++ atReassign.tail
+            }
+            val tmp = Function(f.args, newInstruction +: newBody)
+            this.localFuncs.update(identifier.name, tmp)
+        }
       case v: Value =>
         this.localVars.update(identifier.name, v)
     }
