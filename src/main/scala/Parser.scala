@@ -81,6 +81,8 @@ case class Dictionary(entries: Seq[DictionaryEntry]) extends Value:
   override def toString(): String =
     "{" + entries.map { _.toString }.mkString(", ") + "}"
 
+case class ArrayLiteral(elements: Seq[Value]) extends Value
+
 case class StructureAccess(identifier: Identifier, key: Value) extends Value
 
 case class Assignment(varName: String, value: Value) extends Statement
@@ -153,7 +155,7 @@ def functionDefP[$: P]: P[Value] = (
 )
 
 def valueP[$: P]: P[Value] =
-  booleanP | dictionaryP | structureAccess | functionCallP | identifierP | numberP
+   booleanP | dictionaryP | arrayLiteralP | structureAccess | functionCallP | identifierP | numberP  
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -456,3 +458,8 @@ def structureAccess[$: P]: P[Value] =
     (!"[" ~ CharIn("a-zA-z0-9_")).rep(min = 1).! ~ "[" ~ ws ~ valueP ~ ws ~ "]"
   ).opaque("<structure access>")
     .map((i, v) => StructureAccess(Identifier(i), v))
+
+
+//Parser Array (we use structureAccess for accessing arrays)
+def arrayLiteralP[$: P]: P[ArrayLiteral] =
+  P("[" ~ ws ~ expression.rep(sep = ws ~ "," ~ ws) ~ ws ~ "]").map(ArrayLiteral.apply)
