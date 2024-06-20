@@ -122,38 +122,22 @@ class Scope(
       case a: Assignment =>
         Assignment(
           a.varName,
-          mapFunctionCalls(
-            id,
-            newId,
-            a.value
-          )
+          mapFunctionCalls(id, newId, a.value)
         )
       case r: Return =>
         Return(
-          mapFunctionCalls(
-            id,
-            newId,
-            r.value
-          )
+          mapFunctionCalls(id, newId, r.value)
         )
       case WhileLoop(branch) =>
         WhileLoop(
           Branch(
-            mapFunctionCalls(
-              id,
-              newId,
-              branch.condition
-            ),
+            mapFunctionCalls(id, newId, branch.condition),
             branch.body.map(mapStatement(id, newId, _))
           )
         )
       case Expression(expr) =>
         Expression(
-          mapFunctionCalls(
-            id,
-            newId,
-            expr
-          )
+          mapFunctionCalls(id, newId, expr)
         )
     }
 
