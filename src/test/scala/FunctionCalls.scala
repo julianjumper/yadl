@@ -21,7 +21,7 @@ class FunctionCalls extends munit.FunSuite {
         Identifier("print"),
         Seq(
           FunctionCall(
-            Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
+            Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))), None)),
             Seq()
           )
         )
@@ -91,7 +91,7 @@ class FunctionCalls extends munit.FunSuite {
     val input = "(() => x)()"
     val expected =
       FunctionCall(
-        Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
+        Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))), None)),
         Seq()
       )
     parse(input, functionCallValue(using _)) match {
@@ -112,7 +112,7 @@ class FunctionCalls extends munit.FunSuite {
     val expected =
       Wrapped(
         FunctionCall(
-          Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
+          Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))), None)),
           Seq()
         )
       )
@@ -133,7 +133,7 @@ class FunctionCalls extends munit.FunSuite {
     val input = "(() => x)(y)"
     val expected =
       FunctionCall(
-        Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
+        Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))), None)),
         Seq(Identifier("y"))
       )
     parse(input, expression(using _)) match {
@@ -153,7 +153,7 @@ class FunctionCalls extends munit.FunSuite {
     val input = "(() => x)(y)"
     val expected =
       FunctionCall(
-        Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
+        Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))), None)),
         Seq(Identifier("y"))
       )
     parse(input, functionCallValue(using _)) match {
