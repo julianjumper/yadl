@@ -163,9 +163,8 @@ def evalStatement(
       case Return(value) =>
         evalReturn(value, scope)
       case Expression(expr) =>
-        val result = evalValue(expr, scope)
-        val Some(return_value) = result.result: @unchecked
-        result.returnValue(return_value)
+        val Some(result) = evalValue(expr, scope).result: @unchecked
+        scope.returnValue(result)
       case If(ifBranch, elifBranches, elseBranch) => {
         evalIf(ifBranch, elifBranches, elseBranch, scope)
       }
@@ -305,6 +304,8 @@ def evalValue(
       }
     case Number(value) =>
       scope.returnValue(Number(value))
+    case StdString(value) =>
+      scope.returnValue(StdString(value))
     case Bool(value) =>
       scope.returnValue(Bool(value))
     case Wrapped(value) =>
@@ -363,42 +364,51 @@ def evalCompareOps(
   val Some(leftEval) = evalValue(left, scope).result: @unchecked
   val Some(rightEval) = evalValue(right, scope).result: @unchecked
   // if left or right is string.
-  if (leftEval.isInstanceOf[Identifier] || rightEval.isInstanceOf[Identifier]) {
-    op match {
-      case Eq =>
-        scope.returnValue(
-          Bool(
-            leftEval.asInstanceOf[Identifier].name == rightEval
-              .asInstanceOf[Identifier]
-              .name
+  (leftEval, rightEval) match {
+    case (s1: StdString, s2: StdString) => {
+      op match {
+        case Eq =>
+          scope.returnValue(Bool(s1.value == s2.value))
+        case NotEq =>
+          scope.returnValue(Bool(s1.value != s2.value))
+        case _ =>
+          assert(
+            false,
+            "For Strings only the operators '==' and '!=' are allowed."
           )
-        )
-      case NotEq =>
-        scope.returnValue(
-          Bool(
-            leftEval.asInstanceOf[Identifier].name != rightEval
-              .asInstanceOf[Identifier]
-              .name
-          )
-        )
-      case _ => assert(false, "On Strings, only == and != are allowed.")
+      }
     }
-    return scope
-  }
+    case (value1: (Number | Bool), value2: (Number | Bool)) => {
+      // otherwise left and right are bools or numbers
+      val result = op match {
+        case Less      => extractNumber(value1) < extractNumber(value2)
+        case LessEq    => extractNumber(value1) <= extractNumber(value2)
+        case Greater   => extractNumber(value1) > extractNumber(value2)
+        case GreaterEq => extractNumber(value1) >= extractNumber(value2)
+        case Eq        => value1 == value2
+        case NotEq     => value1 != value2
+      }
 
-  // otherwise left and right are bools or numbers
-  val result = op match {
-    case Less      => extractNumber(leftEval) < extractNumber(rightEval)
-    case LessEq    => extractNumber(leftEval) <= extractNumber(rightEval)
-    case Greater   => extractNumber(leftEval) > extractNumber(rightEval)
-    case GreaterEq => extractNumber(leftEval) >= extractNumber(rightEval)
-    case Eq        => leftEval == rightEval
-    case NotEq     => leftEval != rightEval
-    case null      => assert(false, "Unexpected comparison operation.")
+      scope.returnValue(Bool(result)) // Adding the result to the scope
+    }
+    case (v1, v2) =>
+      assert(
+        false,
+        s"the values '$v1' and '$v2' are not comparable under '$op'"
+      )
   }
-
-  scope.returnValue(Bool(result)) // Adding the result to the scope
 }
+
+def typeOf(value: Value): String =
+  value match {
+    case _: StdString  => "string"
+    case _: Number     => "number"
+    case _: Bool       => "bool"
+    case _: Dictionary => "dictionary"
+    // case _: ArrayLiteral => "array"
+    case _: Function => "function"
+    case _           => "'not defined'"
+  }
 
 def evalArithmeticOps(
     op: ArithmaticOps,
@@ -407,35 +417,43 @@ def evalArithmeticOps(
     scope: Scope
 ): Scope = {
   // evaluate left and right value
-  val resLeft = evalValue(left, scope)
-  val Some(leftEval) = resLeft.result: @unchecked
-  val resRight = evalValue(right, scope)
-  val Some(rightEval) = resRight.result: @unchecked
+  val Some(leftEval) = evalValue(left, scope).result: @unchecked
+  val Some(rightEval) = evalValue(right, scope).result: @unchecked
 
-  if (leftEval.isInstanceOf[Identifier] || rightEval.isInstanceOf[Identifier]) {
-    assert(false, "No arithmetic operations of string allowed.")
+  (leftEval, rightEval) match {
+    case (s1: StdString, s2: StdString) =>
+      op match {
+        case Add =>
+          val tmp = s1.value + s2.value
+          scope.returnValue(StdString(tmp))
+        case _ => assert(false, "only operator '+' is defined for strings")
+      }
+    case (value1: (Number | Bool), value2: (Number | Bool)) =>
+      val leftNumber = extractNumber(value1)
+      val rightNumber = extractNumber(value2)
+      // calculate arithmetic operation
+      val result = op match {
+        case Add  => leftNumber + rightNumber
+        case Sub  => leftNumber - rightNumber
+        case Mul  => leftNumber * rightNumber
+        case Div  => leftNumber / rightNumber
+        case Mod  => leftNumber % rightNumber
+        case Expo => scala.math.pow(leftNumber, rightNumber)
+        case null => assert(false, "unreachable")
+      }
+      scope.returnValue(Number(result)) // Adding the result to the scope
+    case (v1, v2) =>
+      val type1 = typeOf(v1)
+      val type2 = typeOf(v2)
+      assert(false, s"Operator '$op' is not defined for '$type1' and '$type2'")
   }
-
-  val leftNumber = extractNumber(leftEval)
-  val rightNumber = extractNumber(rightEval)
-  // calculate arithmetic operation
-  val result = op match {
-    case Add  => leftNumber + rightNumber
-    case Sub  => leftNumber - rightNumber
-    case Mul  => leftNumber * rightNumber
-    case Div  => leftNumber / rightNumber
-    case Mod  => leftNumber % rightNumber
-    case Expo => scala.math.pow(leftNumber, rightNumber)
-    case null => assert(false, "Arithmetic operation is null")
-  }
-  scope.returnValue(Number(result)) // Adding the result to the scope
 }
 
 // Input: Number or Bool. Output: Double (true == 1, false == 0)
 def extractNumber(value: Value): Double = value match {
   case Number(n) => n
   case Bool(b)   => if (b) 1.0 else 0.0
-  case _         => assert(false, "Expected number or boolean in comparison.")
+  case v => assert(false, s"Expected number or boolean in comparison. Got '$v'")
 }
 
 def printValues(values: Seq[Value], scope: Scope): Unit =
