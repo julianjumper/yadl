@@ -43,5 +43,29 @@ python-test-script:
   artifacts:
     paths:
       - *jar
+  timeout: 5 min
+
+build-main:
+  <<: *config
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  script:
+    - sbt clean compile assembly
   timeout: 3 min
+
+python-script-main:
+  <<: *config
+  stage: interpretation-testing
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  needs:
+    - build-main
+  script:
+    - pytest
+  artifacts:
+    paths:
+      - *jar
+  timeout: 5 min
+
 
