@@ -15,6 +15,7 @@ class Scope(
 ):
   private var parentScope: Scope = parent
   private var _result: Value = null
+  private var _capture: Capture = null
   private var localVars: HashMap[String, Value] =
     new HashMap().addAll(funArgs.zip(callArgs))
   private var localFuncs: HashMap[String, parser.Function] = new HashMap
@@ -33,7 +34,22 @@ class Scope(
     this._result = value
     this
 
+  def withCapture(c: Capture): Scope =
+    var tmp = this.clone()
+    tmp._capture = c
+    tmp
+
+  private def lookupCapture(identifier: Identifier): Option[Value] =
+    if (this._capture != null) this._capture.lookup(identifier)
+    else None
+
   def lookup(identifier: Identifier): Option[Value] =
+    this.lookupCapture(identifier) match {
+      case Some(value) =>
+        return Some(value)
+      case None => {}
+    }
+
     this.localVars.get(identifier.name) match {
       case Some(Identifier(name)) =>
         if (name == identifier.name) // 'x' -> 'x'
@@ -68,76 +84,13 @@ class Scope(
     else
       None
 
-  private def mapFunctionCalls(
-      id: String,
-      newId: String,
-      value: Value
-  ): Value =
-    value match {
-      case FunctionCall(Identifier(name), args) =>
-        if (name == id)
-          FunctionCall(
-            Identifier(newId),
-            args.map(mapFunctionCalls(id, newId, _))
-          )
-        else
-          FunctionCall(
-            Identifier(name),
-            args.map(mapFunctionCalls(id, newId, _))
-          )
-      case Wrapped(value) =>
-        Wrapped(mapFunctionCalls(id, newId, value))
-      case BinaryOp(left, op, right) =>
-        BinaryOp(
-          mapFunctionCalls(id, newId, left),
-          op,
-          mapFunctionCalls(id, newId, right)
-        )
-      case UnaryOp(op, operant) =>
-        UnaryOp(op, mapFunctionCalls(id, newId, operant))
-      case Function(args, body) =>
-        Function(args, body.map(mapStatement(id, newId, _)))
-      case Dictionary(entries) =>
-        Dictionary(
-          entries.map(entry =>
-            DictionaryEntry(
-              mapFunctionCalls(id, newId, entry.key),
-              mapFunctionCalls(id, newId, entry.value)
-            )
-          )
-        )
-      case StructureAccess(identifier, key) =>
-        StructureAccess(identifier, mapFunctionCalls(id, newId, key))
-      case v: Value => v
-    }
-
-  private def mapStatement(
-      id: String,
-      newId: String,
-      st: Statement
-  ): Statement =
-    st match {
-      case a: Assignment =>
-        Assignment(
-          a.varName,
-          mapFunctionCalls(id, newId, a.value)
-        )
-      case r: Return =>
-        Return(
-          mapFunctionCalls(id, newId, r.value)
-        )
-      case WhileLoop(branch) =>
-        WhileLoop(
-          Branch(
-            mapFunctionCalls(id, newId, branch.condition),
-            branch.body.map(mapStatement(id, newId, _))
-          )
-        )
-      case Expression(expr) =>
-        Expression(
-          mapFunctionCalls(id, newId, expr)
-        )
-    }
+  override def clone(): Scope =
+    var tmp = new Scope
+    tmp.localFuncs = this.localFuncs.clone()
+    tmp.localVars = this.localVars.clone()
+    if (this.parentScope != null)
+      tmp.parentScope = this.parentScope.clone()
+    tmp
 
   def update(identifier: Identifier, value: Value): Scope =
     value match {
@@ -146,35 +99,127 @@ class Scope(
           case None =>
             this.localFuncs.update(identifier.name, f)
           case Some(func: Function) =>
-            def isReassigned(id: Identifier, st: Statement): Boolean =
-              value match {
-                case Assignment(i, funct: parser.Function) => i == id.name
-                case _                                     => false
-              }
-            val newInstruction = Assignment("_" + identifier.name, func)
-            val beforeReassign = f.body.takeWhile(!isReassigned(identifier, _))
-            val atReassign = f.body.dropWhile(!isReassigned(identifier, _))
-            val reassign = atReassign
-              .take(1)
-              .map(
-                mapStatement(identifier.name, newInstruction.varName, _)
-              )
-            val reassignedInsts = beforeReassign.map(
-              mapStatement(identifier.name, newInstruction.varName, _)
-            )
-            val newBody = atReassign.length match {
-              case 0 =>
-                reassignedInsts ++ reassign
-              case _ => reassignedInsts ++ reassign ++ atReassign.tail
-            }
-            val tmp = Function(f.args, newInstruction +: newBody)
-            this.localFuncs.update(identifier.name, tmp)
+            f.capture = Some(Capture(this, f.args, f.body))
+            this.localFuncs.update(identifier.name, f)
         }
       case v: Value =>
         this.localVars.update(identifier.name, v)
     }
     this
 end Scope
+
+class Capture(
+    scope: Scope,
+    functionArguments: Seq[String],
+    functionBoby: Seq[Statement]
+):
+  private var captures: HashMap[String, Value] = {
+    val externals = allExternalIdentifiers(functionArguments, functionBoby)
+    val pairs = externals.map(e =>
+      scope.lookup(Identifier(e)) match {
+        case Some(value) =>
+          val Some(v) = evalValue(value, scope).result: @unchecked
+          (e, v)
+        case None =>
+          if (e == "print" || builtins.contains(e))
+            ("_", Function(Seq(), Seq(Expression(Bool(false))), null))
+          else
+            assert(false, s"'$e' can not be captured because it does not exist")
+      }
+    )
+    var tmp = new HashMap[String, Value]
+    tmp.addAll(pairs)
+  }
+
+  private def allExternalIdentifiers(
+      funcArgs: Seq[String],
+      functionBoby: Seq[Statement]
+  ): Seq[String] = {
+    def externalsValue(
+        accs: Seq[String],
+        locals: Seq[String],
+        value: Value
+    ): (Seq[String], Seq[String]) =
+      val cs = externalsOfValue(accs ++ locals, value)
+        .flatMap(e => if (locals.contains(e)) Seq() else Seq(e))
+      (cs, locals)
+
+    def externalsStatements(
+        accs: Seq[String],
+        locals: Seq[String],
+        sts: Seq[Statement]
+    ): (Seq[String], Seq[String]) =
+      val cs = allExternalIdentifiers(accs ++ locals, sts)
+        .flatMap(e => if (locals.contains(e)) Seq() else Seq(e))
+      (cs, locals)
+
+    val (ext, _) =
+      functionBoby.foldLeft((Seq(): Seq[String], funcArgs))((acc, elem) =>
+
+        var (accs, locals) = acc
+        elem match {
+          case Assignment(varName, value) =>
+            if (!accs.contains(varName) && !locals.contains(varName)) {
+              // NOTE: very expensive, lots of copies here
+              val (cs, ls) = externalsValue(accs, locals, value)
+              (cs, ls.appended(varName))
+            } else (accs, locals)
+          case fc: FunctionCall =>
+            externalsValue(accs, locals, fc)
+          case Return(value) =>
+            externalsValue(accs, locals, value)
+          case WhileLoop(loop) =>
+            val (accN, localsN) = externalsValue(accs, locals, loop.condition)
+            externalsStatements(accN, localsN, loop.body)
+          case Expression(expr) =>
+            externalsValue(accs, locals, expr)
+          case If(ifBranch, elifBranches, elseBranch) =>
+            val varsIf = externalsValue(accs, locals, ifBranch.condition)
+            val ifAcc = externalsStatements(varsIf._1, varsIf._2, ifBranch.body)
+
+            val res: (Seq[String], Seq[String]) =
+              elifBranches.foldLeft(ifAcc)((a, br) =>
+                val (acc, loc) = a
+                val (acc1, loc1) = externalsValue(acc, loc, br.condition)
+                externalsStatements(acc1, loc1, br.body)
+              )
+
+            elseBranch match {
+              case Some(br) =>
+                val (accs, locals) = res
+                externalsStatements(accs, locals, br)
+              case None =>
+                res
+            }
+        }
+      )
+    ext
+  }
+
+  private def externalsOfValue(
+      currentCaptures: Seq[String],
+      value: Value
+  ): Seq[String] =
+    value match {
+      case Identifier(name) =>
+        if (!currentCaptures.contains(name))
+          currentCaptures.appended(name)
+        else currentCaptures
+      case Wrapped(value) => externalsOfValue(currentCaptures, value)
+      case FunctionCall(functionExpr, args) =>
+        val fx = externalsOfValue(currentCaptures, functionExpr)
+        args.foldLeft(fx)(externalsOfValue)
+      case Function(args, body, _capt) =>
+        val caps = allExternalIdentifiers(args, body)
+        caps.flatMap(e => if (args.contains(e)) Seq() else Seq(e))
+      case ArrayLiteral(elements) =>
+        elements.foldLeft(currentCaptures)(externalsOfValue)
+      case _: Value => currentCaptures
+    }
+
+  def lookup(id: Identifier): Option[Value] =
+    this.captures.get(id.name)
+end Capture
 
 def evalFunctionCall(
     functionExpr: Value,
@@ -201,9 +246,14 @@ def evalFunctionCall(
         scope.returnValue(interpreterdata.toAstNode(result))
       } else {
         scope.lookupFunction(Identifier(identifier)) match {
-          case Some(Function(args, body)) =>
+          case Some(Function(args, body, c)) =>
+            // TODO: merge the capture with the current scope
             val res =
-              body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
+              body.foldLeft(
+                Scope(scope.withCapture(c.getOrElse(null)), args, callArgs)
+              )(
+                evalStatement
+              )
             val Some(value) = res.result: @unchecked
             scope.returnValue(value)
           case None =>
@@ -216,17 +266,22 @@ def evalFunctionCall(
     case Wrapped(value) =>
       evalFunctionCall(value, evaledCallArgs, scope)
 
-    case Function(args, body) =>
+    case Function(args, body, s) =>
       val res =
-        body.foldLeft(Scope(scope, args, evaledCallArgs))(evalStatement)
+        body.foldLeft(
+          Scope(scope.withCapture(s.getOrElse(null)), args, evaledCallArgs)
+        )(
+          evalStatement
+        )
       val Some(value) = res.result: @unchecked
       scope.returnValue(value)
 
     case FunctionCall(functionExpr, args) =>
-      val Some(Function(args1, body1)) =
+      val Some(Function(args1, body1, s)) =
         evalFunctionCall(functionExpr, args, scope).result: @unchecked
-      val res =
-        body1.foldLeft(Scope(scope, args1, evaledCallArgs))(evalStatement)
+      val res = body1.foldLeft(
+        Scope(scope.withCapture(s.getOrElse(null)), args1, evaledCallArgs)
+      )(evalStatement)
       val Some(value) = res.result: @unchecked
       scope.returnValue(value)
   }
@@ -246,6 +301,9 @@ def evalReturn(value: Value, scope: Scope): Scope =
             )
         }
 
+      case f: Function =>
+        val tmp = Function(f.args, f.body, Some(Capture(scope, f.args, f.body)))
+        scope.returnValue(f)
       case va =>
         scope.result match {
           case None =>
@@ -358,8 +416,8 @@ def evalValue(
     scope: Scope
 ): Scope =
   v match {
-    case Function(args, body) =>
-      scope.returnValue(Function(args, body))
+    case Function(args, body, _) =>
+      scope.returnValue(Function(args, body, Some(Capture(scope, args, body))))
     case FunctionCall(identifier, callArgs) =>
       evalFunctionCall(identifier, callArgs, scope)
     case BinaryOp(left, op, right) =>
@@ -429,7 +487,7 @@ def evalValue(
     case Identifier(name) =>
       scope.lookup(Identifier(name)) match {
         case Some(value) =>
-          evalValue(value, scope)
+          scope.returnValue(value)
         case None =>
           assert(false, s"identifier '$name' does not exist")
       }
