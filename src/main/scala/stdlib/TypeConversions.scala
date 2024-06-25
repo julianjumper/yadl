@@ -1,8 +1,6 @@
 package stdlib
 
-import interpreterdata._
-
-import scala.collection.mutable
+import interpreterdata.*
 
 /**
  * Generic utility method that converts any Data Object to a String Object if possible (throws an error otherwise)
@@ -92,12 +90,24 @@ def toIteratorObj(obj: DataObject): IteratorObj = obj match {
       case _ => throw IllegalArgumentException()
     })
 
-    val d = mutable.HashMap[DataObject, DataObject]()
+    val d = scala.collection.mutable.HashMap[DataObject, DataObject]()
     d.addOne(StringObj("index"), NumberObj(0))
-    d.addOne(StringObj("list"), ListObj(mutable.ArrayBuffer[DataObject]()))
+    d.addOne(StringObj("list"), ListObj(scala.collection.mutable.ArrayBuffer[DataObject]()))
 
     IteratorObj(next, hasnext, DictionaryObj(d))
   }
   case x: DictionaryObj => throw NotImplementedError() //  TODO implement
   case _ => throw IllegalArgumentException()
 }
+
+
+def toNumberObj(obj: DataObject): NumberObj = obj match {
+  case x: NumberObj => x
+  case x: StringObj => throw IllegalArgumentException()
+  case BooleanObj(x) => if (x == true) NumberObj(1) else NumberObj(0)
+  case x: ListObj => throw IllegalArgumentException()
+  case x: DictionaryObj => throw IllegalArgumentException()
+  case x: IteratorObj => throw IllegalArgumentException()
+  case _ => throw UnsupportedOperationException()
+}
+

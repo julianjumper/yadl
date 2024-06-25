@@ -28,4 +28,8 @@ def stdlib: HashMap[String, FunctionObj] = {
       case Seq(x) => StringObj(x.typeName)
       case _ => throw IllegalArgumentException()
     }))
+    .addOne("number", FunctionObj(Seq("object"), Seq(), None, (params: Seq[DataObject]) => params match {
+      case Seq(x) => toNumberObj(x)
+      case _ => throw IllegalArgumentException()
+    }))
 }
