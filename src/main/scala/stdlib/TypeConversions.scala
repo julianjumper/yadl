@@ -1,7 +1,7 @@
 package stdlib
 
 import interpreterdata.*
-
+import scala.collection.mutable.ArrayBuffer
 /**
  * Generic utility method that converts any Data Object to a String Object if possible (throws an error otherwise)
  * Can be used outside the stdlib if necessary.
@@ -100,14 +100,29 @@ def toIteratorObj(obj: DataObject): IteratorObj = obj match {
   case _ => throw IllegalArgumentException()
 }
 
-
 def toNumberObj(obj: DataObject): NumberObj = obj match {
   case x: NumberObj => x
   case x: StringObj => throw IllegalArgumentException()
   case BooleanObj(x) => if (x == true) NumberObj(1) else NumberObj(0)
-  case x: ListObj => throw IllegalArgumentException()
-  case x: DictionaryObj => throw IllegalArgumentException()
-  case x: IteratorObj => throw IllegalArgumentException()
-  case _ => throw UnsupportedOperationException()
+  case _ => throw IllegalArgumentException()
 }
 
+def toListObj(obj: DataObject): ListObj = obj match {
+  case x: ListObj => x
+  case it: IteratorObj => {
+    var lst = new ArrayBuffer[DataObject]()
+    while (it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+      lst += it.next.function(Seq(it.data))
+    }
+    ListObj(lst)
+  }
+  case dict: DictionaryObj => {
+    ListObj(dict.value.toList.map((k, v) => {
+      val b = new ArrayBuffer[DataObject]()
+      b += k
+      b += v
+      ListObj(b)
+    }).to(ArrayBuffer))
+  }
+  case _ => throw IllegalArgumentException()
+}
