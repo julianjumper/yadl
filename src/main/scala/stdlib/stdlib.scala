@@ -48,4 +48,13 @@ def stdlib: HashMap[String, FunctionObj] = {
       }
       case _ => throw IllegalArgumentException()
     }))
+    .addOne("print3", FunctionObj(Seq("obj"), Seq(), None, (params: Seq[DataObject]) =>
+      params match {
+      case Seq(x) => {
+        val str = toStringObj(x).value + "\n"
+        System.out.print(str)
+        NONE
+      }
+      case _ => throw IllegalArgumentException()
+    }))
 }
