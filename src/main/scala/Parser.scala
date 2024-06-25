@@ -8,9 +8,6 @@ def wsSingle[$: P] = P(" " | "\t")
 def ws[$: P] = P((multilineCommentP | wsSingle).rep).opaque("<condition>")
 def newline[$: P] = P("\n\r" | "\r" | "\n").opaque("<newline>")
 
-def stringP[$: P] = P("'" ~ AnyChar.rep.! ~ "'")
-def stringConcatP[$: P] = P("++")
-
 enum DataFormats:
   case characters, commas, lines, csv, json
 
@@ -163,7 +160,7 @@ def functionDefP[$: P]: P[Value] = (
 )
 
 def valueP[$: P]: P[Value] =
-  booleanP | unaryOpExpression | dictionaryP | arrayLiteralP | structureAccess | functionCallValue | numberP
+  booleanP | stringP | unaryOpExpression | dictionaryP | arrayLiteralP | structureAccess | functionCallValue | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -445,26 +442,31 @@ def unescape(input: String): String =
     .replace("\\\"", "\"")
     .replace("\\\'", "\'")
 
-def charForString1P[$: P] = P(!("\"" | "\\r" | "\\n") ~ AnyChar)
-def charForString2P[$: P] = P(!("\'" | "\\r" | "\\n") ~ AnyChar)
-def charForMultilineString1P[$: P] = P(!"\"\"\"" ~ AnyChar)
-def charForMultilineString2P[$: P] = P(!"\'\'\'" ~ AnyChar)
+def charForStringDoubleQuote[$: P] = P(!("\"" | newline) ~ AnyChar)
+def charForStringSingleQuote[$: P] = P(!("\'" | newline) ~ AnyChar)
+def charForMultilineStringDoubleQuote[$: P] = P(!"\"\"\"" ~ AnyChar)
+def charForMultilineStringSingleQuote[$: P] = P(!"\'\'\'" ~ AnyChar)
 
 //Parser String
 //def formatStringP[$: P] = P()
 def stdStringP[$: P] = P(
-  (("\"\"\"" ~ charForMultilineString1P.rep.! ~ "\"\"\"") |
-    ("\'\'\'" ~ charForMultilineString1P.rep.! ~ "\'\'\'") |
-    ("\"" ~ charForString1P.rep.! ~ "\"") |
-    ("\'" ~ charForString2P.rep.! ~ "\'")).map(x => StdString(unescape(x)))
-)
-
-def stdMultiStringP[$: P] = P(
-  (("\"\"\"" ~ charForMultilineString1P.rep.! ~ "\"\"\"") ~ End |
-    ("\'\'\'" ~ charForMultilineString1P.rep.! ~ "\'\'\'") ~ End).map(x =>
+  (("\"" ~ charForStringDoubleQuote.rep.! ~ "\"") |
+    ("\'" ~ charForStringSingleQuote.rep.! ~ "\'")).map(x =>
     StdString(unescape(x))
   )
 )
+
+def stdMultiStringP[$: P] = P(
+  (("\"\"\"" ~ charForMultilineStringDoubleQuote.rep.! ~ "\"\"\"") |
+    ("\'\'\'" ~ charForMultilineStringSingleQuote.rep.! ~ "\'\'\'")).map(x =>
+    StdString(unescape(x))
+  )
+)
+
+def stringP[$: P]: P[StdString] = stdMultiStringP | stdStringP
+
+// @language-team because you are indecisive of where to put the comma
+// could be simpler
 
 def dictionaryEntries[$: P]: P[Dictionary] =
   def dictionaryEntry[$: P]: P[DictionaryEntry] =
