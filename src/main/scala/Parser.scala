@@ -66,6 +66,7 @@ case class BinaryOp(left: Value, op: Operator, right: Value) extends Value
 case class UnaryOp(op: Operator, operant: Value) extends Value
 case class Function(args: Seq[String], body: Seq[Statement]) extends Value
 case class Load(filename: Value, dataformat: DataFormats) extends Value
+case class Save(filename: Value, dataformat: DataFormats) extends Statement
 case class Wrapped(value: Value) extends Value
 case class StdString(value: String) extends Value:
   override def toString(): String = value.toString
@@ -125,7 +126,7 @@ def returnP[$: P]: P[Statement] =
   P("return" ~ ws ~ expression).map(Return(_))
 
 def statementP[$: P]: P[Statement] =
-  returnP | whileLoop | ifStatement | functionCallP | assignmentP
+  saveP | returnP | whileLoop | ifStatement | functionCallP | assignmentP
 
 def codeBlock[$: P]: P[Seq[Statement]] =
   P("{" ~ newline.? ~ (ws ~ statementP ~ ws ~ newline).rep ~ ws ~ "}")
@@ -298,6 +299,11 @@ def loadP[$: P]: P[Value] =
   (P("load") ~ ws ~ (stdStringP | identifierP) ~ ws ~ P(
     "as"
   ) ~ ws ~ dataFormatsP).map((file, format) => Load(file, format))
+
+def saveP[$: P]: P[Statement] =
+  (P("save") ~ ws ~ (stdStringP | identifierP) ~ ws ~ P(
+    "as"
+  ) ~ ws ~ dataFormatsP).map((file, format) => Save(file, format))
 
 def wrappedExpression[$: P]: P[Value] =
   ("(" ~ expression ~ ")").map(Wrapped(_))

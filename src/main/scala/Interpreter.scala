@@ -170,6 +170,8 @@ def evalStatement(
       }
       case WhileLoop(loop) =>
         evalWhileLoop(loop, scope)
+      case Save(filename, dataformat) =>
+        assert(false, "TODO: implement save statement") // TODO implement save statement
     }
 
 def evalWhileLoop(whileLoop: Branch, scope: Scope): Scope = {
