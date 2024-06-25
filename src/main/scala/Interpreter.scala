@@ -472,7 +472,7 @@ def evalValue(
             case None => assert(false, s"Expr \"$v\" is not interpretable")
             case Some(Number(n)) => {
               if (n != n.toInt) {
-                throw IllegalArgumentException("expected integer, but got number")
+                throw IllegalArgumentException("expected hole number, but got number with decimal part")
               }  
               entries(n.toInt)
             }
