@@ -507,6 +507,7 @@ def evalValue(
       scope.returnValue(ArrayLiteral(elements))
     case NoneValue() =>
       scope.returnValue(NoneValue())
+    case FormatString(value) => assert(false, "TODO: Format strings in eval implementation")
     case err =>
       assert(false, f"TODO: not implemented '$err'")
   }
