@@ -77,11 +77,11 @@ case class FormatString(value: List[Value]) extends Value
 class DictionaryEntry(var key: Value, var value: Value):
   override def toString(): String = key.toString + ": " + value.toString
 
-case class Dictionary(entries: Seq[DictionaryEntry]) extends Value:
+case class Dictionary(val entries: Seq[DictionaryEntry]) extends Value:
   override def toString(): String =
     "{" + entries.mkString(", ") + "}"
 
-case class ArrayLiteral(elements: Seq[Value]) extends Value
+case class ArrayLiteral(val elements: Seq[Value]) extends Value
 
 case class StructureAccess(identifier: Identifier, key: Value) extends Value
 
