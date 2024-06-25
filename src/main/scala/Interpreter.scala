@@ -85,8 +85,8 @@ class Scope(
     var tmp = new Scope
     tmp.localFuncs = this.localFuncs.clone()
     tmp.localVars = this.localVars.clone()
-    if (this.parentScope != null)
-      tmp.parentScope = this.parentScope.clone()
+    tmp.parentScope =
+      this.parentScope // NOTE: intentional, parent scope is never modified
     tmp
 
   def update(identifier: Identifier, value: Value): Scope =
