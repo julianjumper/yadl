@@ -32,4 +32,20 @@ def stdlib: HashMap[String, FunctionObj] = {
       case Seq(x) => toNumberObj(x)
       case _ => throw IllegalArgumentException()
     }))
+    .addOne("string", FunctionObj(Seq("object"), Seq(), None, (params: Seq[DataObject]) => params match {
+      case Seq(x) => toStringObj(x)
+      case _ => throw IllegalArgumentException()
+    }))
+    .addOne("list", FunctionObj(Seq("object"), Seq(), None, (params: Seq[DataObject]) => params match {
+      case Seq(x) => toListObj(x)
+      case _ => throw IllegalArgumentException()
+    }))
+    .addOne("print2", FunctionObj(Seq(), Seq(("end", StringObj("\n")), ("separator", StringObj(", "))), Some("objectsToPrint"), (params: Seq[DataObject]) => params match {
+      case Seq(StringObj(end), StringObj(separator), ListObj(printables)) => {
+        val str = (printables.map(p => toStringObj(p).value) mkString separator) + end
+        System.out.print(str)
+        NONE
+      }
+      case _ => throw IllegalArgumentException()
+    }))
 }
