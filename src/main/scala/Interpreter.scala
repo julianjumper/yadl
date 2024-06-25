@@ -312,6 +312,7 @@ def evalValue(
       evalValue(value, scope)
     case Dictionary(entries) =>
       scope.returnValue(Dictionary(entries))
+    case FormatString(value) => assert(false, "TODO: Format strings in eval implementation")
     case err =>
       assert(false, f"TODO: not implemented '$err'")
   }
