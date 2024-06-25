@@ -1,10 +1,8 @@
-import scala.util.control.Breaks._
-
-import parser._ // To lazy to import all types individually
-
-import ArithmaticOps.{Add, Div, Expo, Mul, Sub, Mod}
-import BooleanOps.{And, Or, Not}
+import parser.*
+import ArithmaticOps.{Add, Div, Expo, Mod, Mul, Sub}
+import BooleanOps.{And, Not, Or}
 import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
+
 
 val builtins = stdlib.stdlib
 
@@ -290,6 +288,18 @@ def evalValue(
             case Some(value) => value
             case None => assert(false, s"structure '${id.name}' does not exist")
           }
+        case Some(ArrayLiteral(entries)) => {
+          evalValue(v, scope).result match {
+            case None => assert(false, s"Expr \"$v\" is not interpretable")
+            case Some(Number(n)) => {
+              if (n != n.toInt) {
+                throw IllegalArgumentException("expected integer, but got number")
+              }  
+              entries(n.toInt)
+            }
+            case x => throw IllegalArgumentException("expected number, not: " + x.toString)
+          }
+        }
         case _ =>
           assert(false, s"no structure found by the name '${id.name}'")
       }
@@ -312,6 +322,8 @@ def evalValue(
       evalValue(value, scope)
     case Dictionary(entries) =>
       scope.returnValue(Dictionary(entries))
+    case ArrayLiteral(elements) => 
+      scope.returnValue(ArrayLiteral(elements))
     case err =>
       assert(false, f"TODO: not implemented '$err'")
   }
