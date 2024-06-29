@@ -1,1 +1,1 @@
-r = load "file.json" as json
+r = load("file.json", "json")
