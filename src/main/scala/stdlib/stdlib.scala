@@ -58,6 +58,7 @@ def stdlib: HashMap[String, FunctionObj] = {
       }
       case _ => throw IllegalArgumentException()
     }))
+    .addOne("load", FunctionObj(Seq("path", "format"), Seq(), None, loadFunction))
     .addOne("check_all", FunctionObj(Seq("iterable", "checkFunction"), Seq(), None, check_allBuiltIn))
     .addOne("check_any", FunctionObj(Seq("iterable", "checkFunction"), Seq(), None, check_anyBuiltIn))
     .addOne("check_none", FunctionObj(Seq("iterable", "checkFunction"), Seq(), None, check_noneBuiltIn))

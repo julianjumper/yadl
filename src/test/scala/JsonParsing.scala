@@ -1,5 +1,6 @@
 import munit.FunSuite
 import scala.io.Source
+import jsoniterator.JsonIterator
 
 class JsonParsing extends FunSuite{
   test("JsonIterator should correctly handle simple JSON objects") {
