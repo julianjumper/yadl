@@ -1,0 +1,5 @@
+// RUN: DEFAULT
+
+d = load('/io/top-level-array.json', 'json')
+print(d)
+
