@@ -1,6 +1,6 @@
 // RUN: DEFAULT
 
-d = load('/io/file.json', 'json')
+d = load('/io/simple.json', 'json')
 print(d)
 print( d["key"])
 
