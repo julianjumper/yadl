@@ -3,7 +3,7 @@ package interpreterdata
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 
-import parser.{ArrayLiteral, Bool, Function, Number, StdString, Value}
+import parser.{ArrayLiteral, Bool, Function, Number, StdString, Value, Dictionary, DictionaryEntry}
 
 /** Base Trait of all Interpreter objects.
   */
@@ -100,6 +100,13 @@ class IteratorObj(
     val data: DictionaryObj
 ) extends DataObject {
   def typeName = "iterator"
+
+  override def toString: String = {
+    val nextStr = next.toString.take(20) + "..." // Truncate for brevity
+    val hasNextStr = hasNext.toString.take(20) + "..."
+    val dataStr = data.toString.take(20) + "..."
+    s"IteratorObj(next: $nextStr, hasNext: $hasNextStr, data: $dataStr)"
+  }
 }
 object IteratorObj {
   def unapply(
@@ -155,6 +162,10 @@ def toAstNode(data: DataObject): Value =
       Bool(value)
     case StringObj(value) =>
       StdString(value)
+    case DictionaryObj(value) =>
+      Dictionary(value.map { case (k, v) => DictionaryEntry(toAstNode(k), toAstNode(v)) }.toSeq)
+    case ListObj(value) =>
+      parser.ArrayLiteral(value.map(toAstNode).toSeq)
     case NoneObj() =>
       parser.NoneValue()
     case x: IteratorObj => {
