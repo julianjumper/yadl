@@ -27,7 +27,8 @@ object Main {
       // read file
       val content = readFileContent(f)
       // parse this file using the starting rule `fileP`
-      val result = parse(content, yadlParser(using _)): @unchecked
+      // Added artificial newline to make sure we can parse the program, since the parser requires a newline at the end.
+      val result = parse(content + "\n", yadlParser(using _)): @unchecked
       result match {
         case Parsed.Success(stmt_seq, _) =>
           // parsing successful, ready to be interpreted
