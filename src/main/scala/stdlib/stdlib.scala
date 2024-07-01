@@ -15,8 +15,10 @@ def stdlib: HashMap[String, FunctionObj] = {
     .addOne("sum2", FunctionObj(Seq("a", "b"), Seq(), None, sum2))
     
     .addOne("filter", FunctionObj(Seq("iterable", "filterFunction"), Seq(), None, filterBuiltIn))
-    
+
     .addOne("groupBy", FunctionObj(Seq("iterable", "groupByFunction"), Seq(), None, groupByBuiltIn))
+
+    .addOne("reduce", FunctionObj(Seq("iterable", "reduceFunction"), Seq(), None, reduceBuiltIn))
     
     .addOne("string", FunctionObj(Seq("object"), Seq(), None, {
       case Seq(x) => toStringObj(x)

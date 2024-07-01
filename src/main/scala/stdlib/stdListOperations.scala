@@ -74,3 +74,25 @@ private def groupByBuiltIn(params: Seq[DataObject]): DataObject = {
 
   result
 }
+
+private def reduceBuiltIn(params: Seq[DataObject]): DataObject = {
+  if (params.length != 2 || !params(1).isInstanceOf[FunctionObj]) {
+    throw IllegalArgumentException()
+  }
+
+  val reduceFn = params(1).asInstanceOf[FunctionObj]
+  val it = toIteratorObj(params(0))
+
+  if (!it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+    throw IllegalArgumentException("Cannot reduce an empty iterable")
+  }
+
+  var accumulator = it.next.function(Seq(it.data))
+
+  while (it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+    val item = it.next.function(Seq(it.data))
+    accumulator = reduceFn.function(Seq(accumulator, item))
+  }
+
+  accumulator
+}
