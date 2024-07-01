@@ -2,8 +2,6 @@ package parser
 
 import fastparse._, NoWhitespace._
 
-type Capture = _root_.`<empty>`.Capture
-
 def wsSingle[$: P] = P(" " | "\t")
 def ws[$: P] = P((multilineCommentP | wsSingle).rep).opaque("<condition>")
 def newline[$: P] = P("\n\r" | "\r" | "\n").opaque("<newline>")
@@ -69,11 +67,7 @@ case class Bool(b: Boolean) extends Value:
 
 case class BinaryOp(left: Value, op: Operator, right: Value) extends Value
 case class UnaryOp(op: Operator, operant: Value) extends Value
-case class Function(
-    args: Seq[String],
-    body: Seq[Statement],
-    var capture: Option[Capture]
-) extends Value
+case class Function(args: Seq[String], body: Seq[Statement]) extends Value
 case class Load(filename: Value, dataformat: DataFormats) extends Value
 case class Wrapped(value: Value) extends Value
 case class StdString(value: String) extends Value:
@@ -157,8 +151,8 @@ def functionDefP[$: P]: P[Value] = (
   "(" ~ ws ~ functionDefArgsP.? ~ ws ~ ")" ~ ws ~ "=>" ~ ws ~ functionDefBodyP
 ).map((bs, b) =>
   bs match {
-    case Some(args) => Function(args, b, None)
-    case None       => Function(Seq(), b, None)
+    case Some(args) => Function(args, b)
+    case None       => Function(Seq(), b)
   }
 )
 

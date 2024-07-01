@@ -15,7 +15,6 @@ class Scope(
 ):
   private var parentScope: Scope = parent
   private var _result: Value = null
-  private var _capture: Capture = null
   private var localVars: HashMap[String, Value] =
     new HashMap().addAll(funArgs.zip(callArgs))
   private var localFuncs: HashMap[String, parser.Function] = new HashMap
@@ -33,15 +32,6 @@ class Scope(
   def returnValue(value: Value): Scope =
     this._result = value
     this
-
-  def withCapture(c: Capture): Scope =
-    var tmp = this.clone()
-    tmp._capture = c
-    tmp
-
-  private def lookupCapture(identifier: Identifier): Option[Value] =
-    if (this._capture != null) this._capture.lookup(identifier)
-    else None
 
   def lookup(identifier: Identifier): Option[Value] =
     this.localVars
@@ -79,14 +69,6 @@ class Scope(
       this.parentScope.lookupFunction(identifier)
     else
       None
-
-  override def clone(): Scope =
-    var tmp = new Scope
-    tmp.localFuncs = this.localFuncs.clone()
-    tmp.localVars = this.localVars.clone()
-    tmp.parentScope =
-      this.parentScope // NOTE: intentional, parent scope is never modified
-    tmp
 
   def update(identifier: Identifier, value: Value): Scope =
     value match {
@@ -248,22 +230,17 @@ def evalFunctionCall(
     case Wrapped(value) =>
       evalFunctionCall(value, evaledCallArgs, scope)
 
-    case Function(args, body, s) =>
+    case Function(args, body) =>
       val res =
-        body.foldLeft(
-          Scope(scope.withCapture(s.getOrElse(null)), args, evaledCallArgs)
-        )(
-          evalStatement
-        )
+        body.foldLeft(Scope(scope, args, evaledCallArgs))(evalStatement)
       val Some(value) = res.result: @unchecked
       scope.returnValue(value)
 
     case FunctionCall(functionExpr, args) =>
-      val Some(Function(args1, body1, s)) =
+      val Some(Function(args1, body1)) =
         evalFunctionCall(functionExpr, args, scope).result: @unchecked
-      val res = body1.foldLeft(
-        Scope(scope.withCapture(s.getOrElse(null)), args1, evaledCallArgs)
-      )(evalStatement)
+      val res =
+        body1.foldLeft(Scope(scope, args1, evaledCallArgs))(evalStatement)
       val Some(value) = res.result: @unchecked
       scope.returnValue(value)
   }
