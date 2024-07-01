@@ -43,25 +43,15 @@ class Scope(
     else None
 
   def lookup(identifier: Identifier): Option[Value] =
-    this.lookupCapture(identifier) match {
-      case Some(value) =>
-        return Some(value)
-      case None => {}
-    }
-
-    this.localVars.get(identifier.name) match {
-      case Some(Identifier(name)) =>
-        if (name == identifier.name) // 'x' -> 'x'
-          lookupInParent(identifier)
-        else
-          this.lookup(Identifier(name))
-      case Some(value) => Some(value)
-      case None =>
-        lookupInParent(identifier) match
-          case Some(value) => Some(value)
-          case None        => this.lookupFunction(identifier)
-
-    }
+    this.localVars
+      .get(identifier.name)
+      .filter {
+        case id: Identifier => id.name != identifier.name
+        case _              => true
+      }
+      .orElse(this.lookupCapture(identifier))
+      .orElse(this.lookupInParent(identifier))
+      .orElse(this.lookupFunction(identifier))
 
   def lookupFunction(identifier: Identifier): Option[parser.Function] =
     this.localFuncs.get(identifier.name) match {
