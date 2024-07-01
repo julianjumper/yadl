@@ -52,3 +52,25 @@ private def filterBuiltIn(params: Seq[DataObject]): DataObject = {
   
   IteratorObj(next, hasnext, d)
 }
+
+private def groupByBuiltIn(params: Seq[DataObject]): DataObject = {
+  if (params.length != 2 || !params(1).isInstanceOf[FunctionObj]) {
+    throw IllegalArgumentException()
+  }
+
+  val groupByFn = params(1).asInstanceOf[FunctionObj]
+  val it = toIteratorObj(params(0))
+  val result = new DictionaryObj(scala.collection.mutable.HashMap[DataObject, DataObject]())
+
+  while (it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+    val item = it.next.function(Seq(it.data))
+    val key = groupByFn.function(Seq(item))
+
+    if (!result.value.contains(key)) {
+      result.value(key) = new ListObj(scala.collection.mutable.ArrayBuffer[DataObject]())
+    }
+    result.value(key).asInstanceOf[ListObj].value.append(item)
+  }
+
+  result
+}

@@ -16,6 +16,8 @@ def stdlib: HashMap[String, FunctionObj] = {
     
     .addOne("filter", FunctionObj(Seq("iterable", "filterFunction"), Seq(), None, filterBuiltIn))
     
+    .addOne("groupBy", FunctionObj(Seq("iterable", "groupByFunction"), Seq(), None, groupByBuiltIn))
+    
     .addOne("string", FunctionObj(Seq("object"), Seq(), None, {
       case Seq(x) => toStringObj(x)
       case _ => throw IllegalArgumentException()
