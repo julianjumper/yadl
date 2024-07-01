@@ -3,6 +3,7 @@ import ArithmaticOps.{Add, Div, Expo, Mod, Mul, Sub}
 import BooleanOps.{And, Not, Or}
 import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
 
+
 val builtins = stdlib.stdlib
 
 type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
@@ -426,16 +427,11 @@ def evalValue(
             case None => assert(false, s"Expr \"$v\" is not interpretable")
             case Some(Number(n)) => {
               if (n != n.toInt) {
-                throw IllegalArgumentException(
-                  "expected hole number, but got number with decimal part"
-                )
-              }
+                throw IllegalArgumentException("expected hole number, but got number with decimal part")
+              }  
               entries(n.toInt)
             }
-            case x =>
-              throw IllegalArgumentException(
-                "expected number, not: " + x.toString
-              )
+            case x => throw IllegalArgumentException("expected number, not: " + x.toString)
           }
         }
         case _ =>
@@ -460,7 +456,7 @@ def evalValue(
       evalValue(value, scope)
     case Dictionary(entries) =>
       scope.returnValue(Dictionary(entries))
-    case ArrayLiteral(elements) =>
+    case ArrayLiteral(elements) => 
       scope.returnValue(ArrayLiteral(elements))
     case err =>
       assert(false, f"TODO: not implemented '$err'")
