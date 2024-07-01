@@ -3,7 +3,6 @@ import ArithmaticOps.{Add, Div, Expo, Mod, Mul, Sub}
 import BooleanOps.{And, Not, Or}
 import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
 
-
 val builtins = stdlib.stdlib
 
 type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
@@ -44,25 +43,15 @@ class Scope(
     else None
 
   def lookup(identifier: Identifier): Option[Value] =
-    this.lookupCapture(identifier) match {
-      case Some(value) =>
-        return Some(value)
-      case None => {}
-    }
-
-    this.localVars.get(identifier.name) match {
-      case Some(Identifier(name)) =>
-        if (name == identifier.name) // 'x' -> 'x'
-          lookupInParent(identifier)
-        else
-          this.lookup(Identifier(name))
-      case Some(value) => Some(value)
-      case None =>
-        lookupInParent(identifier) match
-          case Some(value) => Some(value)
-          case None        => this.lookupFunction(identifier)
-
-    }
+    this.localVars
+      .get(identifier.name)
+      .filter {
+        case id: Identifier => id.name != identifier.name
+        case _              => true
+      }
+      .orElse(this.lookupCapture(identifier))
+      .orElse(this.lookupInParent(identifier))
+      .orElse(this.lookupFunction(identifier))
 
   def lookupFunction(identifier: Identifier): Option[parser.Function] =
     this.localFuncs.get(identifier.name) match {
@@ -472,11 +461,16 @@ def evalValue(
             case None => assert(false, s"Expr \"$v\" is not interpretable")
             case Some(Number(n)) => {
               if (n != n.toInt) {
-                throw IllegalArgumentException("expected hole number, but got number with decimal part")
-              }  
+                throw IllegalArgumentException(
+                  "expected hole number, but got number with decimal part"
+                )
+              }
               entries(n.toInt)
             }
-            case x => throw IllegalArgumentException("expected number, not: " + x.toString)
+            case x =>
+              throw IllegalArgumentException(
+                "expected number, not: " + x.toString
+              )
           }
         }
         case _ =>
@@ -501,7 +495,7 @@ def evalValue(
       evalValue(value, scope)
     case Dictionary(entries) =>
       scope.returnValue(Dictionary(entries))
-    case ArrayLiteral(elements) => 
+    case ArrayLiteral(elements) =>
       scope.returnValue(ArrayLiteral(elements))
     case err =>
       assert(false, f"TODO: not implemented '$err'")
