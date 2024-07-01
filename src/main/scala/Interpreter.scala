@@ -462,6 +462,8 @@ def evalValue(
       scope.returnValue(Dictionary(entries))
     case ArrayLiteral(elements) =>
       scope.returnValue(ArrayLiteral(elements))
+    case NoneValue() =>
+      scope.returnValue(NoneValue())
     case err =>
       assert(false, f"TODO: not implemented '$err'")
   }
@@ -606,8 +608,9 @@ def evalArithmeticOps(
 
 // Input: Number or Bool. Output: Double (true == 1, false == 0)
 def extractNumber(value: Value): Double = value match {
-  case Number(n) => n
-  case Bool(b)   => if (b) 1.0 else 0.0
+  case Number(n)   => n
+  case Bool(b)     => if (b) 1.0 else 0.0
+  case NoneValue() => 0.0
   case v => assert(false, s"Expected number or boolean in comparison. Got '$v'")
 }
 
