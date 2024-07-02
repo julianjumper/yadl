@@ -159,7 +159,7 @@ def functionDefP[$: P]: P[Value] = (
 def noneP[$: P]: P[Value] = P("none").!.map(_ => NoneValue())
 
 def valueP[$: P]: P[Value] =
-   noneP | booleanP | stringP | unaryOpExpression | dictionaryP | arrayLiteralP | structureAccess | functionCallValue | numberP
+  noneP | booleanP | stringP | unaryOpExpression | dictionaryP | arrayLiteralP | structureAccess | functionCallValue | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
