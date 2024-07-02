@@ -3,10 +3,10 @@ import ArithmaticOps.{Add, Div, Expo, Mod, Mul, Sub}
 import BooleanOps.{And, Not, Or}
 import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
 
-
 val builtins = stdlib.stdlib
 
 type HashMap[K, V] = scala.collection.mutable.HashMap[K, V]
+type MutArray[V] = scala.collection.mutable.ArrayBuffer[V]
 
 class Scope(
     parent: Scope = null,
@@ -15,8 +15,9 @@ class Scope(
 ):
   private var parentScope: Scope = parent
   private var _result: Value = null
-  private var local: HashMap[String, Value] =
+  private var localVars: HashMap[String, Value] =
     new HashMap().addAll(funArgs.zip(callArgs))
+  private var localFuncs: HashMap[String, parser.Function] = new HashMap
 
   def result: Option[Value] =
     if (this._result == null) None
@@ -33,71 +34,197 @@ class Scope(
     this
 
   def lookup(identifier: Identifier): Option[Value] =
-    this.local.get(identifier.name) match {
-      case Some(Identifier(name)) =>
-        if (name == identifier.name)
-          lookupInParent(identifier)
-        else
-          this.lookup(Identifier(name))
-      case Some(value) => Some(value)
-      case None        => lookupInParent(identifier)
+    this.localVars
+      .get(identifier.name)
+      .filter {
+        case id: Identifier => id.name != identifier.name
+        case _              => true
+      }
+      .orElse(this.lookupInParent(identifier))
+      .orElse(this.lookupFunction(identifier))
+
+  def lookupFunction(identifier: Identifier): Option[parser.Function] =
+    this.localFuncs.get(identifier.name) match {
+      case value: Some[parser.Function] => value
+      case None                         => lookupFunctionInParent(identifier)
     }
 
   private def lookupInParent(identifier: Identifier): Option[Value] =
     if (this.parentScope != null)
       this.parentScope.lookup(identifier)
+    else None
+
+  private def lookupFunctionInParent(
+      identifier: Identifier
+  ): Option[parser.Function] =
+    if (this.parentScope != null)
+      this.parentScope.lookupFunction(identifier)
     else
       None
 
   def update(identifier: Identifier, value: Value): Scope =
-    this.local.update(identifier.name, value)
+    value match {
+      case f: Function =>
+        this.lookupFunction(identifier) match {
+          case None =>
+            this.localFuncs.update(identifier.name, f)
+          case Some(func: Function) =>
+            val tmp =
+              Function(f.args, captureExternals(this, f.args, f.body))
+            this.localFuncs.update(identifier.name, f)
+        }
+      case v: Value =>
+        this.localVars.update(identifier.name, v)
+    }
     this
 end Scope
+
+def captureExternalsValue(
+    v: Value,
+    locals: MutArray[String],
+    scope: Scope
+): Value =
+  v match {
+    case Identifier(name) =>
+      if (!locals.contains(name))
+        val vl = scope.lookup(Identifier(name)) match {
+          case Some(v) => v
+          case None    => assert(false, s"'$name' does not exist")
+        }
+        val Some(value) = evalValue(vl, scope).result: @unchecked
+        value
+      else Identifier(name)
+    case Wrapped(value) => captureExternalsValue(value, locals, scope)
+    case FunctionCall(functionExpr, args) =>
+      val fx = captureExternalsValue(functionExpr, locals, scope)
+      val fas = args.map(captureExternalsValue(_, locals, scope))
+      FunctionCall(fx, fas)
+    case Function(args, body) =>
+      val ls = locals.clone().appendAll(args)
+      val b = body.map(captureExternalsStatement(_, locals, scope))
+      Function(args, b)
+    case ArrayLiteral(elements) =>
+      val tmp = elements.map(captureExternalsValue(_, locals, scope))
+      ArrayLiteral(tmp)
+    case BinaryOp(l, op, r) =>
+      val nl = captureExternalsValue(l, locals, scope)
+      val nr = captureExternalsValue(r, locals, scope)
+      BinaryOp(nl, op, nr)
+    case UnaryOp(op, vl) =>
+      val v = captureExternalsValue(vl, locals, scope)
+      UnaryOp(op, v)
+    // TODO: how should keys in dictionaries be replaced?
+    case value => value
+  }
+
+def captureExternalsStatement(
+    st: Statement,
+    locals: MutArray[String],
+    scope: Scope
+): Statement =
+  st match {
+    case Assignment(varName, value) =>
+      if (!locals.contains(varName)) {
+        val newVal = captureExternalsValue(value, locals, scope)
+        locals.addOne(varName)
+        Assignment(varName, newVal)
+      } else Assignment(varName, value)
+    case fc: FunctionCall =>
+      val tmp = captureExternalsValue(fc.functionExpr, locals, scope)
+      val tmp2 = fc.args.map(x => captureExternalsValue(x, locals, scope))
+      FunctionCall(tmp, tmp2)
+    case Return(value) =>
+      val v = captureExternalsValue(value, locals, scope)
+      Return(v)
+    case WhileLoop(loop) =>
+      val cond = captureExternalsValue(loop.condition, locals, scope)
+      val body = loop.body.map(captureExternalsStatement(_, locals, scope))
+      WhileLoop(Branch(cond, body))
+    case Expression(expr) =>
+      val e = captureExternalsValue(expr, locals, scope)
+      Expression(e)
+    case If(ifBranch, elifBranches, elseBranch) =>
+      val ifCond = captureExternalsValue(ifBranch.condition, locals, scope)
+      val ifBody =
+        ifBranch.body.map(captureExternalsStatement(_, locals, scope))
+      val newIf = Branch(ifCond, ifBody)
+
+      val elifBranchs =
+        elifBranches.foldLeft(Seq(): Seq[Branch])((acc, br) =>
+          val cond = captureExternalsValue(br.condition, locals, scope)
+          val b = br.body.map(captureExternalsStatement(_, locals, scope))
+          acc.appended(Branch(cond, b))
+        )
+
+      val newElseBranch: Option[Seq[Statement]] = elseBranch match {
+        case Some(statements) =>
+          Some(statements.map(captureExternalsStatement(_, locals, scope)))
+        case None =>
+          None
+      }
+      If(newIf, elifBranchs, newElseBranch)
+  }
+
+def captureExternals(
+    scope: Scope,
+    functionArguments: Seq[String],
+    functionBody: Seq[Statement]
+): Seq[Statement] =
+  var tmp: MutArray[String] = new MutArray
+  tmp.addOne("print")
+  tmp.appendAll(builtins.keys)
+  tmp.appendAll(functionArguments)
+  functionBody.map(captureExternalsStatement(_, tmp, scope))
 
 def evalFunctionCall(
     functionExpr: Value,
     callArgs: Seq[Value],
     scope: Scope
 ): Scope =
+  val evaledCallArgs = callArgs.map(evalValue(_, scope).result.get)
   functionExpr match {
     case Identifier(identifier) =>
       if (identifier == "print") {
-        printValues(callArgs, scope)
+        printValues(evaledCallArgs, scope)
         print("\n")
         scope
       } else if (builtins.contains(identifier)) {
-        val callArgsNew = callArgs.map { value =>
-          val Some(v) = evalValue(value, scope).result: @unchecked
-          interpreterdata.toDataObject(v)
+        val callArgsNew = evaledCallArgs.map { value =>
+          interpreterdata.toDataObject(value)
         }
         val Some(func) = builtins.get(identifier): @unchecked
         assert(
           func.n_args == callArgs.length,
-          s"function call: expected ${func.n_args} arguments but got ${callArgs.length}"
+          s"function call: expected ${func.n_args} argument(s) but got ${callArgs.length}"
         )
         val result = func.function(callArgsNew)
         scope.returnValue(interpreterdata.toAstNode(result))
       } else {
-        scope.lookup(Identifier(identifier)) match {
+        scope.lookupFunction(Identifier(identifier)) match {
           case Some(Function(args, body)) =>
+            // TODO: merge the capture with the current scope
             val res =
-              body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
-            val Some(value) = res.result: @unchecked
-            scope.returnValue(value)
-          case Some(_) => assert(false, "Only functions may be called")
+              body.foldLeft(Scope(scope, args, evaledCallArgs))(evalStatement)
+            res.result match {
+              case Some(value) => scope.returnValue(value)
+              case None        =>
+                // NOTE: this case is only fine if we evaluate a statement function call
+                // We maybe want to check if it is a statement
+                scope
+            }
           case None =>
             assert(
               false,
-              s"TODO: case None in function call in eval '$identifier'"
+              s"function '$identifier' not found"
             )
         }
       }
     case Wrapped(value) =>
-      evalFunctionCall(value, callArgs, scope)
+      evalFunctionCall(value, evaledCallArgs, scope)
 
     case Function(args, body) =>
       val res =
-        body.foldLeft(Scope(scope, args, callArgs))(evalStatement)
+        body.foldLeft(Scope(scope, args, evaledCallArgs))(evalStatement)
       val Some(value) = res.result: @unchecked
       scope.returnValue(value)
 
@@ -105,7 +232,7 @@ def evalFunctionCall(
       val Some(Function(args1, body1)) =
         evalFunctionCall(functionExpr, args, scope).result: @unchecked
       val res =
-        body1.foldLeft(Scope(scope, args1, callArgs))(evalStatement)
+        body1.foldLeft(Scope(scope, args1, evaledCallArgs))(evalStatement)
       val Some(value) = res.result: @unchecked
       scope.returnValue(value)
   }
@@ -125,6 +252,10 @@ def evalReturn(value: Value, scope: Scope): Scope =
             )
         }
 
+      case f: Function =>
+        val tmp =
+          Function(f.args, captureExternals(scope, f.args, f.body))
+        scope.returnValue(f)
       case va =>
         scope.result match {
           case None =>
@@ -238,7 +369,9 @@ def evalValue(
 ): Scope =
   v match {
     case Function(args, body) =>
-      scope.returnValue(Function(args, body))
+      scope.returnValue(
+        Function(args, captureExternals(scope, args, body))
+      )
     case FunctionCall(identifier, callArgs) =>
       evalFunctionCall(identifier, callArgs, scope)
     case BinaryOp(left, op, right) =>
@@ -293,11 +426,16 @@ def evalValue(
             case None => assert(false, s"Expr \"$v\" is not interpretable")
             case Some(Number(n)) => {
               if (n != n.toInt) {
-                throw IllegalArgumentException("expected hole number, but got number with decimal part")
-              }  
+                throw IllegalArgumentException(
+                  "expected hole number, but got number with decimal part"
+                )
+              }
               entries(n.toInt)
             }
-            case x => throw IllegalArgumentException("expected number, not: " + x.toString)
+            case x =>
+              throw IllegalArgumentException(
+                "expected number, not: " + x.toString
+              )
           }
         }
         case _ =>
@@ -308,7 +446,7 @@ def evalValue(
     case Identifier(name) =>
       scope.lookup(Identifier(name)) match {
         case Some(value) =>
-          evalValue(value, scope)
+          scope.returnValue(value)
         case None =>
           assert(false, s"identifier '$name' does not exist")
       }
@@ -322,7 +460,7 @@ def evalValue(
       evalValue(value, scope)
     case Dictionary(entries) =>
       scope.returnValue(Dictionary(entries))
-    case ArrayLiteral(elements) => 
+    case ArrayLiteral(elements) =>
       scope.returnValue(ArrayLiteral(elements))
     case NoneValue() =>
       scope.returnValue(NoneValue())
@@ -476,9 +614,6 @@ def extractNumber(value: Value): Double = value match {
 
 def printValues(values: Seq[Value], scope: Scope): Unit =
   val output = values
-    .map { e =>
-      val Some(r) = evalValue(e, scope).result: @unchecked
-      r.toString
-    }
+    .map(_.toString)
     .mkString(" ")
   print(output)
