@@ -4,7 +4,8 @@
 /target
 /.bloop
 /.metals
-test/__pycache__
-project/.bloop
-project/project
-project/target
+/test/__pycache__
+/project/.bloop
+/project/project
+/project/target
+/.idea
