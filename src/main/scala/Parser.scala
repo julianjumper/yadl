@@ -53,9 +53,6 @@ case class ArithmaticOp(op: ArithmaticOps) extends Operator
 case class CompareOp(op: CompareOps) extends Operator
 case class BooleanOp(op: BooleanOps) extends Operator
 
-case class NoneValue() extends Value:
-  override def toString(): String =
-    "none"
 case class Identifier(name: String) extends Value
 case class Number(value: Double) extends Value:
   override def toString(): String =
@@ -156,10 +153,8 @@ def functionDefP[$: P]: P[Value] = (
   }
 )
 
-def noneP[$: P]: P[Value] = P("none").!.map(_ => NoneValue())
-
 def valueP[$: P]: P[Value] =
-   noneP | booleanP | stringP | dictionaryP | arrayLiteralP | structureAccess | functionCallValue | numberP
+  booleanP | stringP | unaryOpExpression | dictionaryP | arrayLiteralP | structureAccess | functionCallValue | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
