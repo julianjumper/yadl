@@ -57,10 +57,16 @@ def toIteratorObj(obj: DataObject): IteratorObj = obj match {
       case Seq(DictionaryObj(dict)) => {
         val indexKey = StringObj("index")
         val lstKey = StringObj("list")
-        val curInd = dict.get(indexKey).asInstanceOf[NumberObj].value.asInstanceOf[Integer]
-        val lst = dict.get(lstKey).asInstanceOf[ListObj].value
+        val curInd = dict.get(indexKey) match {
+          case None => throw IllegalArgumentException()
+          case Some(x) => x.asInstanceOf[NumberObj].value.toInt
+        }
+        val lst = dict.get(lstKey)match {
+          case None => throw IllegalArgumentException()
+          case Some(x) => x.asInstanceOf[ListObj].value
+        }
 
-        if (lst.length >= curInd) {
+        if (curInd >= lst.length) {
           throw IndexOutOfBoundsException()
         } else {
           val rv = lst(curInd)
@@ -74,13 +80,19 @@ def toIteratorObj(obj: DataObject): IteratorObj = obj match {
       case Seq(DictionaryObj(dict)) => {
         val indexKey = StringObj("index")
         val lstKey = StringObj("list")
-        val curInd = dict.get(indexKey).asInstanceOf[NumberObj].value.asInstanceOf[Integer]
-        val lst = dict.get(lstKey).asInstanceOf[ListObj].value
+        val curInd = dict.get(indexKey) match {
+          case None => throw IllegalArgumentException()
+          case Some(x) => x.asInstanceOf[NumberObj].value.toInt
+        }
+        val lst = dict.get(lstKey) match {
+          case None => throw IllegalArgumentException()
+          case Some(x) => x.asInstanceOf[ListObj].value
+        }
 
-        if (lst.length >= curInd) {
-          BooleanObj(false)
+        if (curInd < lst.length) {
+          TRUE
         } else {
-          BooleanObj(true)
+          FALSE
         }
       }
       case _ => throw IllegalArgumentException()
@@ -88,7 +100,7 @@ def toIteratorObj(obj: DataObject): IteratorObj = obj match {
 
     val d = scala.collection.mutable.HashMap[DataObject, DataObject]()
     d.addOne(StringObj("index"), NumberObj(0))
-    d.addOne(StringObj("list"), ListObj(scala.collection.mutable.ArrayBuffer[DataObject]()))
+    d.addOne(StringObj("list"), ListObj(x.value))
 
     IteratorObj(next, hasnext, DictionaryObj(d))
   }
@@ -158,7 +170,7 @@ private def serializeJSONCompact(obj: DataObject, references: Seq[Any]): String 
         throw IllegalArgumentException("cannot serialize self referencing data structures")
       }
       
-      lst.map(e => serializeJSONCompact(e, references :+ lst)) mkString ", "
+      "[" + (lst.map(e => serializeJSONCompact(e, references :+ lst)) mkString ", ") + "]"
     }
     case DictionaryObj(dict) => {
       if (references.contains(dict)) {
