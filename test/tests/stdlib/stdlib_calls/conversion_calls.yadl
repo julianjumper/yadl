@@ -1,5 +1,5 @@
 // RUN: DEFAULT
 
-print(string(int(bool(3))))
+print(string(number(bool(3))))
 
 // CHECK-OUT: 1
