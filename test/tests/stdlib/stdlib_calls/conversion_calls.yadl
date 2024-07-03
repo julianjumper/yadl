@@ -1,0 +1,5 @@
+// RUN: DEFAULT
+
+print(string(int(bool(3))))
+
+// CHECK-OUT: 1
