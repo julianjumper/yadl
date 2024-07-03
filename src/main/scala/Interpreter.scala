@@ -530,15 +530,17 @@ def evalCompareOps(
           )
       }
     }
-    case (value1: (Number | Bool | NoneValue), value2: (Number | Bool | NoneValue)) => {
+    case (
+          value1: (Number | Bool | NoneValue),
+          value2: (Number | Bool | NoneValue)
+        ) => {
       // otherwise left and right are bools, numbers or none
       val lhs_num = extractNumber(value1)
       val rhs_num = extractNumber(value2)
       val result = op match {
-
-        case Less      => lhs_num < rhs_num
+        case Less      => lhs_num <  rhs_num
         case LessEq    => lhs_num <= rhs_num
-        case Greater   => lhs_num > rhs_num
+        case Greater   => lhs_num >  rhs_num
         case GreaterEq => lhs_num >= rhs_num
         case Eq        => lhs_num == rhs_num
         case NotEq     => lhs_num != rhs_num
