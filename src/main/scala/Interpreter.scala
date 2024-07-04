@@ -408,9 +408,27 @@ def evalValue(
           scope.returnValue(tmp)
         case o => assert(false, s"unary op: op case '$o' is not implemented")
       }
-    case StructureAccess(id, v) => {
-      val returnVal: Value = scope.lookup(id) match {
-        case Some(Dictionary(entries)) =>
+    case StructureAccess(id, v) =>
+      id match {
+        case s: StructureAccess =>
+          val Some(value) = evalValue(s, scope).result: @unchecked
+          evalValue(StructureAccess(value, v), scope)
+        case Wrapped(value) =>
+          evalValue(StructureAccess(value, v), scope)
+        case f: FunctionCall =>
+          val Some(value) =
+            evalFunctionCall(f.functionExpr, f.args, scope).result: @unchecked
+          evalValue(StructureAccess(value, v), scope)
+        case id: Identifier =>
+          scope.lookup(id) match {
+            case Some(d: Dictionary) =>
+              evalValue(StructureAccess(d, v), scope)
+            case Some(a: ArrayLiteral) =>
+              evalValue(StructureAccess(a, v), scope)
+            case _ =>
+              assert(false, s"no structure found by the name '${id.name}'")
+          }
+        case Dictionary(entries) =>
           val result: Option[Value] = entries.foldLeft(None) { (acc, curr) =>
             acc match {
               case None =>
@@ -426,10 +444,11 @@ def evalValue(
             }
           }
           result match {
-            case Some(value) => value
-            case None => assert(false, s"structure '${id.name}' does not exist")
+            case Some(value) => scope.returnValue(value)
+            case None =>
+              assert(false, s"no value found for the key '$v' in a dictionary")
           }
-        case Some(ArrayLiteral(entries)) => {
+        case ArrayLiteral(elements) =>
           evalValue(v, scope).result match {
             case None => assert(false, s"Expr \"$v\" is not interpretable")
             case Some(Number(n)) => {
@@ -438,19 +457,15 @@ def evalValue(
                   "expected hole number, but got number with decimal part"
                 )
               }
-              entries(n.toInt)
+              val tmp = elements(n.toInt)
+              scope.returnValue(tmp)
             }
             case x =>
               throw IllegalArgumentException(
                 "expected number, not: " + x.toString
               )
           }
-        }
-        case _ =>
-          assert(false, s"no structure found by the name '${id.name}'")
       }
-      scope.returnValue(returnVal)
-    }
     case Identifier(name) =>
       scope.lookup(Identifier(name)) match {
         case Some(value) =>
