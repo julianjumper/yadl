@@ -122,7 +122,7 @@ def endBranch[$: P]: P[Seq[Statement]] =
   P("else" ~ ws ~ codeBlock)
 
 def ifStatement[$: P]: P[Statement] =
-  (initialBranch ~ newline.? ~ (ws ~ elif ~ newline.?).rep ~ ws ~ (newline.? ~ endBranch).?)
+  (initialBranch ~ newline.? ~ (ws ~ elif ~ newline.?).rep ~ ws ~ (newline.? ~ ws ~ endBranch).?)
     .map(If(_, _, _))
 
 def returnP[$: P]: P[Statement] =
