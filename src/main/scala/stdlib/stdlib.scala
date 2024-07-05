@@ -28,4 +28,34 @@ def stdlib: HashMap[String, FunctionObj] = {
       case Seq(x) => StringObj(x.typeName)
       case _ => throw IllegalArgumentException()
     }))
+    .addOne("number", FunctionObj(Seq("object"), Seq(), None, (params: Seq[DataObject]) => params match {
+      case Seq(x) => toNumberObj(x)
+      case _ => throw IllegalArgumentException()
+    }))
+    .addOne("string", FunctionObj(Seq("object"), Seq(), None, (params: Seq[DataObject]) => params match {
+      case Seq(x) => toStringObj(x)
+      case _ => throw IllegalArgumentException()
+    }))
+    .addOne("list", FunctionObj(Seq("object"), Seq(), None, (params: Seq[DataObject]) => params match {
+      case Seq(x) => toListObj(x)
+      case _ => throw IllegalArgumentException()
+    }))
+    // Cannot be called correctly right now.
+//    .addOne("print2", FunctionObj(Seq(), Seq(("end", StringObj("\n")), ("separator", StringObj(", "))), Some("objectsToPrint"), (params: Seq[DataObject]) => params match {
+//      case Seq(StringObj(end), StringObj(separator), ListObj(printables)) => {
+//        val str = (printables.map(p => toStringObj(p).value) mkString separator) + end
+//        System.out.print(str)
+//        NONE
+//      }
+//      case _ => throw IllegalArgumentException()
+//    }))
+    .addOne("print3", FunctionObj(Seq("obj"), Seq(), None, (params: Seq[DataObject]) =>
+      params match {
+      case Seq(x) => {
+        val str = toStringObj(x).value + "\n"
+        System.out.print(str)
+        NONE
+      }
+      case _ => throw IllegalArgumentException()
+    }))
 }

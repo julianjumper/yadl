@@ -1,7 +1,9 @@
 package interpreterdata
 
-import parser.{Value, Bool, Number, StdString, Function}
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.HashMap
 
+import parser.{ArrayLiteral, Bool, Function, Number, StdString, Value}
 /** Base Trait of all Interpreter objects.
   */
 sealed trait DataObject {
@@ -112,6 +114,25 @@ def toDataObject(value: Value): DataObject =
     case Bool(b)          => BooleanObj(b)
     case Number(value)    => NumberObj(value)
     case StdString(value) => StringObj(value)
+    case x: ArrayLiteral => ListObj(x.elements.map(toDataObject).to(ArrayBuffer))
+    case x: parser.Dictionary => {
+      val m = HashMap[DataObject, DataObject]()
+      for (e <- x.entries) {
+        m.put(toDataObject(e.key), toDataObject(e.value))
+      }
+      DictionaryObj(m)
+    }
+    case x: Function => {
+      // TODO add optionals
+      FunctionObj(x.args, Seq(), None, (params: Seq[DataObject]) => {
+        val scope = _root_.`<empty>`.Scope()
+        val newScope = _root_.`<empty>`.evalFunctionCall(x, params.map(x => toAstNode(x)), scope)
+        newScope.result match {
+          case None => NONE // TODO
+          case Some(x) => toDataObject(x)
+        }
+      })
+    }
     case v => assert(false, s"Value can not be converted to DataObject: $v")
   }
 
@@ -123,4 +144,10 @@ def toAstNode(data: DataObject): Value =
       Bool(value)
     case StringObj(value) =>
       StdString(value)
+    case NoneObj() =>
+      parser.NoneValue()
+    case x: IteratorObj => {
+      toAstNode(stdlib.toListObj(x)) // TODO this is bad! 
+    }
+    case x: ListObj => ArrayLiteral(x.value.map(x => toAstNode(x)).toSeq) // TODO this is bad!
     case v => assert(false, s"Data object not convertable to AST node: $v")
