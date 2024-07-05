@@ -145,7 +145,7 @@ def toAstNode(data: DataObject): Value =
     case StringObj(value) =>
       StdString(value)
     case NoneObj() =>
-      StdString("none") // TODO actually return none and not a placeholder
+      parser.NoneValue()
     case x: IteratorObj => {
       toAstNode(stdlib.toListObj(x)) // TODO this is bad! 
     }
