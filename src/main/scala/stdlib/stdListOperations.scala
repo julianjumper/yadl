@@ -56,3 +56,66 @@ private def filterBuiltIn(params: Seq[DataObject]): DataObject = {
   })
   IteratorObj(next, hasnext, d)
 }
+
+
+private def check_allBuiltIn(params: Seq[DataObject]): BooleanObj = {
+  if (params.length != 2 || !params(1).isInstanceOf[FunctionObj]) {
+    throw IllegalArgumentException()
+  }
+
+  val d = DictionaryObj(mutable.HashMap[DataObject, DataObject]())
+
+  val checkFn = params(1).asInstanceOf[FunctionObj]
+  val it = toIteratorObj(params(0))
+
+  while (it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+    val nextElement = it.next.function(Seq(it.data))
+    val checkResult = checkFn.function(Seq(nextElement)).asInstanceOf[BooleanObj].value
+    if (!checkResult) {
+      return FALSE
+    }
+  }
+  TRUE
+}
+
+
+private def check_anyBuiltIn(params: Seq[DataObject]): BooleanObj = {
+  if (params.length != 2 || !params(1).isInstanceOf[FunctionObj]) {
+    throw IllegalArgumentException()
+  }
+
+  val d = DictionaryObj(mutable.HashMap[DataObject, DataObject]())
+
+  val checkFn = params(1).asInstanceOf[FunctionObj]
+  val it = toIteratorObj(params(0))
+
+  while (it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+    val nextElement = it.next.function(Seq(it.data))
+    val checkResult = checkFn.function(Seq(nextElement)).asInstanceOf[BooleanObj].value
+    if (!checkResult) {
+      return TRUE
+    }
+  }
+  FALSE
+}
+
+
+private def check_noneBuiltIn(params: Seq[DataObject]): BooleanObj = {
+  if (params.length != 2 || !params(1).isInstanceOf[FunctionObj]) {
+    throw IllegalArgumentException()
+  }
+
+  val d = DictionaryObj(mutable.HashMap[DataObject, DataObject]())
+
+  val checkFn = params(1).asInstanceOf[FunctionObj]
+  val it = toIteratorObj(params(0))
+
+  while (it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+    val nextElement = it.next.function(Seq(it.data))
+    val checkResult = checkFn.function(Seq(nextElement)).asInstanceOf[BooleanObj].value
+    if (checkResult) {
+      return FALSE
+    }
+  }
+  TRUE
+}
