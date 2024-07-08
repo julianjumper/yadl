@@ -19,6 +19,6 @@ print(check_none(lst2, is_even))
 // CHECK-OUT: false
 // CHECK-OUT: true
 // CHECK-OUT: false
+// CHECK-OUT: true
+// CHECK-OUT: true
 // CHECK-OUT: false
-// CHECK-OUT: true
-// CHECK-OUT: true

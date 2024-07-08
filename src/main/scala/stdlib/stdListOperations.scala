@@ -92,7 +92,7 @@ private def check_anyBuiltIn(params: Seq[DataObject]): BooleanObj = {
   while (it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
     val nextElement = it.next.function(Seq(it.data))
     val checkResult = checkFn.function(Seq(nextElement)).asInstanceOf[BooleanObj].value
-    if (!checkResult) {
+    if (checkResult) {
       return TRUE
     }
   }
