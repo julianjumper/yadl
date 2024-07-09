@@ -1,0 +1,28 @@
+{
+    "users": [
+        {
+            "id": 1,
+            "name": "Jane",
+            "age": 78,
+            "city": "Bern"
+        },
+        {
+            "id": 2,
+            "name": "Jessy",
+            "age": 45,
+            "city": "Presslau"
+        },
+        {
+            "id": 3,
+            "name": "Juno",
+            "age": 5,
+            "city": "Bern"
+        },
+        {
+            "id": 4,
+            "name": "Josh",
+            "age": 78,
+            "city": "Bunso"
+        }
+    ]
+}
