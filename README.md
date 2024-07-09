@@ -26,6 +26,13 @@ Running with Program arguments:
 sbt "run args..."
 ```
 
+Running the interpretation tests:
+```sh
+sbt assembly
+export YADL_JAR=/path/to/file/created/by/sbt/assembly
+pytest
+```
+
 The quotes are neccessary here because otherwise they would be interpreted as a new command from sbt.
 
 ### Building in intellij IDEA
