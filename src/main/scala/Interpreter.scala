@@ -427,7 +427,7 @@ def evalValue(
           evalValue(StructureAccess(value, v), scope)
         case f: FunctionCall =>
           val Some(value) =
-            evalFunctionCall(f.functionExpr, f.args, scope).result: @unchecked
+            evalFunctionCall(f.functionExpr, f.args, scope, CallContext.Value).result: @unchecked
           evalValue(StructureAccess(value, v), scope)
         case id: Identifier =>
           scope.lookup(id) match {
