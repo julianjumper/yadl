@@ -1,0 +1,13 @@
+user_data = load("users.json", "json")["users"]
+
+jessy_moved_to_bern = map(user_data, (user) => {
+    if (user.name == "Jessy") {
+        user["city"] = "Bern"
+    }
+    return user
+})
+
+old_people_in_bern = filter(jessy_moved_to_bern, (user) => user["city"] == "Bern" && user["age"] > 60)
+
+print3(users_in_bern)
+
