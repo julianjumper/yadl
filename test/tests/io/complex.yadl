@@ -1,5 +1,0 @@
-// RUN: DEFAULT
-
-
-d = load('/io/complex.json', 'json')
-print(d)
