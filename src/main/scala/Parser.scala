@@ -414,12 +414,12 @@ def unescape(input: String): String =
     .replace("\\\"", "\"")
     .replace("\\\'", "\'")
 
-def charForStringDoubleQuote[$: P] = P(!("\"" | newline) ~ AnyChar)
-def charForStringSingleQuote[$: P] = P(!("\'" | newline) ~ AnyChar)
-def charForMultilineStringDoubleQuote[$: P] = P(!"\"\"\"" ~ AnyChar)
-def charForMultilineStringSingleQuote[$: P] = P(!"\'\'\'" ~ AnyChar)
+def charForStringDoubleQuote[$: P] = P(!("\"" | newline) ~ ("\\\"" | "\\\\" | AnyChar))
+def charForStringSingleQuote[$: P] = P(!("\'" | newline) ~ ("\\\'" | "\\\\" |AnyChar))
+def charForMultilineStringDoubleQuote[$: P] = P(!"\"\"\"" ~ ("\\\\" | AnyChar))
+def charForMultilineStringSingleQuote[$: P] = P(!"\'\'\'" ~ ("\\\\" | AnyChar))
 
-def expressionEnd[$: P] = P(expression ~ End)
+def expressionEnd[$: P] = P(ws ~ expression ~ ws ~ End)
 
 def formatStringMap(input: String): FormatString = {
   // Replace all occurrences of "\\{" with newline "\n"
@@ -482,7 +482,7 @@ def formatStringP[$: P]: P[FormatString] = P(
   ).map(formatStringMap)
 )
 
-def stringP[$: P]: P[Value] = formatStringP | stdMultiStringP | stdStringP
+def stringP[$: P]: P[Value] = formatStringP | stdMultiStringP | (!("'''") ~ stdStringP)
 
 // @language-team because you are indecisive of where to put the comma
 // could be simpler
