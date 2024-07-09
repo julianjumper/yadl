@@ -86,6 +86,8 @@ case class ArrayLiteral(val elements: Seq[Value]) extends Value
 case class StructureAccess(identifier: Value, key: Value) extends Value
 
 case class Assignment(varName: String, value: Value) extends Statement
+case class StructuredAssignment(struct: StructureAccess, value: Value)
+    extends Statement
 case class Branch(condition: Value, body: Seq[Statement])
 case class If(
     ifBranch: Branch,
@@ -129,7 +131,7 @@ def returnP[$: P]: P[Statement] =
   P("return" ~ ws ~ expression).map(Return(_))
 
 def statementP[$: P]: P[Statement] =
-  returnP | whileLoop | ifStatement | functionCallStatement | assignmentP
+  returnP | whileLoop | ifStatement | functionCallStatement | structuredAssignmentP | assignmentP
 
 def codeBlock[$: P]: P[Seq[Statement]] =
   P("{" ~ newline ~ (ws ~ statementP.? ~ ws ~ newline).rep ~ ws ~ "}").map(l =>
@@ -340,6 +342,12 @@ def identifierP[$: P]: P[Identifier] = P(
 
 def assignmentP[$: P]: P[Statement] =
   (identifierP.! ~/ ws ~ "=" ~ ws ~ expression).map((n, v) => Assignment(n, v))
+
+def structuredAssignmentP[$: P]: P[Statement] =
+  (structureAccess ~/ ws ~ "=" ~ ws ~ expression).map((n, v) =>
+    assert(n.isInstanceOf[StructureAccess])
+    StructuredAssignment(n.asInstanceOf[StructureAccess], v)
+  )
 
 def inlineTextP[$: P]: P[Unit] = P(!newline ~ AnyChar).rep
 def inlineCommentP[$: P]: P[Unit] = P("//" ~ inlineTextP ~ newline)

@@ -2,6 +2,7 @@ import parser.*
 import ArithmaticOps.{Add, Div, Expo, Mod, Mul, Sub}
 import BooleanOps.{And, Not, Or}
 import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
+import scala.collection.mutable.Stack
 
 val builtins = stdlib.stdlib
 
@@ -129,6 +130,8 @@ def captureExternalsStatement(
         locals.addOne(varName)
         Assignment(varName, newVal)
       } else Assignment(varName, value)
+    // case StructuredAssignment(struct, value) =>
+    //   evalStructAssignment(struct, value, scope)
     case fc: FunctionCall =>
       val tmp = captureExternalsValue(fc.functionExpr, locals, scope)
       val tmp2 = fc.args.map(x => captureExternalsValue(x, locals, scope))
@@ -278,6 +281,64 @@ def evalReturn(value: Value, scope: Scope): Scope =
         }
     }
 
+class AccessContext():
+  private var context: Stack[Value] = new Stack
+
+  def push(value: Value): Unit =
+    this.context.push(value)
+    this
+
+  def pop(): Option[Value] =
+    try {
+      Some(this.context.pop())
+    } catch {
+      case e =>
+        None
+    }
+
+end AccessContext
+
+def evalStructAssignment(
+    st: StructureAccess,
+    value: Value,
+    accessContext: AccessContext,
+    scope: Scope
+): Scope =
+  st.identifier match {
+    case id: Identifier =>
+      scope.lookup(id) match {
+        case Some(v) =>
+          accessContext.push(id)
+          evalStructAssignment(
+            StructureAccess(v, st.key),
+            value,
+            accessContext,
+            scope
+          )
+        case None =>
+          assert(false, s"identifier '${id.name}' not found")
+      }
+    case s: StructureAccess =>
+      assert(false, "TODO: modify StructureAccess")
+    case ArrayLiteral(elements) =>
+      assert(false, "TODO: modify array")
+    case Dictionary(entries) =>
+      val newEntries = entries.map(e =>
+        if (e.key == st.key) DictionaryEntry(e.key, value) else e
+      )
+      accessContext.pop() match {
+        case Some(id: Identifier) =>
+          scope.update(id, Dictionary(newEntries))
+        case Some(v) =>
+          assert(false, "TODO")
+        case None =>
+          scope
+      }
+
+    case v: Value =>
+      assert(false, s"Value '$v' can not be accessed/modified")
+  }
+
 def evalStatement(
     scope: Scope,
     st: Statement
@@ -307,6 +368,8 @@ def evalStatement(
           scope,
           CallContext.Statement
         )
+      case StructuredAssignment(struct, value) =>
+        evalStructAssignment(struct, value, AccessContext(), scope)
       case Return(value) =>
         evalReturn(value, scope)
       case Expression(expr) =>
@@ -427,7 +490,12 @@ def evalValue(
           evalValue(StructureAccess(value, v), scope)
         case f: FunctionCall =>
           val Some(value) =
-            evalFunctionCall(f.functionExpr, f.args, scope, CallContext.Value).result: @unchecked
+            evalFunctionCall(
+              f.functionExpr,
+              f.args,
+              scope,
+              CallContext.Value
+            ).result: @unchecked
           evalValue(StructureAccess(value, v), scope)
         case id: Identifier =>
           scope.lookup(id) match {
