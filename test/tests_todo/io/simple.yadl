@@ -1,6 +1,0 @@
-// RUN: DEFAULT
-
-d = load('/io/simple.json', 'json')
-print(d)
-print( d["key"])
-
