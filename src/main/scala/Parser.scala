@@ -122,7 +122,8 @@ def endBranch[$: P]: P[Seq[Statement]] =
   P("else" ~ ws ~ codeBlock)
 
 def ifStatement[$: P]: P[Statement] =
-  (initialBranch ~ (ws ~ elif).rep ~ ws ~ endBranch.?).map(If(_, _, _))
+  (initialBranch ~ newline.? ~ (ws ~ elif ~ newline.?).rep ~ ws ~ (newline.? ~ ws ~ endBranch).?)
+    .map(If(_, _, _))
 
 def returnP[$: P]: P[Statement] =
   P("return" ~ ws ~ expression).map(Return(_))
@@ -131,8 +132,8 @@ def statementP[$: P]: P[Statement] =
   returnP | whileLoop | ifStatement | functionCallStatement | assignmentP
 
 def codeBlock[$: P]: P[Seq[Statement]] =
-  P("{" ~ newline.? ~ (ws ~ statementP.? ~ ws ~ newline).rep ~ ws ~ "}").map(
-    l => l.map(_.toList).flatten
+  P("{" ~ newline ~ (ws ~ statementP.? ~ ws ~ newline).rep ~ ws ~ "}").map(l =>
+    l.map(_.toList).flatten
   )
 
 def functionDefBodyP[$: P]: P[Seq[Statement]] =
