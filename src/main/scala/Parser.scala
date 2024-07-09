@@ -3,7 +3,7 @@ package parser
 import fastparse._, NoWhitespace._
 
 def wsSingle[$: P] = P(" " | "\t")
-def ws[$: P] = P((multilineCommentP | wsSingle).rep).opaque("<condition>")
+def ws[$: P] = P((multilineCommentP | wsSingle).rep).opaque("<whitespace>")
 def newline[$: P] = P("\n\r" | "\r" | "\n").opaque("<newline>")
 
 enum DataFormats:
@@ -77,13 +77,13 @@ case class FormatString(value: List[Value]) extends Value
 class DictionaryEntry(var key: Value, var value: Value):
   override def toString(): String = key.toString + ": " + value.toString
 
-case class Dictionary(entries: Seq[DictionaryEntry]) extends Value:
+case class Dictionary(val entries: Seq[DictionaryEntry]) extends Value:
   override def toString(): String =
     "{" + entries.mkString(", ") + "}"
 
-case class ArrayLiteral(elements: Seq[Value]) extends Value
+case class ArrayLiteral(val elements: Seq[Value]) extends Value
 
-case class StructureAccess(identifier: Identifier, key: Value) extends Value
+case class StructureAccess(identifier: Value, key: Value) extends Value
 
 case class Assignment(varName: String, value: Value) extends Statement
 case class Branch(condition: Value, body: Seq[Statement])
@@ -486,10 +486,21 @@ def dictionaryP[$: P]: P[Dictionary] =
   P("{" ~ ws ~ newline.? ~ dictionaryEntries ~ ws ~ "}")
 
 def structureAccess[$: P]: P[Value] =
-  P(
-    (!"[" ~ CharIn("a-zA-z0-9_")).rep(min = 1).! ~ "[" ~ ws ~ valueP ~ ws ~ "]"
-  ).opaque("<structure access>")
-    .map((i, v) => StructureAccess(Identifier(i), v))
+  def openIndex[$: P]: P[Unit] =
+    P(CharPred(_ == '[')).opaque("<open index>")
+  def closeIndex[$: P]: P[Unit] =
+    P(CharPred(_ == ']')).opaque("<close index>")
+
+  def access[$: P]: P[Value] =
+    P(openIndex ~ ws ~ expression ~ ws ~ closeIndex)
+  def internal[$: P]: P[Value] =
+    P(!openIndex ~ CharIn("a-zA-z0-9_"))
+      .rep(min = 1)
+      .!
+      .filter(s => !(s(0) == '_' || s(0).isDigit))
+      .map(Identifier(_))
+  P(internal ~ (ws ~ access).rep(min = 1))
+    .map((i, v) => v.foldLeft(i)((acc, a) => StructureAccess(acc, a)))
 
 //Parser Array (we use structureAccess for accessing arrays)
 def arrayLiteralP[$: P]: P[ArrayLiteral] =

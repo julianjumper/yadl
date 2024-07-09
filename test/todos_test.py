@@ -96,7 +96,7 @@ for posix_path in Path(TEST_DIR).rglob("*.yadl"):
 
 
 @pytest.mark.parametrize("config", configurations)
-@pytest.mark.xfail(strict = True)
+@pytest.mark.xfail(strict = True) # only allow failing tests to pass
 def test_config(config):
     run_test(config)
 
