@@ -4,4 +4,4 @@ d = load('/io/top-level-array.json', 'json')
 print(d)
 // CHECK-OUT: ({key: value}, {key2: value2}, {key3: value3})
 print(d[0]["key"])
-// CHECK-OUT: "value"
+// CHECK-OUT: value
