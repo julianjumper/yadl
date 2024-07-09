@@ -176,10 +176,14 @@ def captureExternals(
   tmp.appendAll(functionArguments)
   functionBody.map(captureExternalsStatement(_, tmp, scope))
 
+enum CallContext:
+  case Statement, Value
+
 def evalFunctionCall(
     functionExpr: Value,
     callArgs: Seq[Value],
-    scope: Scope
+    scope: Scope,
+    context: CallContext
 ): Scope =
   val evaledCallArgs = callArgs.map(evalValue(_, scope).result.get)
   functionExpr match {
@@ -198,7 +202,9 @@ def evalFunctionCall(
           s"function call: expected ${func.n_args} argument(s) but got ${callArgs.length}"
         )
         val result = func.function(callArgsNew)
-        scope.returnValue(interpreterdata.toAstNode(result))
+        if (context == CallContext.Value)
+          scope.returnValue(interpreterdata.toAstNode(result))
+        else scope
       } else {
         scope.lookupFunction(Identifier(identifier)) match {
           case Some(Function(args, body)) =>
@@ -206,8 +212,11 @@ def evalFunctionCall(
             val res =
               body.foldLeft(Scope(scope, args, evaledCallArgs))(evalStatement)
             res.result match {
-              case Some(value) => scope.returnValue(value)
-              case None        =>
+              case Some(value) =>
+                if (context == CallContext.Value)
+                  scope.returnValue(value)
+                else scope
+              case None =>
                 // NOTE: this case is only fine if we evaluate a statement function call
                 // We maybe want to check if it is a statement
                 scope
@@ -220,21 +229,25 @@ def evalFunctionCall(
         }
       }
     case Wrapped(value) =>
-      evalFunctionCall(value, evaledCallArgs, scope)
+      evalFunctionCall(value, evaledCallArgs, scope, context)
 
     case Function(args, body) =>
       val res =
         body.foldLeft(Scope(scope, args, evaledCallArgs))(evalStatement)
       val Some(value) = res.result: @unchecked
-      scope.returnValue(value)
+      if (context == CallContext.Value)
+        scope.returnValue(value)
+      else scope
 
     case FunctionCall(functionExpr, args) =>
       val Some(Function(args1, body1)) =
-        evalFunctionCall(functionExpr, args, scope).result: @unchecked
+        evalFunctionCall(functionExpr, args, scope, context).result: @unchecked
       val res =
         body1.foldLeft(Scope(scope, args1, evaledCallArgs))(evalStatement)
       val Some(value) = res.result: @unchecked
-      scope.returnValue(value)
+      if (context == CallContext.Value)
+        scope.returnValue(value)
+      else scope
   }
 
 def evalReturn(value: Value, scope: Scope): Scope =
@@ -288,7 +301,12 @@ def evalStatement(
         val Some(newValue) = result.result: @unchecked
         scope.update(Identifier(name), newValue)
       case FunctionCall(identifier, callArgs) =>
-        evalFunctionCall(identifier, callArgs, scope)
+        evalFunctionCall(
+          identifier,
+          callArgs,
+          scope,
+          CallContext.Statement
+        )
       case Return(value) =>
         evalReturn(value, scope)
       case Expression(expr) =>
@@ -373,7 +391,7 @@ def evalValue(
         Function(args, captureExternals(scope, args, body))
       )
     case FunctionCall(identifier, callArgs) =>
-      evalFunctionCall(identifier, callArgs, scope)
+      evalFunctionCall(identifier, callArgs, scope, CallContext.Value)
     case BinaryOp(left, op, right) =>
       val left_result = evalValue(left, scope)
       val Some(new_left) = left_result.result: @unchecked
