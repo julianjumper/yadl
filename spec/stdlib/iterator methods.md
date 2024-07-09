@@ -68,3 +68,10 @@ This will be very useful if you want to know multiple things from one iterator, 
 This means the entire it data must be buffered.
 
 `count(it: iterator, obj) -> number` - counts the number of times the `obj` appears in `it`.
+
+
+`min(it: iteraotr, slector: func[object -> object]) -> object` returns the minimum of the list, depending on the selector given.
+
+Analog sind: `max, avg, mean`
+
+`inner_join(it1: iterator, it2: iterator, join_on: func[object -> object]) -> it` - returns a new list, with elements from it1 and it2 combined, when both elements provided by join_on are the same.
