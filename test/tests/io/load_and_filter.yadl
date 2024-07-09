@@ -5,8 +5,9 @@ odd = (n) => n % 2 == 0
 d = load("/io/complex.json", "json")
 
 print3(d["grades"])
-//CHECK-OUT: [85, 90, 78, 92]
 
 result = filter(d["grades"], odd)
 print3(result)
+
 // CHECK-OUT: [90, 78, 92]
+// CHECK-OUT: [85, 90, 78, 92]
