@@ -17,7 +17,6 @@ private def loadFunction(params: Seq[DataObject]): DataObject = {
 
   val currentDir = System.getProperty("user.dir")
   val fullPath = Paths.get(currentDir, "test", "tests", path).toString
-  println(s"Loading file from: $fullPath")
   val source = Source.fromFile(fullPath)
 
   format match {

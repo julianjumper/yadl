@@ -9,5 +9,5 @@ print3(d["grades"])
 result = filter(d["grades"], odd)
 print3(result)
 
-// CHECK-OUT: [90, 78, 92]
 // CHECK-OUT: [85, 90, 78, 92]
+// CHECK-OUT: [90, 78, 92]
