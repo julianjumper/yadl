@@ -442,10 +442,60 @@ def unescape(input: String): String =
     .replace("\\\"", "\"")
     .replace("\\\'", "\'")
 
-def charForStringDoubleQuote[$: P] = P(!("\"" | newline) ~ AnyChar)
-def charForStringSingleQuote[$: P] = P(!("\'" | newline) ~ AnyChar)
-def charForMultilineStringDoubleQuote[$: P] = P(!"\"\"\"" ~ AnyChar)
-def charForMultilineStringSingleQuote[$: P] = P(!"\'\'\'" ~ AnyChar)
+def charForStringDoubleQuote[$: P] = P(
+  !("\"" | newline) ~ ("\\\"" | "\\\\" | AnyChar)
+)
+def charForStringSingleQuote[$: P] = P(
+  !("\'" | newline) ~ ("\\\'" | "\\\\" | AnyChar)
+)
+def charForMultilineStringDoubleQuote[$: P] = P(!"\"\"\"" ~ ("\\\\" | AnyChar))
+def charForMultilineStringSingleQuote[$: P] = P(!"\'\'\'" ~ ("\\\\" | AnyChar))
+
+def expressionEnd[$: P] = P(ws ~ expression ~ ws ~ End)
+
+def formatStringMap(input: String): FormatString = {
+  // Replace all occurrences of "\\{" with newline "\n"
+  val replacedInput = input.replace("\\{", "\n").replace("\\}", "\r")
+
+  var result: List[Value] = List()
+
+  var next_input = ""
+  var braces_open = false
+  for (a <- replacedInput) {
+    if (a == '{') {
+      if (braces_open == false) {
+        braces_open = true
+        result = result :+ StdString(
+          unescape(next_input.replace("\n", "{").replace("\r", "}"))
+        )
+        next_input = ""
+      } else assert(false, "Braces opened before old one closed")
+    } else if (a == '}') {
+      if (braces_open == false)
+        assert(false, "Braces closed without being open")
+      else {
+        braces_open = false
+        parse(next_input, expressionEnd(_)) match {
+          case Parsed.Success(ident, _) => result = result :+ ident
+          case _                        => assert(false, "parsing failed")
+        }
+        // val Parsed.Success(ident, _) = parse(next_input, expressionEnd(_))
+        // result = result :+ ident
+        next_input = ""
+      }
+    } else {
+      next_input += a
+    }
+  }
+  if (braces_open == true) assert(false, "Braces not closed")
+  if (next_input != "") {
+    result = result :+ StdString(
+      unescape(next_input.replace("\n", "{").replace("\r", "}"))
+    )
+  }
+
+  FormatString(result)
+}
 
 //Parser String
 //def formatStringP[$: P] = P()
@@ -463,7 +513,14 @@ def stdMultiStringP[$: P] = P(
   )
 )
 
-def stringP[$: P]: P[StdString] = stdMultiStringP | stdStringP
+def formatStringP[$: P]: P[FormatString] = P(
+  (
+    ("f\"" ~ charForStringDoubleQuote.rep.! ~ "\"") |
+      ("f\'" ~ charForStringSingleQuote.rep.! ~ "\'")
+  ).map(formatStringMap)
+)
+
+def stringP[$: P]: P[Value] = formatStringP | stdMultiStringP | stdStringP
 
 // @language-team because you are indecisive of where to put the comma
 // could be simpler

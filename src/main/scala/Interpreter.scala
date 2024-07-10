@@ -427,7 +427,12 @@ def evalValue(
           evalValue(StructureAccess(value, v), scope)
         case f: FunctionCall =>
           val Some(value) =
-            evalFunctionCall(f.functionExpr, f.args, scope, CallContext.Value).result: @unchecked
+            evalFunctionCall(
+              f.functionExpr,
+              f.args,
+              scope,
+              CallContext.Value
+            ).result: @unchecked
           evalValue(StructureAccess(value, v), scope)
         case id: Identifier =>
           scope.lookup(id) match {
@@ -493,6 +498,8 @@ def evalValue(
       evalValue(value, scope)
     case Dictionary(entries) =>
       scope.returnValue(Dictionary(entries))
+    case FormatString(value) =>
+      assert(false, "TODO: Format strings in eval implementation")
     case ArrayLiteral(elements) =>
       scope.returnValue(ArrayLiteral(elements))
     case NoneValue() =>
