@@ -442,8 +442,12 @@ def formatStringMap(input: String): FormatString = {
       if (braces_open == false) assert(false, "Braces closed without being open")
       else {
         braces_open = false
-        val Parsed.Success(ident, _) = parse(next_input, expressionEnd(_))
-        result = result :+ ident
+        parse(next_input, expressionEnd(_)) match {
+          case Parsed.Success(ident, _) => result = result :+ ident
+          case _ => assert(false, "parsing failed")
+        }
+        //val Parsed.Success(ident, _) = parse(next_input, expressionEnd(_))
+        //result = result :+ ident
         next_input = ""
       }
     }
