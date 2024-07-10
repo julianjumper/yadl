@@ -81,7 +81,9 @@ case class Dictionary(val entries: Seq[DictionaryEntry]) extends Value:
   override def toString(): String =
     "{" + entries.mkString(", ") + "}"
 
-case class ArrayLiteral(val elements: Seq[Value]) extends Value
+case class ArrayLiteral(val elements: Seq[Value]) extends Value:
+  override def toString(): String =
+    "(" + elements.mkString(", ") + ")"
 
 case class StructureAccess(identifier: Value, key: Value) extends Value
 

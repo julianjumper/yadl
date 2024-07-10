@@ -1,0 +1,8 @@
+// RUN: DEFAULT
+
+d = load('/io/top-level-array.json', 'json')
+print(d)
+print(d[0]["key"])
+
+// CHECK-OUT: ({key: value}, {key2: value2}, {key3: value3})
+// CHECK-OUT: value

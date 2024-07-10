@@ -1,3 +1,5 @@
+package jsoniterator
+
 import io.circe._
 import io.circe.parser._
 import scala.io.Source
