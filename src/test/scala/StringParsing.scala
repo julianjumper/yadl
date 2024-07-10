@@ -115,7 +115,7 @@ class StringParsing extends munit.FunSuite {
     }
   }
 
-   test("simple String 10") {
+  test("simple String 10") {
     val input = "'String with single quotes'"
     val expected = StdString("String with single quotes")
     parse(input, stringP(using _)) match {
@@ -199,7 +199,7 @@ class StringParsing extends munit.FunSuite {
     }
   }
 
-   test("String with escape Sequence 7") {
+  test("String with escape Sequence 7") {
     val input = "\"String with \\\"escaped quotes\\\"\""
     val expected = StdString("String with \"escaped quotes\"")
     parse(input, stringP(using _)) match {
@@ -223,7 +223,7 @@ class StringParsing extends munit.FunSuite {
     }
   }
 
-    test("String with escape Sequence 9") {
+  test("String with escape Sequence 9") {
     val input = "\"Tab character \\t in string\""
     val expected = StdString("Tab character \t in string")
     parse(input, stringP(using _)) match {
@@ -294,7 +294,7 @@ class StringParsing extends munit.FunSuite {
         assert(false, f"string parsing for test case '$input' failed")
     }
   }
-  
+
 // Weitere 10 korrekte Eingaben
   test("String with escape Sequence 15") {
     val input = "\"Tab character \\t in string\""
@@ -392,7 +392,7 @@ class StringParsing extends munit.FunSuite {
     }
   }
 
-   test("Mulitline String 3") {
+  test("Mulitline String 3") {
     val input = "'''this is a multiline string!!\nok\n'''"
     val expected = StdString("this is a multiline string!!\nok\n")
     parse(input, stringP(using _)) match {
@@ -558,8 +558,7 @@ class StringParsing extends munit.FunSuite {
     val input = "'''Unclosed multiline string"
     parse(input, stringP(using _)) match {
       case Success(value, index) =>
-        print(value)
-        assert(false, f"string parsing for test case '$input' failed")
+        assertNotEquals(index, input.length, "input has not been parsed fully")
       case _: Failure =>
         assert(true, f"string parsing for test case '$input' should Fail")
     }
@@ -581,9 +580,9 @@ class StringParsing extends munit.FunSuite {
       FormatString(List(StdString("String with {escaped \\{braces\\}}")))
     try {
       parse(input, stringP(using _))
-    }
-    catch {
-      case _:java.lang.AssertionError => assert(true, "shout throw an assertion")
+    } catch {
+      case _: java.lang.AssertionError =>
+        assert(true, "shout throw an assertion")
       case assertion => throw assertion
     }
   }

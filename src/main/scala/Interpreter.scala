@@ -62,14 +62,6 @@ class Scope(
     else
       None
 
-  private def lookupFunctionInParent(
-      identifier: Identifier
-  ): Option[parser.Function] =
-    if (this.parentScope != null)
-      this.parentScope.lookupFunction(identifier)
-    else
-      None
-
   def update(identifier: Identifier, value: Value): Scope =
     value match {
       case f: Function =>
@@ -435,7 +427,12 @@ def evalValue(
           evalValue(StructureAccess(value, v), scope)
         case f: FunctionCall =>
           val Some(value) =
-            evalFunctionCall(f.functionExpr, f.args, scope, CallContext.Value).result: @unchecked
+            evalFunctionCall(
+              f.functionExpr,
+              f.args,
+              scope,
+              CallContext.Value
+            ).result: @unchecked
           evalValue(StructureAccess(value, v), scope)
         case id: Identifier =>
           scope.lookup(id) match {
@@ -507,7 +504,6 @@ def evalValue(
       scope.returnValue(ArrayLiteral(elements))
     case NoneValue() =>
       scope.returnValue(NoneValue())
-    case FormatString(value) => assert(false, "TODO: Format strings in eval implementation")
     case err =>
       assert(false, f"TODO: not implemented '$err'")
   }
