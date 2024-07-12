@@ -282,13 +282,12 @@ def evalReturn(value: Value, scope: Scope): Scope =
     }
 
 class AccessContext():
-  private var context: Stack[Value] = new Stack
+  private var context: Stack[(Value, Value)] = new Stack
 
-  def push(value: Value): Unit =
-    this.context.push(value)
-    this
+  def push(key: Value, value: Value): Unit =
+    this.context.push((key, value))
 
-  def pop(): Option[Value] =
+  def pop(): Option[(Value, Value)] =
     try {
       Some(this.context.pop())
     } catch {
@@ -297,6 +296,27 @@ class AccessContext():
     }
 
 end AccessContext
+
+def modifyStructure(struct: Value, index: Value, value: Value): Value =
+  struct match {
+    case Dictionary(entries) =>
+      Dictionary(
+        entries.map(e =>
+          if (e.key == index) DictionaryEntry(e.key, value) else e
+        )
+      )
+    case ArrayLiteral(elements) =>
+      assert(
+        index.isInstanceOf[Number],
+        s"arrays may only be indexed by a number. got: $index"
+      )
+      val v = index.asInstanceOf[Number]
+      assert(v.value == v.value.toInt, "index to array is not an integer")
+      var tmp = elements.toArray
+      tmp.update(v.value.toInt, value)
+      ArrayLiteral(tmp)
+    case v => assert(false, s"not modifiable structure: $v")
+  }
 
 def evalStructAssignment(
     st: StructureAccess,
@@ -308,33 +328,37 @@ def evalStructAssignment(
     case id: Identifier =>
       scope.lookup(id) match {
         case Some(v) =>
-          accessContext.push(id)
-          evalStructAssignment(
+          accessContext.push(id, value)
+          val Some(newStr) = evalStructAssignment(
             StructureAccess(v, st.key),
             value,
             accessContext,
             scope
-          )
+          ).result: @unchecked
+          scope.update(id, newStr)
         case None =>
           assert(false, s"identifier '${id.name}' not found")
       }
     case s: StructureAccess =>
-      assert(false, "TODO: modify StructureAccess")
-    case ArrayLiteral(elements) =>
-      assert(false, "TODO: modify array")
-    case Dictionary(entries) =>
-      val newEntries = entries.map(e =>
-        if (e.key == st.key) DictionaryEntry(e.key, value) else e
-      )
+      val Some(struct) = evalValue(s, scope).result: @unchecked
+      accessContext.push(s.key, struct)
+      val Some(v) = evalStructAssignment(
+        StructureAccess(struct, st.key),
+        value,
+        accessContext,
+        scope
+      ).result: @unchecked
+      val newStr = modifyStructure(struct, st.key, v)
+      scope.returnValue(newStr)
+    case struct: (ArrayLiteral | Dictionary) =>
       accessContext.pop() match {
-        case Some(id: Identifier) =>
-          scope.update(id, Dictionary(newEntries))
-        case Some(v) =>
-          assert(false, "TODO")
+        case Some((_, v)) =>
+          val Some(index) = evalValue(st.key, scope).result: @unchecked
+          val newStruct = modifyStructure(struct, index, v)
+          scope.returnValue(newStruct)
         case None =>
-          scope
+          scope.returnValue(struct)
       }
-
     case v: Value =>
       assert(false, s"Value '$v' can not be accessed/modified")
   }
@@ -369,7 +393,14 @@ def evalStatement(
           CallContext.Statement
         )
       case StructuredAssignment(struct, value) =>
-        evalStructAssignment(struct, value, AccessContext(), scope)
+        evalStructAssignment(
+          struct,
+          value,
+          AccessContext(),
+          scope
+        ).result match {
+          case _ => scope
+        }
       case Return(value) =>
         evalReturn(value, scope)
       case Expression(expr) =>
@@ -527,9 +558,9 @@ def evalValue(
               assert(false, s"no value found for the key '$v' in a dictionary")
           }
         case ArrayLiteral(elements) =>
-          evalValue(v, scope).result match {
-            case None => assert(false, s"Expr \"$v\" is not interpretable")
-            case Some(Number(n)) => {
+          val Some(value) = evalValue(v, scope).result: @unchecked
+          value match {
+            case Number(n) => {
               if (n != n.toInt) {
                 throw IllegalArgumentException(
                   "expected hole number, but got number with decimal part"
@@ -543,6 +574,7 @@ def evalValue(
                 "expected number, not: " + x.toString
               )
           }
+        case value => assert(false, s"not an accessable structure: $value")
       }
     case Identifier(name) =>
       scope.lookup(Identifier(name)) match {
