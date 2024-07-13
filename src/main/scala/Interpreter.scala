@@ -301,11 +301,14 @@ end AccessContext
 def modifyStructure(struct: Value, index: Value, value: Value): Value =
   struct match {
     case Dictionary(entries) =>
-      Dictionary(
-        entries.map(e =>
-          if (e.key == index) DictionaryEntry(e.key, value) else e
+      if (entries.foldLeft(false)((acc, e) => acc || e.key == index))
+        Dictionary(
+          entries.map(e =>
+            if (e.key == index) DictionaryEntry(e.key, value) else e
+          )
         )
-      )
+      else
+        Dictionary(entries :+ DictionaryEntry(index, value))
     case ArrayLiteral(elements) =>
       assert(
         index.isInstanceOf[Number],
