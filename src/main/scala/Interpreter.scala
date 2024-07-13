@@ -3,6 +3,7 @@ import ArithmaticOps.{Add, Div, Expo, Mod, Mul, Sub}
 import BooleanOps.{And, Not, Or}
 import CompareOps.{Eq, Greater, GreaterEq, Less, LessEq, NotEq}
 import scala.collection.mutable.Stack
+import scala.annotation.unused
 
 val builtins = stdlib.stdlib
 
@@ -324,32 +325,20 @@ def evalStructAssignment(
     accessContext: AccessContext,
     scope: Scope
 ): Scope =
+  val Some(struct) = evalValue(st.identifier, scope).result: @unchecked
+  val Some(index) = evalValue(st.key, scope).result: @unchecked
+  val newStruct = modifyStructure(struct, index, value)
   st.identifier match {
     case id: Identifier =>
-      scope.lookup(id) match {
-        case Some(v) =>
-          accessContext.push(id, value)
-          val Some(newStr) = evalStructAssignment(
-            StructureAccess(v, st.key),
-            value,
-            accessContext,
-            scope
-          ).result: @unchecked
-          scope.update(id, newStr)
-        case None =>
-          assert(false, s"identifier '${id.name}' not found")
-      }
+      scope.update(id, newStruct)
     case s: StructureAccess =>
-      val Some(struct) = evalValue(s, scope).result: @unchecked
-      accessContext.push(s.key, struct)
-      val Some(v) = evalStructAssignment(
-        StructureAccess(struct, st.key),
-        value,
+      accessContext.push(s.key, newStruct)
+      evalStructAssignment(
+        s,
+        newStruct,
         accessContext,
         scope
-      ).result: @unchecked
-      val newStr = modifyStructure(struct, st.key, v)
-      scope.returnValue(newStr)
+      )
     case struct: (ArrayLiteral | Dictionary) =>
       accessContext.pop() match {
         case Some((_, v)) =>
