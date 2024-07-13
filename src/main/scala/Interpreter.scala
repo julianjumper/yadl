@@ -132,7 +132,7 @@ def captureExternalsStatement(
         Assignment(varName, newVal)
       } else Assignment(varName, value)
     case StructuredAssignment(struct, value) =>
-      val s = captureExternalsValue(struct, locals, scope)
+      val s = captureExternalsValue(struct.identifier, locals, scope)
       val v = captureExternalsValue(value, locals, scope)
       StructuredAssignment(StructureAccess(s, struct.key), v)
     case fc: FunctionCall =>
