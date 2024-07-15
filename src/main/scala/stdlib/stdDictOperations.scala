@@ -16,7 +16,7 @@ private def loadFunction(params: Seq[DataObject]): DataObject = {
   val format = params(1).asInstanceOf[StringObj].value.toLowerCase
 
   val currentDir = System.getProperty("user.dir")
-  val fullPath = Paths.get(currentDir, "test", "tests", path).toString
+  val fullPath = Paths.get(currentDir, path).toString
   val source = Source.fromFile(fullPath)
 
   format match {
