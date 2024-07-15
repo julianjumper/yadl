@@ -1,6 +1,6 @@
 // RUN: DEFAULT
 
-d = load('/io/top-level-array.json', 'json')
+d = load('test/tests/io/top-level-array.json', 'json')
 print(d)
 print(d[0]["key"])
 
