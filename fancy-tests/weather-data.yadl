@@ -20,6 +20,7 @@ while (index < len(bern) && continuous_data) {
     if (bern[index-1]["day"] +1 != bern[index]["day"]) {
         continuous_data = false
     }
+    index = index + 1
 }
 
 print3(continuous_data)
