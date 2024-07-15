@@ -728,6 +728,14 @@ def evalArithmeticOps(
         case null => assert(false, "unreachable")
       }
       scope.returnValue(Number(result)) // Adding the result to the scope
+    case (v1: (StdString | Number | Bool), v2: (StdString | Number | Bool)) =>
+      val type1 = typeOf(v1)
+      val type2 = typeOf(v2)
+      val result = op match {
+        case Add => v1.toString() + v2.toString()
+        case _ => assert(false, s"Concatenation '$type1' and '$type2'")
+      }
+      scope.returnValue(StdString(result)) // Adding the result to the scope
     case (v1, v2) =>
       val type1 = typeOf(v1)
       val type2 = typeOf(v2)
