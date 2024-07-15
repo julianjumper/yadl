@@ -62,4 +62,9 @@ def stdlib: HashMap[String, FunctionObj] = {
     .addOne("check_all", FunctionObj(Seq("iterable", "checkFunction"), Seq(), None, check_allBuiltIn))
     .addOne("check_any", FunctionObj(Seq("iterable", "checkFunction"), Seq(), None, check_anyBuiltIn))
     .addOne("check_none", FunctionObj(Seq("iterable", "checkFunction"), Seq(), None, check_noneBuiltIn))
+    .addOne("first",FunctionObj(Seq("iterable", "fn", "default"), Seq(), None, firstBuiltIn))
+    .addOne("last",FunctionObj(Seq("iterable", "fn", "default"), Seq(), None, lastBuiltIn))
+    .addOne("count",FunctionObj(Seq("iterable", "target"),Seq(),None, countBuiltIn))
+    .addOne("zip",FunctionObj(Seq("iterable1", "iterable2"),Seq(),None,zipBuiltIn))
+    .addOne("do", FunctionObj(Seq("iterable", "function"), Seq(), None, doBuiltIn))
 }
