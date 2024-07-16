@@ -301,3 +301,20 @@ private def zipBuiltIn(params: Seq[DataObject]): IteratorObj = {
   // Return the new IteratorObj
   new IteratorObj(nextFn, hasNextFn, data)
 }
+
+private def lenBuiltIn(params: Seq[DataObject]): NumberObj = {
+  if (params.length > 1) {
+    throw IllegalArgumentException()
+  }
+
+  val d = DictionaryObj(mutable.HashMap[DataObject, DataObject]())
+  val it = toIteratorObj(params(0))
+  var len = 0
+
+  while (it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+    val nextElement = it.next.function(Seq(it.data))
+    len = len + 1
+  }
+  val result = NumberObj(len)
+  result
+}
