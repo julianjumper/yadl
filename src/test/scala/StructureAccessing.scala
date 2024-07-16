@@ -80,4 +80,21 @@ class StructureAccessing extends munit.FunSuite {
         )
     }
   }
+
+  test("case 'hello[index]'") {
+    val input = "hello[index]"
+    val expected =
+      StructureAccess(Identifier("hello"), Identifier("index"))
+    parse(input, structureAccess(using _)) match {
+      case Success(value, index) =>
+        assertEquals(value, expected)
+        assertEquals(index, input.length, "input has not been parsed fully")
+      case f: Failure =>
+        val msg = f.trace().longAggregateMsg
+        assert(
+          false,
+          f"structure access parsing for test case '$input' failed\n  msg: $msg"
+        )
+    }
+  }
 }

@@ -105,7 +105,7 @@ case class FunctionCall(functionExpr: Value, args: Seq[Value])
       Statement
 
 def condition[$: P]: P[Value] =
-  P("(" ~ ws ~ expression ~ ws ~ ")").opaque("<condition>")
+  P("(" ~ ws ~ expression(identifierP) ~ ws ~ ")").opaque("<condition>")
 
 def initialBranch[$: P]: P[Branch] =
   P(
@@ -129,7 +129,7 @@ def ifStatement[$: P]: P[Statement] =
     .map(If(_, _, _))
 
 def returnP[$: P]: P[Statement] =
-  P("return" ~ ws ~ expression).map(Return(_))
+  P("return" ~ ws ~ expression(identifierP)).map(Return(_))
 
 def statementP[$: P]: P[Statement] =
   returnP | whileLoop | ifStatement | functionCallStatement | structuredAssignmentP | assignmentP
@@ -140,7 +140,7 @@ def codeBlock[$: P]: P[Seq[Statement]] =
   )
 
 def functionDefBodyP[$: P]: P[Seq[Statement]] =
-  codeBlock | expression.map((v) => Seq(Expression(v)))
+  codeBlock | expression(identifierP).map((v) => Seq(Expression(v)))
 
 def functionDefArgsP[$: P]: P[Seq[String]] = (
   identifierP ~ (ws ~ "," ~ ws ~ functionDefArgsP).?
@@ -162,8 +162,12 @@ def functionDefP[$: P]: P[Value] = (
 
 def noneP[$: P]: P[Value] = P("none").!.map(_ => NoneValue())
 
-def valueP[$: P]: P[Value] =
-  noneP | booleanP | stringP | unaryOpExpression | dictionaryP | arrayLiteralP | structureAccess | functionCallValue | numberP
+def valueP[$: P](idParser: => P[Value]): P[Value] =
+  noneP | booleanP | stringP | unaryOpExpression(
+    idParser
+  ) | dictionaryP | arrayLiteralP | structureAccess | functionCallValue(
+    idParser
+  ) | numberP
 
 def booleanP[$: P]: P[Value] = P(
   ("true" | "false").!
@@ -174,7 +178,7 @@ def booleanP[$: P]: P[Value] = P(
 }
 
 def functionCallArgsP[$: P]: P[Seq[Value]] = (
-  expression ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
+  expression(identifierP) ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
 ).map((v, vs) =>
   vs match {
     case None     => Seq(v)
@@ -182,16 +186,16 @@ def functionCallArgsP[$: P]: P[Seq[Value]] = (
   }
 )
 
-def functionName[$: P]: P[Value] =
-  identifierP | wrappedExpression
+def functionName[$: P](idParser: => P[Value]): P[Value] =
+  idParser | wrappedExpression(idParser)
 
 def functionCallManyArgs[$: P]: P[Seq[Seq[Value]]] =
   P(ws ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")")
     .map(_.getOrElse(Seq()))
     .rep
 
-def functionCallValue[$: P]: P[Value] = P(
-  functionName ~ functionCallManyArgs
+def functionCallValue[$: P](idParser: => P[Value]): P[Value] = P(
+  functionName(idParser) ~ functionCallManyArgs
 ) // .opaque("<function call>")
   .map((n, bs) =>
     bs.length match {
@@ -205,7 +209,7 @@ def functionCallValue[$: P]: P[Value] = P(
   )
 
 def functionCallStatement[$: P]: P[Statement] = P(
-  functionName ~ functionCallManyArgs
+  functionName(identifierP) ~ functionCallManyArgs
 ).opaque("<function call>")
   .filter((_, bs) => bs.length > 0)
   .map((n, bs) =>
@@ -300,13 +304,13 @@ def orderBy(opExpr: BinaryOp | UnaryOp, pred: Value => Int): Value =
       }
   }
 
-def unaryOpExpression[$: P]: P[Value] =
-  (unaryOperator ~ ws ~ expression)
+def unaryOpExpression[$: P](idParser: => P[Value]): P[Value] =
+  (unaryOperator ~ ws ~ expression(idParser))
     .opaque("<unary operator>")
     .map((op, value) => orderBy(UnaryOp(op, value), precedenceOf))
 
-def binaryOpExpression[$: P]: P[Value] = (
-  valueP ~/ (ws ~ binaryOperator ~ ws ~ expression).?
+def binaryOpExpression[$: P](idParser: => P[Value]): P[Value] = (
+  valueP(idParser) ~/ (ws ~ binaryOperator ~ ws ~ expression(idParser)).?
 ).map((l, rest) =>
   rest match {
     case Some((op, r)) =>
@@ -330,11 +334,11 @@ def loadP[$: P]: P[Value] =
     "as"
   ) ~ ws ~ dataFormatsP).map((file, format) => Load(file, format))
 
-def wrappedExpression[$: P]: P[Value] =
-  P("(" ~ ws ~ expression ~ ws ~ ")").map(Wrapped(_))
+def wrappedExpression[$: P](idParser: => P[Value]): P[Value] =
+  P("(" ~ ws ~ expression(idParser) ~ ws ~ ")").map(Wrapped(_))
 
-def expression[$: P]: P[Value] = (
-  loadP | functionDefP | binaryOpExpression
+def expression[$: P](idParser: => P[Value]): P[Value] = (
+  loadP | functionDefP | binaryOpExpression(idParser)
 )
 
 def identifierP[$: P]: P[Identifier] = P(
@@ -342,13 +346,14 @@ def identifierP[$: P]: P[Identifier] = P(
 ).opaque("<identifier>")
 
 def assignmentP[$: P]: P[Statement] =
-  (identifierP.! ~/ ws ~ "=" ~ ws ~ expression).map((n, v) => Assignment(n, v))
+  (identifierP.! ~/ ws ~ "=" ~ ws ~ expression(identifierP)).map((n, v) =>
+    Assignment(n, v)
+  )
 
 def structuredAssignmentP[$: P]: P[Statement] =
-  (structureAccess ~/ ws ~ "=" ~ ws ~ expression).map((n, v) =>
-    assert(n.isInstanceOf[StructureAccess])
-    StructuredAssignment(n.asInstanceOf[StructureAccess], v)
-  )
+  (structureAccess ~/ ws ~ "=" ~ ws ~ expression(identifierP))
+    .filter((s, _) => s.isInstanceOf[StructureAccess])
+    .map((n, v) => StructuredAssignment(n.asInstanceOf[StructureAccess], v))
 
 def inlineTextP[$: P]: P[Unit] = P(!newline ~ AnyChar).rep
 def inlineCommentP[$: P]: P[Unit] = P("//" ~ inlineTextP ~ newline)
@@ -460,7 +465,7 @@ def charForStringSingleQuote[$: P] = P(
 def charForMultilineStringDoubleQuote[$: P] = P(!"\"\"\"" ~ ("\\\\" | AnyChar))
 def charForMultilineStringSingleQuote[$: P] = P(!"\'\'\'" ~ ("\\\\" | AnyChar))
 
-def expressionEnd[$: P] = P(ws ~ expression ~ ws ~ End)
+def expressionEnd[$: P] = P(ws ~ expression(identifierP) ~ ws ~ End)
 
 def formatStringMap(input: String): FormatString = {
   // Replace all occurrences of "\\{" with newline "\n"
@@ -536,7 +541,7 @@ def stringP[$: P]: P[Value] = formatStringP | stdMultiStringP | stdStringP
 
 def dictionaryEntries[$: P]: P[Dictionary] =
   def dictionaryEntry[$: P]: P[DictionaryEntry] =
-    (valueP ~ ws ~ ":" ~ ws ~ valueP)
+    (valueP(identifierP) ~ ws ~ ":" ~ ws ~ valueP(identifierP))
       .opaque("<dictionary entry>")
       .map(DictionaryEntry(_, _))
 
@@ -557,18 +562,27 @@ def structureAccess[$: P]: P[Value] =
   def closeIndex[$: P]: P[Unit] =
     P(CharPred(_ == ']')).opaque("<close index>")
 
-  def access[$: P]: P[Value] =
-    P(openIndex ~ ws ~ expression ~ ws ~ closeIndex)
-  def internal[$: P]: P[Value] =
+  def internalIdentifier[$: P]: P[Value] =
     P(!openIndex ~ CharIn("a-zA-z0-9_"))
       .rep(min = 1)
       .!
       .filter(s => !(s(0) == '_' || s(0).isDigit))
       .map(Identifier(_))
-  P(internal ~ (ws ~ access).rep(min = 1))
+
+  def internalIdentifier2[$: P]: P[Value] =
+    P(!closeIndex ~ CharIn("a-zA-z0-9_"))
+      .rep(min = 1)
+      .!
+      .filter(s => !(s(0) == '_' || s(0).isDigit))
+      .map(Identifier(_))
+
+  def access[$: P]: P[Value] =
+    P(openIndex ~ ws ~ expression(internalIdentifier2) ~ ws ~ closeIndex)
+
+  P(internalIdentifier ~ (ws ~ access).rep(min = 1))
     .map((i, v) => v.foldLeft(i)((acc, a) => StructureAccess(acc, a)))
 
 //Parser Array (we use structureAccess for accessing arrays)
 def arrayLiteralP[$: P]: P[ArrayLiteral] =
-  P("[" ~ ws ~ expression.rep(sep = ws ~ "," ~ ws) ~ ws ~ "]")
+  P("[" ~ ws ~ expression(identifierP).rep(sep = ws ~ "," ~ ws) ~ ws ~ "]")
     .map(ArrayLiteral.apply)

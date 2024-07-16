@@ -11,13 +11,18 @@ import parser.{
   BooleanOps
 }
 import parser.{Number, Bool, Identifier, Wrapped}
-import parser.{unaryOpExpression, expression}
+import parser.{unaryOpExpression, expression, identifierP}
+
+def unary[$: P] =
+  unaryOpExpression(identifierP)
+def expr[$: P] =
+  expression(identifierP)
 
 class UnaryOperator extends munit.FunSuite {
   test("case '-5'") {
     val input = "-5"
     val expected = UnaryOp(ArithmaticOp(ArithmaticOps.Sub), Number(5))
-    parse(input, unaryOpExpression(using _)) match {
+    parse(input, unary(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -33,7 +38,7 @@ class UnaryOperator extends munit.FunSuite {
   test("case '+5'") {
     val input = "+5"
     val expected = UnaryOp(ArithmaticOp(ArithmaticOps.Add), Number(5))
-    parse(input, unaryOpExpression(using _)) match {
+    parse(input, unary(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -49,7 +54,7 @@ class UnaryOperator extends munit.FunSuite {
   test("case 'not 5'") {
     val input = "not 5"
     val expected = UnaryOp(BooleanOp(BooleanOps.Not), Number(5))
-    parse(input, unaryOpExpression(using _)) match {
+    parse(input, unary(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -64,7 +69,7 @@ class UnaryOperator extends munit.FunSuite {
 
   test("case 'and 5' (should fail)") {
     val input = "and 5"
-    parse(input, unaryOpExpression(using _)) match {
+    parse(input, unary(using _)) match {
       case Success(value, index) =>
         assert(false, "operator 'and' is a binay operator not a unary one")
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -79,7 +84,7 @@ class UnaryOperator extends munit.FunSuite {
       BooleanOp(BooleanOps.Not),
       BinaryOp(Bool(true), ArithmaticOp(ArithmaticOps.Expo), Number(5))
     )
-    parse(input, expression(using _)) match {
+    parse(input, expr(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -98,7 +103,7 @@ class UnaryOperator extends munit.FunSuite {
       ArithmaticOp(ArithmaticOps.Sub),
       BinaryOp(Number(2), ArithmaticOp(ArithmaticOps.Expo), Number(5))
     )
-    parse(input, expression(using _)) match {
+    parse(input, expr(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -119,7 +124,7 @@ class UnaryOperator extends munit.FunSuite {
         ArithmaticOp(ArithmaticOps.Add),
         Number(5)
       )
-    parse(input, expression(using _)) match {
+    parse(input, expr(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -140,7 +145,7 @@ class UnaryOperator extends munit.FunSuite {
         ArithmaticOp(ArithmaticOps.Add),
         UnaryOp(ArithmaticOp(ArithmaticOps.Sub), Bool(true))
       )
-    parse(input, expression(using _)) match {
+    parse(input, expr(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -216,7 +221,7 @@ class UnaryOperator extends munit.FunSuite {
         ArithmaticOp(ArithmaticOps.Div),
         Number(2)
       )
-    parse(input, expression(using _)) match {
+    parse(input, expr(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
