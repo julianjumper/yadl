@@ -114,7 +114,6 @@ def initialBranch[$: P]: P[Branch] =
 
 def whileLoop[$: P]: P[Statement] =
   P("while" ~ ws ~ condition ~ ws ~ codeBlock)
-    .opaque("<while loop>")
     .map((c, sts) => WhileLoop(Branch(c, sts)))
 
 def elif[$: P]: P[Branch] =
