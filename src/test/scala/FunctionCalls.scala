@@ -4,6 +4,7 @@ import fastparse.Parsed.Failure
 
 import parser.{
   functionCallValue,
+  identifierP,
   expression,
   FunctionCall,
   Function,
@@ -11,6 +12,12 @@ import parser.{
   Wrapped,
   Expression
 }
+
+def funCall[$: P] =
+  functionCallValue(identifierP)
+
+// def expr[$: P] =
+//   expression(identifierP)
 
 class FunctionCalls extends munit.FunSuite {
 
@@ -26,7 +33,7 @@ class FunctionCalls extends munit.FunSuite {
           )
         )
       )
-    parse(input, functionCallValue(using _)) match {
+    parse(input, funCall(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -51,7 +58,7 @@ class FunctionCalls extends munit.FunSuite {
           )
         )
       )
-    parse(input, functionCallValue(using _)) match {
+    parse(input, funCall(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -74,7 +81,7 @@ class FunctionCalls extends munit.FunSuite {
         ),
         Seq()
       )
-    parse(input, functionCallValue(using _)) match {
+    parse(input, funCall(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -94,7 +101,7 @@ class FunctionCalls extends munit.FunSuite {
         Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
         Seq()
       )
-    parse(input, functionCallValue(using _)) match {
+    parse(input, funCall(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -116,7 +123,7 @@ class FunctionCalls extends munit.FunSuite {
           Seq()
         )
       )
-    parse(input, expression(using _)) match {
+    parse(input, expr(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -136,7 +143,7 @@ class FunctionCalls extends munit.FunSuite {
         Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
         Seq(Identifier("y"))
       )
-    parse(input, expression(using _)) match {
+    parse(input, expr(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -156,7 +163,7 @@ class FunctionCalls extends munit.FunSuite {
         Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
         Seq(Identifier("y"))
       )
-    parse(input, functionCallValue(using _)) match {
+    parse(input, funCall(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -176,7 +183,7 @@ class FunctionCalls extends munit.FunSuite {
         Wrapped(Identifier("x")),
         Seq(Identifier("y"))
       )
-    parse(input, functionCallValue(using _)) match {
+    parse(input, funCall(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
