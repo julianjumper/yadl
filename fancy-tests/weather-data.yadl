@@ -16,10 +16,11 @@ print3("Has Bern continuous data?:")
 
 index = 1
 continuous_data = true
-while (index < len(bern) && continuous_data) {
-    if (bern[index-1]["day"] +1 != bern[index]["day"]) {
+while (index < len(bern) and continuous_data) {
+    if (bern[index-1]["day"] +1 != bern[((i) => i)(index)]["day"]) {
         continuous_data = false
     }
+
     index = index + 1
 }
 
