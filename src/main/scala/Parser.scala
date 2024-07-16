@@ -559,13 +559,13 @@ def structureAccess[$: P]: P[Value] =
 
   def access[$: P]: P[Value] =
     P(openIndex ~ ws ~ expression ~ ws ~ closeIndex)
-  def internal[$: P]: P[Value] =
+  def internalIdentifier[$: P]: P[Value] =
     P(!openIndex ~ CharIn("a-zA-z0-9_"))
       .rep(min = 1)
       .!
       .filter(s => !(s(0) == '_' || s(0).isDigit))
       .map(Identifier(_))
-  P(internal ~ (ws ~ access).rep(min = 1))
+  P(internalIdentifier ~ (ws ~ access).rep(min = 1))
     .map((i, v) => v.foldLeft(i)((acc, a) => StructureAccess(acc, a)))
 
 //Parser Array (we use structureAccess for accessing arrays)
