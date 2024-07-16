@@ -1,0 +1,17 @@
+// RUN: DEFAULT
+
+lst0 = []
+lst1 = [1]
+lst2 = [2,4,6]
+lst3 = ["text", "hello", "world", "len", "will", "be", 7]
+
+print(len(lst0))
+print(len(lst1))
+print(len(lst2))
+print(len(lst3))
+
+
+// CHECK-OUT: 0
+// CHECK-OUT: 1
+// CHECK-OUT: 3
+// CHECK-OUT: 7

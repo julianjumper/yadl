@@ -67,4 +67,5 @@ def stdlib: HashMap[String, FunctionObj] = {
     .addOne("count",FunctionObj(Seq("iterable", "target"),Seq(),None, countBuiltIn))
     .addOne("zip",FunctionObj(Seq("iterable1", "iterable2"),Seq(),None,zipBuiltIn))
     .addOne("do", FunctionObj(Seq("iterable", "function"), Seq(), None, doBuiltIn))
+    .addOne("len", FunctionObj(Seq("iterable"), Seq(), None, lenBuiltIn))
 }
