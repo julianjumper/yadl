@@ -563,21 +563,14 @@ def structureAccess[$: P]: P[Value] =
     P(CharPred(_ == ']')).opaque("<close index>")
 
   def internalIdentifier[$: P]: P[Value] =
-    P(!openIndex ~ CharIn("a-zA-z0-9_"))
-      .rep(min = 1)
-      .!
-      .filter(s => !(s(0) == '_' || s(0).isDigit))
-      .map(Identifier(_))
-
-  def internalIdentifier2[$: P]: P[Value] =
-    P(!closeIndex ~ CharIn("a-zA-z0-9_"))
+    P(!(closeIndex | openIndex) ~ CharIn("a-zA-z0-9_"))
       .rep(min = 1)
       .!
       .filter(s => !(s(0) == '_' || s(0).isDigit))
       .map(Identifier(_))
 
   def access[$: P]: P[Value] =
-    P(openIndex ~ ws ~ expression(internalIdentifier2) ~ ws ~ closeIndex)
+    P(openIndex ~ ws ~ expression(internalIdentifier) ~ ws ~ closeIndex)
 
   P(internalIdentifier ~ (ws ~ access).rep(min = 1))
     .map((i, v) => v.foldLeft(i)((acc, a) => StructureAccess(acc, a)))
