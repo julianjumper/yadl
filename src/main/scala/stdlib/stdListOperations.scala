@@ -318,3 +318,73 @@ private def lenBuiltIn(params: Seq[DataObject]): NumberObj = {
   val result = NumberObj(len)
   result
 }
+
+private def groupByBuiltIn(params: Seq[DataObject]): DataObject = {
+  if (params.length != 2 || !params(1).isInstanceOf[FunctionObj]) {
+    throw IllegalArgumentException()
+  }
+
+  val groupByFn = params(1).asInstanceOf[FunctionObj]
+  val it = toIteratorObj(params(0))
+  val result = new DictionaryObj(scala.collection.mutable.HashMap[DataObject, DataObject]())
+
+  while (it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+    val item = it.next.function(Seq(it.data))
+    val key = groupByFn.function(Seq(item))
+
+    if (!result.value.contains(key)) {
+      result.value(key) = new ListObj(scala.collection.mutable.ArrayBuffer[DataObject]())
+    }
+    result.value(key).asInstanceOf[ListObj].value.append(item)
+  }
+
+  result
+}
+
+private def reduceBuiltIn(params: Seq[DataObject]): DataObject = {
+  if (params.length != 2 || !params(1).isInstanceOf[FunctionObj]) {
+    throw IllegalArgumentException()
+  }
+
+  val reduceFn = params(1).asInstanceOf[FunctionObj]
+  val it = toIteratorObj(params(0))
+
+  if (!it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+    throw IllegalArgumentException("Cannot reduce an empty iterable")
+  }
+
+  var accumulator = it.next.function(Seq(it.data))
+
+  while (it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+    val item = it.next.function(Seq(it.data))
+    accumulator = reduceFn.function(Seq(accumulator, item))
+  }
+
+  accumulator
+}
+
+private def mapBuiltIn(params: Seq[DataObject]): IteratorObj = {
+  if (params.length != 2 || !params(1).isInstanceOf[FunctionObj]) {
+    throw new IllegalArgumentException("map function expects an iterable and a function")
+  }
+
+  val mapFn = params(1).asInstanceOf[FunctionObj]
+  val it = toIteratorObj(params(0)).asInstanceOf[IteratorObj]
+
+  val mappedResults = mutable.Buffer[DataObject]()
+
+  while (it.hasNext.function(Seq(it.data)).asInstanceOf[BooleanObj].value) {
+    val nextElement = it.next.function(Seq(it.data))
+    val mappedElement = mapFn.function(Seq(nextElement))
+    mappedResults += mappedElement
+  }
+
+  val newIt = mappedResults.iterator
+
+
+  val hasNextFn = new FunctionObj(Seq(), Seq(), None, _ => BooleanObj(newIt.hasNext))
+  val nextFn = new FunctionObj(Seq(), Seq(), None, _ => if (newIt.hasNext) newIt.next() else NoneObj())
+  val data = DictionaryObj(mutable.HashMap())
+
+  new IteratorObj(nextFn, hasNextFn, data)
+}
