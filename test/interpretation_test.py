@@ -94,8 +94,10 @@ for posix_path in Path(TEST_DIR).rglob("*.yadl"):
     full_path = os.path.join(os.path.dirname(TEST_DIR), posix_path)
     configurations.append(parse_yadl(str(full_path)))
 
+def to_dir(config):
+    return str(Path(config["filepath"]).relative_to(TEST_DIR))
 
-@pytest.mark.parametrize("config", configurations)
+@pytest.mark.parametrize("config", configurations, ids = map(to_dir, configurations))
 def test_config(config):
     run_test(config)
 
