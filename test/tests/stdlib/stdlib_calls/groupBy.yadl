@@ -4,4 +4,4 @@ is_even = (n) => n % 2 == 0
 result = groupBy(numbers, is_even)
 tmp = print3(result)
 
-// CHECK-OUT: {false: [1, 3, 5, 7, 9], true: [2, 4, 6, 8, 10]}
+// CHECK-OUT: false: [1, 3, 5, 7, 9], true: [2, 4, 6, 8, 10]

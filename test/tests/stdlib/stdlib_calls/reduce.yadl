@@ -4,4 +4,4 @@ sum = (acc, n) => acc + n
 result = reduce(numbers, sum)
 tmp = print3(result)
 
-// CHECK-OUT: 15
+// CHECK-OUT: 15.0
