@@ -27,6 +27,7 @@ pub const TokenKind = enum {
 
 pub const Token = struct {
     chars: []const u8,
+    index: usize,
     kind: TokenKind,
     line: u64,
     column: u64,
@@ -102,7 +103,7 @@ fn lexIdentifier(self: *Self) LexerError!Token {
 }
 
 // Number
-const NumberPrefix = enum { Decimal, Binary, Octal, Hexadecimal };
+pub const NumberPrefix = enum { Decimal, Binary, Octal, Hexadecimal };
 
 fn isDecimalDigit(c: u8) bool {
     return anyOfRange(c, CharRange.init('0', '9'));
@@ -308,6 +309,7 @@ fn newToken(self: Self, chars: []const u8, kind: TokenKind) Token {
     const column = self.currentColumn() - chars.len;
     return .{
         .chars = chars,
+        .index = self.current_position - chars.len,
         .kind = kind,
         .line = line,
         .column = if (line != 1) column else column + 1,
@@ -390,12 +392,8 @@ pub fn allTokens(self: *Self, tokens: *std.ArrayList(Token)) LexerError!void {
     }
 }
 
-fn offset(comptime T: type, left: *const T, right: *const T) usize {
-    return @as(usize, @intFromPtr(left) - @intFromPtr(right));
-}
-
 fn nextLine(self: Self, token: Token) ?[]const u8 {
-    var pos = offset(u8, &token.chars[0], &self.data[0]);
+    var pos = token.index;
     while (pos < self.data.len) : (pos += 1) {
         if (self.data[pos] == '\n') {
             break;
@@ -416,11 +414,12 @@ fn nextLine(self: Self, token: Token) ?[]const u8 {
 }
 
 fn currentLine(self: Self, token: Token) []const u8 {
-    var line_begin = offset(u8, &token.chars[0], &self.data[0]);
-    var line_end = offset(u8, &token.chars[0], &self.data[0]);
+    var line_begin = token.index;
+    var line_end = token.index;
+
     while (line_begin > 0) : (line_begin -= 1) {
         if (self.data[line_begin] == '\n') {
-            line_begin -= 1;
+            line_begin += 1;
             break;
         }
     }
@@ -433,7 +432,7 @@ fn currentLine(self: Self, token: Token) []const u8 {
 }
 
 fn previousLine(self: Self, token: Token) ?[]const u8 {
-    var pos = offset(u8, &token.chars[0], &self.data[0]);
+    var pos = token.index;
 
     while (pos > 0) : (pos -= 1) {
         if (self.data[pos] == '\n') {
@@ -458,12 +457,12 @@ fn previousLine(self: Self, token: Token) ?[]const u8 {
 
 pub fn printContext(self: Self, out: std.io.AnyWriter, token: Token) LexerError!void {
     if (previousLine(self, token)) |previous| {
-        out.print("line {}: {s}\n", .{ token.line - 1, previous }) catch return LexerError.UnknownError;
+        out.print("    {}: {s}\n", .{ token.line - 1, previous }) catch return LexerError.UnknownError;
     }
     const current = currentLine(self, token);
-    out.print("line {}: {s}\n", .{ token.line, current }) catch return LexerError.UnknownError;
+    out.print("    {}: {s}\n", .{ token.line, current }) catch return LexerError.UnknownError;
 
     if (nextLine(self, token)) |next| {
-        out.print("line {}: {s}\n", .{ token.line + 1, next }) catch return LexerError.UnknownError;
+        out.print("    {}: {s}\n", .{ token.line + 1, next }) catch return LexerError.UnknownError;
     }
 }

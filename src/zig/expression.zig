@@ -11,13 +11,13 @@ pub const Operator = union(enum) {
 };
 
 pub const BinaryOp = struct {
-    left: *Expression,
-    right: *Expression,
+    left: *const Expression,
+    right: *const Expression,
     op: Operator,
 };
 
 pub const UnaryOp = struct {
-    operant: *Expression,
+    operant: *const Expression,
     op: Operator,
 };
 
@@ -31,13 +31,13 @@ pub const Number = union(enum) {
 pub const String = struct { value: []const u8 };
 
 pub const FunctionCall = struct {
-    func: *Expression,
+    func: *const Expression,
     args: []const Expression,
 };
 
 pub const StructureAccess = struct {
-    strct: *Expression,
-    key: *Expression,
+    strct: *const Expression,
+    key: *const Expression,
 };
 
 pub const Array = struct {
@@ -45,8 +45,8 @@ pub const Array = struct {
 };
 
 const DictionaryEntry = struct {
-    key: *Expression,
-    value: *Expression,
+    key: *const Expression,
+    value: *const Expression,
 };
 pub const Dictionary = struct {
     entries: []const DictionaryEntry,
@@ -64,3 +64,26 @@ pub const Expression = union(enum) {
     array: Array,
     dictionary: Dictionary,
 };
+
+pub fn identifier(chars: []const u8) Identifier {
+    return .{ .name = chars };
+}
+
+pub fn mapOp(chars: []const u8) Operator {
+    if (std.mem.eql(u8, chars, "+")) return .{ .arithmetic = .Add };
+    if (std.mem.eql(u8, chars, "-")) return .{ .arithmetic = .Sub };
+    if (std.mem.eql(u8, chars, "*")) return .{ .arithmetic = .Mul };
+    if (std.mem.eql(u8, chars, "/")) return .{ .arithmetic = .Div };
+    if (std.mem.eql(u8, chars, "^")) return .{ .arithmetic = .Expo };
+    if (std.mem.eql(u8, chars, "and")) return .{ .boolean = .And };
+    if (std.mem.eql(u8, chars, "or")) return .{ .boolean = .Or };
+    if (std.mem.eql(u8, chars, "not")) return .{ .boolean = .Not };
+    if (std.mem.eql(u8, chars, "==")) return .{ .compare = .Equal };
+    if (std.mem.eql(u8, chars, "!=")) return .{ .compare = .NotEqual };
+    if (std.mem.eql(u8, chars, "<=")) return .{ .compare = .LessEqual };
+    if (std.mem.eql(u8, chars, ">=")) return .{ .compare = .GreaterEqual };
+    if (std.mem.eql(u8, chars, "<")) return .{ .compare = .Less };
+    if (std.mem.eql(u8, chars, ">")) return .{ .compare = .Greater };
+
+    unreachable;
+}

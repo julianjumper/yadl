@@ -28,3 +28,10 @@ pub const Statement = union(enum) {
     functioncall: expr.FunctionCall,
     ret: Return,
 };
+
+pub fn assignment(id: []const u8, expression: expr.Expression) Statement {
+    return .{ .assignment = .{
+        .varName = expr.identifier(id),
+        .value = expression,
+    } };
+}
