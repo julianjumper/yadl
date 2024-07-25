@@ -8,3 +8,5 @@ test/__pycache__
 project/.bloop
 project/project
 project/target
+.zig-cache
+zig-out/bin
