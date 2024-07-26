@@ -5,6 +5,7 @@ const expr = @import("expression.zig");
 
 const pError = error{
     UnexpectedToken,
+    ArgumentParsingFailure,
 };
 
 pub const ParserError = Lexer.LexerError || pError;
@@ -302,7 +303,7 @@ fn parseReturn(self: *Self) ParserError!stmt.Statement {
 fn parseFunctionArguments(self: *Self) ParserError![]expr.Expression {
     var args = std.ArrayList(expr.Expression).init(self.allocator);
     var ex = self.parseExpression() catch {
-        return ParserError.UnknownError;
+        return ParserError.ArgumentParsingFailure;
     };
     args.append(ex) catch return ParserError.MemoryFailure;
     while (self.expect(.ArgSep, null)) |_| {
@@ -326,7 +327,7 @@ fn parseFunctionCall(self: *Self) ParserError!stmt.Statement {
     };
 
     const args = self.parseFunctionArguments() catch |err| {
-        if (err == ParserError.UnknownError)
+        if (err == ParserError.ArgumentParsingFailure)
             return .{ .functioncall = .{
                 .func = &.{ .identifier = .{ .name = func_name.chars } },
                 .args = &[_]expr.Expression{},
@@ -382,7 +383,7 @@ fn parseStatement(self: *Self) ParserError!stmt.Statement {
     unreachable;
 }
 
-pub fn parseStatements(self: *Self, should_ignore_paran: bool) ParserError![]stmt.Statement {
+fn parseStatements(self: *Self, should_ignore_paran: bool) ParserError![]stmt.Statement {
     var stmts = std.ArrayList(stmt.Statement).init(self.allocator);
     while (self.parseStatement()) |statement| {
         stmts.append(statement) catch {
