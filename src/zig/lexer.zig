@@ -448,7 +448,7 @@ fn previousLine(self: Self, token: Token) ?[]const u8 {
     const line_end = pos;
     while (line_begin > 0) : (line_begin -= 1) {
         if (self.data[line_begin] == '\n') {
-            line_begin -= 1;
+            line_begin += 1;
             break;
         }
     }
@@ -457,13 +457,16 @@ fn previousLine(self: Self, token: Token) ?[]const u8 {
 }
 
 pub fn printContext(self: Self, out: std.io.AnyWriter, token: Token) LexerError!void {
+    if (token.kind == .Newline)
+        return;
+
     if (previousLine(self, token)) |previous| {
-        out.print("    {}: {s}\n", .{ token.line - 1, previous }) catch return LexerError.UnknownError;
+        out.print("{d:5}:{s}\n", .{ token.line - 1, previous }) catch return LexerError.UnknownError;
     }
     const current = currentLine(self, token);
-    out.print("    {}: {s}\n", .{ token.line, current }) catch return LexerError.UnknownError;
+    out.print("{d:5}:{s}\n", .{ token.line, current }) catch return LexerError.UnknownError;
 
     if (nextLine(self, token)) |next| {
-        out.print("    {}: {s}\n", .{ token.line + 1, next }) catch return LexerError.UnknownError;
+        out.print("{d:5}:{s}\n", .{ token.line + 1, next }) catch return LexerError.UnknownError;
     }
 }
