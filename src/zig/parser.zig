@@ -211,7 +211,7 @@ fn parseCodeblock(self: *Self) ParserError![]stmt.Statement {
 
     _ = self.expect(.Newline, null) catch {};
 
-    const code = self.parse(true) catch |err| {
+    const code = self.parseStatements(true) catch |err| {
         self.current_position = pos;
         return err;
     };
@@ -321,7 +321,7 @@ fn parseStatement(self: *Self) ParserError!stmt.Statement {
     unreachable;
 }
 
-pub fn parse(self: *Self, should_ignore_paran: bool) ParserError![]stmt.Statement {
+pub fn parseStatements(self: *Self, should_ignore_paran: bool) ParserError![]stmt.Statement {
     var stmts = std.ArrayList(stmt.Statement).init(self.allocator);
     while (self.parseStatement()) |statement| {
         stmts.append(statement) catch {
@@ -354,4 +354,8 @@ pub fn parse(self: *Self, should_ignore_paran: bool) ParserError![]stmt.Statemen
         }
     }
     return stmts.items;
+}
+
+pub fn parse(self: *Self) ParserError![]stmt.Statement {
+    return self.parseStatements(false);
 }

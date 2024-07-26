@@ -19,7 +19,7 @@ pub fn main() !void {
     ;
     var lexer = Lexer.init(input);
     var parser = try Parser.init(&lexer, allocator);
-    const exprs = parser.parse(false) catch |err| {
+    const exprs = parser.parse() catch |err| {
         if (err != Parser.ParserError.EndOfFile and err != Parser.ParserError.UnexpectedToken)
             return err;
         std.process.exit(1);
