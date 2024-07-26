@@ -208,7 +208,7 @@ fn parseCodeblock(self: *Self) ParserError![]stmt.Statement {
 
     _ = self.expect(.Newline, null) catch {};
 
-    const code = self.parse(self.allocator) catch |err| {
+    const code = self.parse() catch |err| {
         self.current_position = pos;
         return err;
     };
