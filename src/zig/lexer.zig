@@ -15,6 +15,7 @@ pub const TokenKind = enum {
     String,
 
     Operator,
+    ArgSep,
     OpenParen, // NOTE: refers to all of: { [ (
     CloseParen, // NOTE: refers to all of: } ] )
     LambdaArrow,
@@ -351,7 +352,11 @@ fn nextToken(self: *Self) LexerError!Token {
     try self.skipWhitespce();
     const char = try self.peekChar();
 
-    if (anyOf(char, "ft")) {
+    if (char == ',') {
+        const pos = self.current_position;
+        _ = self.readChar() catch unreachable;
+        return self.newToken(self.data[pos..self.current_position], .ArgSep);
+    } else if (anyOf(char, "ft")) {
         return self.lexBoolean() catch self.lexIdentifier();
     } else if (char == '\n') {
         const pos = self.current_position;

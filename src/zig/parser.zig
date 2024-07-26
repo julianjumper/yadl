@@ -299,9 +299,51 @@ fn parseReturn(self: *Self) ParserError!stmt.Statement {
     return .{ .ret = .{ .value = ex } };
 }
 
+fn parseFunctionArguments(self: *Self) ParserError![]expr.Expression {
+    var args = std.ArrayList(expr.Expression).init(self.allocator);
+    var ex = self.parseExpression() catch {
+        return ParserError.UnknownError;
+    };
+    args.append(ex) catch return ParserError.MemoryFailure;
+    while (self.expect(.ArgSep, null)) |_| {
+        ex = try self.parseExpression();
+        args.append(ex) catch return ParserError.MemoryFailure;
+    } else |err| {
+        if (err == ParserError.UnexpectedToken)
+            return args.items;
+
+        return err;
+    }
+    return args.items;
+}
+
 fn parseFunctionCall(self: *Self) ParserError!stmt.Statement {
-    _ = self;
-    return todo(stmt.Statement, "parsing of statement function calls");
+    const pos = self.current_position;
+    const func_name = try self.expect(.Identifier, null);
+    _ = self.expect(.OpenParen, "(") catch |err| {
+        self.current_position = pos;
+        return err;
+    };
+
+    const args = self.parseFunctionArguments() catch |err| {
+        if (err == ParserError.UnknownError)
+            return .{ .functioncall = .{
+                .func = &.{ .identifier = .{ .name = func_name.chars } },
+                .args = &[_]expr.Expression{},
+            } };
+        self.current_position = pos;
+        return err;
+    };
+
+    _ = self.expect(.CloseParen, ")") catch |err| {
+        self.current_position = pos;
+        return err;
+    };
+
+    return .{ .functioncall = .{
+        .func = &.{ .identifier = .{ .name = func_name.chars } },
+        .args = args,
+    } };
 }
 
 fn parseAssignment(self: *Self) ParserError!stmt.Statement {
