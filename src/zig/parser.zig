@@ -317,8 +317,8 @@ fn parseStatement(self: *Self) ParserError!stmt.Statement {
     unreachable;
 }
 
-pub fn parse(self: *Self, allocator: std.mem.Allocator) ParserError![]stmt.Statement {
-    var stmts = std.ArrayList(stmt.Statement).init(allocator);
+pub fn parse(self: *Self) ParserError![]stmt.Statement {
+    var stmts = std.ArrayList(stmt.Statement).init(self.allocator);
     while (self.parseStatement()) |statement| {
         stmts.append(statement) catch {
             return ParserError.MemoryFailure;

@@ -428,6 +428,7 @@ fn currentLine(self: Self, token: Token) []const u8 {
         if (self.data[line_end] == '\n')
             break;
     }
+    line_begin = if (line_begin > line_end) line_end else line_begin;
     return self.data[line_begin..line_end];
 }
 
