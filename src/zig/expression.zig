@@ -29,6 +29,7 @@ pub const Number = union(enum) {
 };
 
 pub const String = struct { value: []const u8 };
+pub const Boolean = struct { value: bool };
 
 pub const FunctionCall = struct {
     func: *const Expression,
@@ -55,6 +56,7 @@ pub const Dictionary = struct {
 pub const Expression = union(enum) {
     binary_op: BinaryOp,
     unary_op: UnaryOp,
+    boolean: Boolean,
     identifier: Identifier,
     number: Number,
     string: String,
