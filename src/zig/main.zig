@@ -15,7 +15,9 @@ pub fn main() !void {
         \\if (aoeuaoeu == 1234) {
         \\    aoeuaoeu = 1234
         \\}
-        \\ aoeusnhaoeusnthaoeu = aoeu 'saoehusn thoeu'
+        \\    while (true and) {
+        \\  aoeu = 12341234
+        \\}
     ;
     var lexer = Lexer.init(input);
     var parser = try Parser.init(&lexer, allocator);

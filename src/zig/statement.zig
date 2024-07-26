@@ -35,3 +35,10 @@ pub fn assignment(id: []const u8, expression: expr.Expression) Statement {
         .value = expression,
     } };
 }
+
+pub fn whileloop(cond: expr.Expression, code: []const Statement) Statement {
+    return .{ .whileloop = .{ .loop = .{
+        .condition = cond,
+        .body = code,
+    } } };
+}
