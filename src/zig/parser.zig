@@ -13,6 +13,8 @@ current_position: u64,
 tokens: []const Lexer.Token,
 lexer: *Lexer,
 allocator: std.mem.Allocator,
+last_expected: ?Lexer.TokenKind = null,
+last_expected_chars: ?[]const u8 = null,
 
 const Kind = Lexer.TokenKind;
 const Token = Lexer.Token;
@@ -52,7 +54,8 @@ fn expect(self: *Self, kind: Kind, expected_chars: ?[]const u8) ParserError!Toke
             self.current_position += 1;
             return token;
         } else {
-            try unexpectedToken(self.lexer, token, &[_]Lexer.TokenKind{kind}, chars);
+            self.last_expected = kind;
+            self.last_expected_chars = chars;
             return ParserError.UnexpectedToken;
         }
     } else {
@@ -60,7 +63,8 @@ fn expect(self: *Self, kind: Kind, expected_chars: ?[]const u8) ParserError!Toke
             self.current_position += 1;
             return token;
         } else {
-            try unexpectedToken(self.lexer, token, &[_]Lexer.TokenKind{kind}, null);
+            self.last_expected = kind;
+            self.last_expected_chars = null;
             return ParserError.UnexpectedToken;
         }
     }
@@ -75,18 +79,17 @@ fn unexpectedToken(lexer: *Lexer, actual: Lexer.Token, expected: []const Lexer.T
     var bw = std.io.bufferedWriter(stdout_file);
     const out = bw.writer();
 
-    out.print("ERROR: {}\n", .{ParserError.UnexpectedToken}) catch return ParserError.UnknownError;
     if (expected_chars) |chars| {
-        out.print("    expected token of {any} with value '{s}'\n", .{ expected, chars }) catch return ParserError.UnknownError;
-        out.print("    but got {} with '{s}' at {}:{}\n", .{
+        out.print("ERROR: expected token of {any} with value '{s}'\n", .{ expected, chars }) catch return ParserError.UnknownError;
+        out.print("       but got {} with '{s}' at {}:{}\n", .{
             actual.kind,
             actual.chars,
             actual.line,
             actual.column,
         }) catch return ParserError.UnknownError;
     } else {
-        out.print("    expected token of the kinds {any}\n", .{expected}) catch return ParserError.UnknownError;
-        out.print("    but got {} ('{s}') at {}:{}\n", .{
+        out.print("ERROR: expected token of the kinds {any}\n", .{expected}) catch return ParserError.UnknownError;
+        out.print("       but got {} ('{s}') at {}:{}\n", .{
             actual.kind,
             actual.chars,
             actual.line,
@@ -138,7 +141,7 @@ fn parseValue(self: *Self) ParserError!expr.Expression {
 }
 
 fn parseIdentifier(self: *Self) ParserError!expr.Expression {
-    const id = try self.expect(.Identifier, null);
+    const id = self.expect(.Identifier, null) catch unreachable;
     return .{ .identifier = expr.identifier(id.chars) };
 }
 
@@ -160,7 +163,7 @@ fn baseOf(digits: []const u8) u8 {
 }
 
 fn parseNumber(self: *Self) ParserError!expr.Expression {
-    const digits = try self.expect(.Number, null);
+    const digits = self.expect(.Number, null) catch unreachable;
     const base = baseOf(digits.chars);
 
     if (std.mem.count(u8, digits.chars, ".") > 0) {
@@ -208,7 +211,7 @@ fn parseCodeblock(self: *Self) ParserError![]stmt.Statement {
 
     _ = self.expect(.Newline, null) catch {};
 
-    const code = self.parse() catch |err| {
+    const code = self.parse(true) catch |err| {
         self.current_position = pos;
         return err;
     };
@@ -299,34 +302,56 @@ fn parseStructAssignment(self: *Self) ParserError!stmt.Statement {
 }
 
 fn parseStatement(self: *Self) ParserError!stmt.Statement {
+    self.last_expected = null;
+    self.last_expected_chars = null;
     if (self.currentToken()) |token| {
-        return switch (token.kind) {
+        const st = switch (token.kind) {
             .Keyword => self.parseReturn() catch self.parseIfStatement() catch self.parseWhileloop(),
             .Identifier => self.parseFunctionCall() catch self.parseStructAssignment() catch self.parseAssignment(),
             .Newline => b: {
                 _ = self.expect(.Newline, null) catch unreachable;
                 break :b self.parseStatement();
             },
-            else => b: {
-                try unexpectedToken(self.lexer, token, &[_]Lexer.TokenKind{ .Identifier, .Keyword }, null);
-                break :b ParserError.UnexpectedToken;
-            },
+            else => ParserError.UnexpectedToken,
         };
+        _ = try self.expect(.Newline, null);
+        return st;
     } else return ParserError.EndOfFile;
 
     unreachable;
 }
 
-pub fn parse(self: *Self) ParserError![]stmt.Statement {
+pub fn parse(self: *Self, should_ignore_paran: bool) ParserError![]stmt.Statement {
     var stmts = std.ArrayList(stmt.Statement).init(self.allocator);
     while (self.parseStatement()) |statement| {
         stmts.append(statement) catch {
             return ParserError.MemoryFailure;
         };
-        _ = try self.expect(.Newline, null);
     } else |err| {
-        if (err != ParserError.EndOfFile)
+        if (err != ParserError.EndOfFile and err != ParserError.UnexpectedToken)
             return err;
+
+        if (err == ParserError.UnexpectedToken and !should_ignore_paran) {
+            const token = self.currentToken() orelse unreachable;
+            if (std.mem.eql(u8, token.chars, "}") and should_ignore_paran)
+                return stmts.items;
+
+            if (self.last_expected) |kind| {
+                try unexpectedToken(
+                    self.lexer,
+                    token,
+                    &[_]Lexer.TokenKind{kind},
+                    self.last_expected_chars,
+                );
+            } else {
+                try unexpectedToken(
+                    self.lexer,
+                    token,
+                    &[_]Lexer.TokenKind{ .Identifier, .Keyword },
+                    null,
+                );
+            }
+        }
     }
     return stmts.items;
 }
