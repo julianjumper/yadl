@@ -68,7 +68,7 @@ unit-tests-zig:
   needs:
     - build-zig
   script:
-    - zig bulid test
+    - zig build test
   rules: *default_rules
   artifacts:
     paths:
