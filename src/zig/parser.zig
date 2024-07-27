@@ -91,7 +91,7 @@ fn unexpectedToken(lexer: *Lexer, actual: Lexer.Token, expected: []const Lexer.T
         }) catch return ParserError.UnknownError;
     } else {
         out.print("ERROR: expected token of the kinds {any}\n", .{expected}) catch return ParserError.UnknownError;
-        out.print("       but got {} ('{s}') at {}:{}\n", .{
+        out.print("       but got {} '{s}' at {}:{}\n", .{
             actual.kind,
             actual.chars,
             actual.line,
@@ -134,11 +134,17 @@ fn parseValue(self: *Self) ParserError!expr.Expression {
     if (self.currentToken()) |token| {
         return switch (token.kind) {
             .Number => self.parseNumber(),
-            .Identifier => self.parseIdentifier(),
+            .Identifier => b: {
+                if (self.tokens[self.current_position + 1].kind == .OpenParen) {
+                    break :b self.parseFunctionCallExpr();
+                } else break :b self.parseIdentifier();
+            },
             .Boolean => self.parseBoolean(),
             else => |k| b: {
-                if (k == .CloseParen)
+                if (k == .CloseParen) {
+                    self.last_expected = .Number;
                     return ParserError.UnexpectedToken;
+                }
 
                 std.debug.print("token type: {}\n", .{k});
                 std.debug.print("token value: '{s}'\n", .{token.chars});
@@ -153,13 +159,13 @@ fn parseIdentifier(self: *Self) ParserError!expr.Expression {
     return .{ .identifier = expr.identifier(id.chars) };
 }
 
-fn parseFunctionCallExpr(self: *Self) ParserError!stmt.Statement {
+fn parseFunctionCallExpr(self: *Self) ParserError!expr.Expression {
     _ = self;
-    return todo(stmt.Statement, "parsing of expression function calls");
+    return todo(expr.Expression, "parsing of expression function calls");
 }
 
 fn baseOf(digits: []const u8) u8 {
-    if (digits.len < 2)
+    if (digits.len < 3)
         return 10;
 
     return switch (digits[1]) {
@@ -299,12 +305,8 @@ fn parseFunctionCall(self: *Self) ParserError!stmt.Statement {
 }
 
 fn parseAssignment(self: *Self) ParserError!stmt.Statement {
-    const pos = self.current_position;
     const id = self.expect(.Identifier, null) catch unreachable;
-    _ = self.expect(.Operator, "=") catch |err| {
-        self.current_position = pos;
-        return err;
-    };
+    _ = try self.expect(.Operator, "=");
     const expression = try self.parseExpression();
     return stmt.assignment(id.chars, expression);
 }
@@ -318,15 +320,13 @@ fn parseStatement(self: *Self) ParserError!stmt.Statement {
     self.last_expected = null;
     self.last_expected_chars = null;
     if (self.currentToken()) |token| {
-        const st = switch (token.kind) {
-            .Keyword => b: {
-                if (token.chars[0] == 'r')
-                    break :b try self.parseReturn()
-                else if (token.chars[0] == 'i')
-                    break :b try self.parseIfStatement()
-                else
-                    break :b try self.parseWhileloop();
-            },
+        const st = try switch (token.kind) {
+            .Keyword => if (token.chars[0] == 'r')
+                self.parseReturn()
+            else if (token.chars[0] == 'i')
+                self.parseIfStatement()
+            else
+                self.parseWhileloop(),
             .Identifier => self.parseFunctionCall() catch self.parseStructAssignment() catch self.parseAssignment(),
             .Newline => b: {
                 _ = self.expect(.Newline, null) catch unreachable;
