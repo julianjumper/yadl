@@ -106,22 +106,13 @@ fn unexpectedToken(lexer: *Lexer, actual: Lexer.Token, expected: []const Lexer.T
 
 // Expression parsing
 fn parseExpression(self: *Self) ParserError!expr.Expression {
-    const pos = self.current_position;
-    const value = self.parseValue() catch |err| {
-        self.current_position = pos;
-        return err;
-    };
+    const value = try self.parseValue();
     const op = self.expect(.Operator, null) catch |err| {
         if (err == ParserError.UnexpectedToken)
             return value;
-        self.current_position = pos;
         return err;
     };
-
-    const ex = self.parseExpression() catch |err| {
-        self.current_position = pos;
-        return err;
-    };
+    const ex = try self.parseExpression();
     return .{ .binary_op = .{
         .left = &value,
         .right = &ex,
@@ -146,7 +137,11 @@ fn parseValue(self: *Self) ParserError!expr.Expression {
             .Identifier => self.parseIdentifier(),
             .Boolean => self.parseBoolean(),
             else => |k| b: {
-                std.debug.print("expression type: {}\n", .{k});
+                if (k == .CloseParen)
+                    return ParserError.UnexpectedToken;
+
+                std.debug.print("token type: {}\n", .{k});
+                std.debug.print("token value: '{s}'\n", .{token.chars});
                 break :b todo(expr.Expression, "parsing of expressions");
             },
         };
@@ -198,57 +193,26 @@ fn parseNumber(self: *Self) ParserError!expr.Expression {
 
 // Statement parsing
 fn parseCondition(self: *Self) ParserError!expr.Expression {
-    const pos = self.current_position;
     _ = try self.expect(.OpenParen, "(");
-
-    const condition = self.parseExpression() catch |err| {
-        self.current_position = pos;
-        return err;
-    };
-
-    _ = self.expect(.CloseParen, ")") catch |err| {
-        self.current_position = pos;
-        return err;
-    };
+    const condition = try self.parseExpression();
+    _ = try self.expect(.CloseParen, ")");
     return condition;
 }
 
 fn parseCodeblock(self: *Self) ParserError![]stmt.Statement {
-    const pos = self.current_position;
     _ = try self.expect(.OpenParen, "{");
-
     _ = self.expect(.Newline, null) catch {};
-
-    const code = self.parseStatements(true) catch |err| {
-        self.current_position = pos;
-        return err;
-    };
-
+    const code = try self.parseStatements(true);
     _ = self.expect(.Newline, null) catch {};
-
-    _ = self.expect(.CloseParen, "}") catch |err| {
-        self.current_position = pos;
-        return err;
-    };
+    _ = try self.expect(.CloseParen, "}");
     return code;
 }
 
 fn parseIfStatement(self: *Self) ParserError!stmt.Statement {
-    const pos = self.current_position;
-    _ = self.expect(.Keyword, "if") catch |err| {
-        self.current_position = pos;
-        return err;
-    };
+    _ = self.expect(.Keyword, "if") catch unreachable;
+    const condition = try self.parseCondition();
+    const code = try self.parseCodeblock();
 
-    const condition = self.parseCondition() catch |err| {
-        self.current_position = pos;
-        return err;
-    };
-
-    const code = self.parseCodeblock() catch |err| {
-        self.current_position = pos;
-        return err;
-    };
     const branch: stmt.Branch = .{
         .condition = condition,
         .body = code,
@@ -263,14 +227,10 @@ fn parseIfStatement(self: *Self) ParserError!stmt.Statement {
                 },
             };
         }
-        self.current_position = pos;
         return err;
     };
 
-    const elseCode = self.parseCodeblock() catch |err| {
-        self.current_position = pos;
-        return err;
-    };
+    const elseCode = try self.parseCodeblock();
 
     return .{ .if_statement = .{
         .ifBranch = branch,
@@ -279,26 +239,15 @@ fn parseIfStatement(self: *Self) ParserError!stmt.Statement {
 }
 
 fn parseWhileloop(self: *Self) ParserError!stmt.Statement {
-    const pos = self.current_position;
-    _ = try self.expect(.Keyword, "while");
-    const condition = self.parseCondition() catch |err| {
-        self.current_position = pos;
-        return err;
-    };
-    const code = self.parseCodeblock() catch |err| {
-        self.current_position = pos;
-        return err;
-    };
+    _ = self.expect(.Keyword, "while") catch unreachable;
+    const condition = try self.parseCondition();
+    const code = try self.parseCodeblock();
     return stmt.whileloop(condition, code);
 }
 
 fn parseReturn(self: *Self) ParserError!stmt.Statement {
-    const pos = self.current_position;
     _ = try self.expect(.Keyword, "return");
-    const ex = self.parseExpression() catch |err| {
-        self.current_position = pos;
-        return err;
-    };
+    const ex = try self.parseExpression();
     return .{ .ret = .{ .value = ex } };
 }
 
@@ -370,7 +319,14 @@ fn parseStatement(self: *Self) ParserError!stmt.Statement {
     self.last_expected_chars = null;
     if (self.currentToken()) |token| {
         const st = switch (token.kind) {
-            .Keyword => self.parseReturn() catch self.parseIfStatement() catch self.parseWhileloop(),
+            .Keyword => b: {
+                if (token.chars[0] == 'r')
+                    break :b try self.parseReturn()
+                else if (token.chars[0] == 'i')
+                    break :b try self.parseIfStatement()
+                else
+                    break :b try self.parseWhileloop();
+            },
             .Identifier => self.parseFunctionCall() catch self.parseStructAssignment() catch self.parseAssignment(),
             .Newline => b: {
                 _ = self.expect(.Newline, null) catch unreachable;

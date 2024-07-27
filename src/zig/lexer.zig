@@ -269,8 +269,8 @@ fn lexOperator(self: *Self) LexerError!Token {
 fn lexBooleanOperator(self: *Self) LexerError!Token {
     const pos = self.current_position;
     const tmp = try self.lexAnyOf(&boolean_operators, .Operator);
-    const ws = try self.readChar();
-    if (std.ascii.isWhitespace(ws) and ws != '\n') {
+    const char = try self.peekChar();
+    if (!isIdentifierChar(char)) {
         return tmp;
     } else {
         self.current_position = pos;
