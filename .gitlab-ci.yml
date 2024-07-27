@@ -9,14 +9,20 @@ stages:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   variables:
     YADL_PATH: &path target/scala-3.4.1
+    YADL_ZIG_PATH: &zig zig-out/:zig-cache/
     YADL_JAR: &jar $YADL_PATH/yadl.jar
+    YADL_EXE: &exe zig-out/bin/yadl.exe
+    YADL: &yadl zig-out/bin/yadl
+
 
 default:
   cache:
     key: build-cache
     paths:
       - *path
+      - *zig
 
+## scala bulid pipeline
 build:
   stage: build
   script:
@@ -38,11 +44,36 @@ python-test-script:
   stage: interpretation-testing
   needs:
     - unit-tests
+    - unit-tests-zig
   script:
     - pytest
   artifacts:
     paths:
       - *jar
+  timeout: 5 min
+
+## zig build pipeline
+build-zig:
+  stage: build
+  script:
+    - rm -rf zig-out
+    - rm -rf zig-cache
+    - zig build
+    - zig build -Dtarget=x86_64-windows-gnu
+  rules: *default_rules
+  timeout: 3 min
+
+unit-tests-zig:
+  stage: unit-testing
+  needs:
+    - build-zig
+  script:
+    - zig bulid test
+  rules: *default_rules
+  artifacts:
+    paths:
+      - *exe
+      - *yadl
   timeout: 5 min
 
 build-main:
@@ -54,6 +85,18 @@ build-main:
     - sbt clean compile assembly
   timeout: 3 min
 
+build-main-zig:
+  <<: *config
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  script:
+    - rm -rf zig-out
+    - rm -rf zig-cache
+    - zig build
+    - zig build -Dtarget=x86_64-windows-gnu
+  timeout: 3 min
+
 python-script-main:
   <<: *config
   stage: interpretation-testing
@@ -61,11 +104,14 @@ python-script-main:
     - if: $CI_COMMIT_BRANCH == "main"
   needs:
     - build-main
+    - build-main-zig
   script:
     - pytest
   artifacts:
     paths:
       - *jar
+      - *yadl
+      - *exe
   timeout: 5 min
 
 
