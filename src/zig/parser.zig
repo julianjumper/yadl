@@ -6,6 +6,7 @@ const expr = @import("expression.zig");
 const pError = error{
     UnexpectedToken,
     ArgumentParsingFailure,
+    NumberParsingFailure,
 };
 
 pub const ParserError = Lexer.LexerError || pError;
@@ -180,16 +181,17 @@ fn parseNumber(self: *Self) ParserError!expr.Expression {
 
     if (std.mem.count(u8, digits.chars, ".") > 0) {
         var parts = std.mem.split(u8, digits.chars, ".");
-        const int_part = parts.next() orelse unreachable;
+        const tmp = parts.next() orelse unreachable;
+        const int_part = if (base == 10) tmp else tmp[2..];
         const fraction_part = parts.next() orelse unreachable;
 
-        const int = std.fmt.parseInt(i64, int_part, base) catch return ParserError.UnknownError;
-        const fraction = std.fmt.parseInt(i64, int_part, base) catch return ParserError.UnknownError;
+        const int = std.fmt.parseInt(i64, int_part, base) catch return ParserError.NumberParsingFailure;
+        const fraction = std.fmt.parseInt(i64, fraction_part, base) catch return ParserError.NumberParsingFailure;
         const frac: f64 = @as(f64, @floatFromInt(fraction)) / std.math.pow(f64, @floatFromInt(base), @floatFromInt(fraction_part.len));
         const composite = @as(f64, @floatFromInt(int)) + frac;
         return .{ .number = .{ .float = composite } };
     } else {
-        const num = std.fmt.parseInt(i64, digits.chars, base) catch return ParserError.UnknownError;
+        const num = std.fmt.parseInt(i64, digits.chars, base) catch return ParserError.NumberParsingFailure;
         return .{ .number = .{ .integer = num } };
     }
 }
