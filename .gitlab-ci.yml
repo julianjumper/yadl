@@ -9,7 +9,7 @@ stages:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   variables:
     YADL_PATH: &path target/scala-3.4.1
-    YADL_ZIG_PATH: &zig zig-out
+    YADL_ZIG_PATH: &zig-out zig-out
     YADL_JAR: &jar $YADL_PATH/yadl.jar
     YADL_EXE: &exe zig-out/bin/yadl.exe
     YADL: &yadl zig-out/bin/yadl
@@ -20,7 +20,7 @@ default:
     key: build-cache
     paths:
       - *path
-      - *zig
+      - *zig-out
 
 ## scala bulid pipeline
 build:
@@ -50,6 +50,8 @@ python-test-script:
   artifacts:
     paths:
       - *jar
+      - *exe
+      - *yadl
   timeout: 5 min
 
 ## zig build pipeline
@@ -69,11 +71,7 @@ unit-tests-zig:
     - build-zig
   script:
     - zig build test
-  rules: *default_rules
-  artifacts:
-    paths:
-      - *exe
-      - *yadl
+  rules: *default_rules  
   timeout: 5 min
 
 build-main:
