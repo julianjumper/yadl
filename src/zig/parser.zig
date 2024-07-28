@@ -13,7 +13,7 @@ pub const ParserError = Lexer.LexerError || pError;
 
 current_position: u64,
 tokens: []const Lexer.Token,
-lexer: *Lexer,
+lexer: Lexer,
 allocator: std.mem.Allocator,
 last_expected: ?Lexer.TokenKind = null,
 last_expected_chars: ?[]const u8 = null,
@@ -22,15 +22,17 @@ const Kind = Lexer.TokenKind;
 const Token = Lexer.Token;
 const Self = @This();
 
-pub fn init(lexer: *Lexer, allocator: std.mem.Allocator) Lexer.LexerError!Self {
-    var ts = std.ArrayList(Lexer.Token).init(allocator);
-    try lexer.allTokens(&ts);
-    return Self{
+pub fn init(input: []const u8, allocator: std.mem.Allocator) Lexer.LexerError!Self {
+    var tmp = Self{
         .current_position = 0,
-        .tokens = ts.items,
-        .lexer = lexer,
+        .tokens = undefined,
+        .lexer = Lexer.init(input),
         .allocator = allocator,
     };
+    var ts = std.ArrayList(Lexer.Token).init(allocator);
+    try tmp.lexer.allTokens(&ts);
+    tmp.tokens = ts.items;
+    return tmp;
 }
 pub fn deinit(self: *Self) void {
     self.allocator.free(self.tokens);
@@ -76,7 +78,11 @@ pub fn currentToken(self: *Self) ?Token {
     return if (self.current_position < self.tokens.len) self.tokens[self.current_position] else null;
 }
 
-fn unexpectedToken(lexer: *Lexer, actual: Lexer.Token, expected: []const Lexer.TokenKind, expected_chars: ?[]const u8) ParserError!void {
+pub fn nextToken(self: *Self) ?Token {
+    return if (self.current_position + 1 < self.tokens.len) self.tokens[self.current_position + 1] else null;
+}
+
+fn unexpectedToken(lexer: Lexer, actual: Lexer.Token, expected: []const Lexer.TokenKind, expected_chars: ?[]const u8) ParserError!void {
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const out = bw.writer();
@@ -276,12 +282,8 @@ fn parseFunctionArguments(self: *Self) ParserError![]expr.Expression {
 }
 
 fn parseFunctionCall(self: *Self) ParserError!stmt.Statement {
-    const pos = self.current_position;
     const func_name = try self.expect(.Identifier, null);
-    _ = self.expect(.OpenParen, "(") catch |err| {
-        self.current_position = pos;
-        return err;
-    };
+    _ = try self.expect(.OpenParen, "(");
 
     const args = self.parseFunctionArguments() catch |err| {
         if (err == ParserError.ArgumentParsingFailure)
@@ -289,14 +291,10 @@ fn parseFunctionCall(self: *Self) ParserError!stmt.Statement {
                 .func = &.{ .identifier = .{ .name = func_name.chars } },
                 .args = &[_]expr.Expression{},
             } };
-        self.current_position = pos;
         return err;
     };
 
-    _ = self.expect(.CloseParen, ")") catch |err| {
-        self.current_position = pos;
-        return err;
-    };
+    _ = try self.expect(.CloseParen, ")");
 
     return .{ .functioncall = .{
         .func = &.{ .identifier = .{ .name = func_name.chars } },
@@ -327,7 +325,13 @@ fn parseStatement(self: *Self) ParserError!stmt.Statement {
                 self.parseIfStatement()
             else
                 self.parseWhileloop(),
-            .Identifier => self.parseFunctionCall() catch self.parseStructAssignment() catch self.parseAssignment(),
+            .Identifier => if (self.nextToken()) |t| (if (t.kind == .OpenParen and t.chars[0] == '(')
+                self.parseFunctionCall()
+            else if (t.kind == .OpenParen and t.chars[0] == '[')
+                self.parseStructAssignment()
+            else
+                self.parseAssignment()) else ParserError.EndOfFile,
+            .OpenParen => todo(stmt.Statement, "parse statement => case open paren"),
             .Newline => b: {
                 _ = self.expect(.Newline, null) catch unreachable;
                 break :b self.parseStatement();

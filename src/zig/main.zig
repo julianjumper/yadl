@@ -15,12 +15,12 @@ pub fn main() !void {
         \\if (aoeuaoeu == 1234) {
         \\    aoeuaoeu = 1234
         \\}
-        \\    while (true and) {
+        \\    while (true and false) {
         \\  aoeu = 12341234
         \\}
     ;
-    var lexer = Lexer.init(input);
-    var parser = try Parser.init(&lexer, allocator);
+
+    var parser = try Parser.init(input, allocator);
     const exprs = parser.parse() catch |err| {
         if (err != Parser.ParserError.EndOfFile and err != Parser.ParserError.UnexpectedToken)
             return err;
