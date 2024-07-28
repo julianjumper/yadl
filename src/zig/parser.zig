@@ -31,9 +31,10 @@ pub fn init(input: []const u8, allocator: std.mem.Allocator) Lexer.LexerError!Se
     };
     var ts = std.ArrayList(Lexer.Token).init(allocator);
     try tmp.lexer.allTokens(&ts);
-    tmp.tokens = ts.items;
+    tmp.tokens = ts.toOwnedSlice() catch return Lexer.LexerError.MemoryFailure;
     return tmp;
 }
+
 pub fn deinit(self: *Self) void {
     self.allocator.free(self.tokens);
 }
@@ -367,7 +368,7 @@ fn parseStatements(self: *Self, should_ignore_paran: bool) ParserError![]stmt.St
         if (err == ParserError.UnexpectedToken and !should_ignore_paran) {
             const token = self.currentToken() orelse unreachable;
             if (std.mem.eql(u8, token.chars, "}") and should_ignore_paran)
-                return stmts.items;
+                return stmts.toOwnedSlice() catch ParserError.MemoryFailure;
 
             if (self.last_expected) |kind| {
                 try unexpectedToken(
@@ -386,7 +387,7 @@ fn parseStatements(self: *Self, should_ignore_paran: bool) ParserError![]stmt.St
             }
         }
     }
-    return stmts.items;
+    return stmts.toOwnedSlice() catch ParserError.MemoryFailure;
 }
 
 pub fn parse(self: *Self) ParserError![]stmt.Statement {
