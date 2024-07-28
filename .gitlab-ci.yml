@@ -16,7 +16,7 @@ stages:
 
 default:
   cache:
-    key: build-cache
+    key: build-cache-$CI_COMMIT_REF_SLUG
     paths:
       - *path
       - zig-out
