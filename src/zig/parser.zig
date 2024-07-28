@@ -74,11 +74,11 @@ fn expect(self: *Self, kind: Kind, expected_chars: ?[]const u8) ParserError!Toke
     }
 }
 
-pub fn currentToken(self: *Self) ?Token {
+fn currentToken(self: *Self) ?Token {
     return if (self.current_position < self.tokens.len) self.tokens[self.current_position] else null;
 }
 
-pub fn nextToken(self: *Self) ?Token {
+fn nextToken(self: *Self) ?Token {
     return if (self.current_position + 1 < self.tokens.len) self.tokens[self.current_position + 1] else null;
 }
 
@@ -141,9 +141,13 @@ fn parseValue(self: *Self) ParserError!expr.Expression {
         return switch (token.kind) {
             .Number => self.parseNumber(),
             .Identifier => b: {
-                if (self.tokens[self.current_position + 1].kind == .OpenParen) {
-                    break :b self.parseFunctionCallExpr();
-                } else break :b self.parseIdentifier();
+                if (self.nextToken()) |t| {
+                    if (t.kind == .OpenParen and t.chars[0] == '(') {
+                        break :b self.parseFunctionCallExpr();
+                    } else if (t.kind == .OpenParen and t.chars[0] == '[') {
+                        break :b self.parseStructAccess();
+                    } else break :b self.parseIdentifier();
+                } else break :b ParserError.EndOfFile;
             },
             .Boolean => self.parseBoolean(),
             else => |k| b: {
@@ -168,6 +172,11 @@ fn parseIdentifier(self: *Self) ParserError!expr.Expression {
 fn parseFunctionCallExpr(self: *Self) ParserError!expr.Expression {
     _ = self;
     return todo(expr.Expression, "parsing of expression function calls");
+}
+
+fn parseStructAccess(self: *Self) ParserError!expr.Expression {
+    _ = self;
+    return todo(expr.Expression, "parsing of structure access");
 }
 
 fn baseOf(digits: []const u8) u8 {
