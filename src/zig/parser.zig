@@ -18,6 +18,8 @@ allocator: std.mem.Allocator,
 last_expected: ?Lexer.TokenKind = null,
 last_expected_chars: ?[]const u8 = null,
 
+var parser_diagnostic: bool = false;
+
 const Kind = Lexer.TokenKind;
 const Token = Lexer.Token;
 const Self = @This();
@@ -115,7 +117,7 @@ fn unexpectedToken(lexer: Lexer, actual: Lexer.Token, expected: []const Lexer.To
 fn parseExpression(self: *Self) ParserError!expr.Expression {
     const value = try self.parseValue();
     const op = self.expect(.Operator, null) catch |err| {
-        if (err == ParserError.UnexpectedToken)
+        if (err == ParserError.UnexpectedToken or err == ParserError.EndOfFile)
             return value;
         return err;
     };
@@ -147,8 +149,10 @@ fn parseValue(self: *Self) ParserError!expr.Expression {
                         break :b self.parseFunctionCallExpr();
                     } else if (t.kind == .OpenParen and t.chars[0] == '[') {
                         break :b self.parseStructAccess();
-                    } else break :b self.parseIdentifier();
-                } else break :b ParserError.EndOfFile;
+                    }
+                    break :b self.parseIdentifier();
+                }
+                break :b self.parseIdentifier();
             },
             .Boolean => self.parseBoolean(),
             else => |k| b: {
@@ -208,7 +212,8 @@ fn parseNumber(self: *Self) ParserError!expr.Expression {
         const composite = @as(f64, @floatFromInt(int)) + frac;
         return .{ .number = .{ .float = composite } };
     } else {
-        const num = std.fmt.parseInt(i64, digits.chars, base) catch return ParserError.NumberParsingFailure;
+        const int_part = if (base == 10) digits.chars else digits.chars[2..];
+        const num = std.fmt.parseInt(i64, int_part, base) catch return ParserError.NumberParsingFailure;
         return .{ .number = .{ .integer = num } };
     }
 }
@@ -340,7 +345,7 @@ fn parseStatement(self: *Self) ParserError!stmt.Statement {
             else if (t.kind == .OpenParen and t.chars[0] == '[')
                 self.parseStructAssignment()
             else
-                self.parseAssignment()) else ParserError.EndOfFile,
+                self.parseAssignment()) else ParserError.UnexpectedToken,
             .OpenParen => todo(stmt.Statement, "parse statement => case open paren"),
             .Newline => b: {
                 _ = self.expect(.Newline, null) catch unreachable;
@@ -348,7 +353,11 @@ fn parseStatement(self: *Self) ParserError!stmt.Statement {
             },
             else => ParserError.UnexpectedToken,
         };
-        _ = try self.expect(.Newline, null);
+        _ = self.expect(.Newline, null) catch |err| {
+            if (err == ParserError.EndOfFile) {
+                return st;
+            } else return err;
+        };
         return st;
     } else return ParserError.EndOfFile;
 
@@ -358,10 +367,14 @@ fn parseStatement(self: *Self) ParserError!stmt.Statement {
 fn parseStatements(self: *Self, should_ignore_paran: bool) ParserError![]stmt.Statement {
     var stmts = std.ArrayList(stmt.Statement).init(self.allocator);
     while (self.parseStatement()) |statement| {
-        stmts.append(statement) catch {
-            return ParserError.MemoryFailure;
-        };
+        stmts.append(statement) catch return ParserError.MemoryFailure;
     } else |err| {
+        if (Self.parser_diagnostic) {
+            std.debug.print("INFO: error: {}\n", .{err});
+            std.debug.print("INFO: current token index: {}\n", .{self.current_position});
+            std.debug.print("INFO: total token conut: {}\n", .{self.tokens.len});
+        }
+
         if (err != ParserError.EndOfFile and err != ParserError.UnexpectedToken)
             return err;
 
@@ -409,7 +422,27 @@ test "simple assignment" {
     defer parser.deinit();
     defer parser.allocator.free(result);
 
-    try std.testing.expectEqual(result.len, 1);
+    try std.testing.expectEqual(1, result.len);
+    const result_stmt = result[0];
+    try std.testing.expect(result_stmt == .assignment);
+    try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
+    try std.testing.expect(result_stmt.assignment.value == .identifier);
+    try std.testing.expectEqualStrings(expected.assignment.value.identifier.name, result_stmt.assignment.value.identifier.name);
+}
+
+test "simple assignment - no newline" {
+    const input = "aoeu = aoeu";
+    const expected: stmt.Statement = .{ .assignment = .{
+        .varName = .{ .name = "aoeu" },
+        .value = .{ .identifier = .{ .name = "aoeu" } },
+    } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = try parser.parse();
+    defer parser.deinit();
+    defer parser.allocator.free(result);
+
+    try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
     try std.testing.expect(result_stmt == .assignment);
     try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
@@ -442,7 +475,7 @@ test "simple if statement" {
     defer parser.deinit();
     defer parser.allocator.free(result);
 
-    try std.testing.expectEqual(result.len, 1);
+    try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
     try std.testing.expect(result_stmt == .if_statement);
 

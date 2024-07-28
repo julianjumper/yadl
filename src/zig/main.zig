@@ -1,5 +1,4 @@
 const std = @import("std");
-const Lexer = @import("lexer.zig");
 const Parser = @import("parser.zig");
 
 var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -13,7 +12,7 @@ pub fn main() !void {
     const input =
         \\aoeusnthaoeu = 1234123
         \\if (aoeuaoeu == 1234) {
-        \\    aoeuaoeu = 1234
+        \\    aoeuaoeu = 0x1234567890AbCdEf
         \\}
         \\    while (true and false) {
         \\  aoeu = 12341234
