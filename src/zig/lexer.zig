@@ -145,11 +145,11 @@ fn digits(self: *Self, prefix: NumberPrefix) LexerError!void {
                     return;
             },
             .Octal => {
-                if (!isBinaryDigit(char))
+                if (!isOctalDigit(char))
                     return;
             },
             .Hexadecimal => {
-                if (!isOctalDigit(char))
+                if (!isHexDigit(char))
                     return;
             },
             .Binary => {
