@@ -393,3 +393,70 @@ fn parseStatements(self: *Self, should_ignore_paran: bool) ParserError![]stmt.St
 pub fn parse(self: *Self) ParserError![]stmt.Statement {
     return self.parseStatements(false);
 }
+
+test "simple assignment" {
+    const input =
+        \\aoeu = aoeu
+        \\
+    ;
+    const expected: stmt.Statement = .{ .assignment = .{
+        .varName = .{ .name = "aoeu" },
+        .value = .{ .identifier = .{ .name = "aoeu" } },
+    } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = try parser.parse();
+    defer parser.deinit();
+    defer parser.allocator.free(result);
+
+    try std.testing.expectEqual(result.len, 1);
+    const result_stmt = result[0];
+    try std.testing.expect(result_stmt == .assignment);
+    try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
+    try std.testing.expect(result_stmt.assignment.value == .identifier);
+    try std.testing.expectEqualStrings(expected.assignment.value.identifier.name, result_stmt.assignment.value.identifier.name);
+}
+
+test "simple if statement" {
+    const input =
+        \\if (true) {
+        \\    aoeu = aoeu
+        \\}
+        \\
+    ;
+    const expected: stmt.Statement = .{ .if_statement = .{
+        .ifBranch = stmt.Branch{
+            .condition = .{ .boolean = .{ .value = true } },
+            .body = &[_]stmt.Statement{
+                .{ .assignment = .{
+                    .varName = .{ .name = "aoeu" },
+                    .value = .{ .identifier = .{ .name = "aoeu" } },
+                } },
+            },
+        },
+        .elseBranch = null,
+    } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = try parser.parse();
+    defer parser.deinit();
+    defer parser.allocator.free(result);
+
+    try std.testing.expectEqual(result.len, 1);
+    const result_stmt = result[0];
+    try std.testing.expect(result_stmt == .if_statement);
+
+    const expected_branch = expected.if_statement.ifBranch;
+    const result_branch = result_stmt.if_statement.ifBranch;
+    defer parser.allocator.free(result_branch.body);
+
+    try std.testing.expect(result_branch.condition == .boolean);
+    try std.testing.expectEqual(expected_branch.condition.boolean.value, result_branch.condition.boolean.value);
+
+    const expected_body_statement = expected_branch.body[0];
+    const result_body_statement = result_branch.body[0];
+
+    try std.testing.expect(result_body_statement == .assignment);
+    try std.testing.expectEqualStrings(expected_body_statement.assignment.value.identifier.name, result_body_statement.assignment.value.identifier.name);
+    try std.testing.expectEqualStrings(expected_body_statement.assignment.varName.name, result_body_statement.assignment.varName.name);
+}
