@@ -1,4 +1,5 @@
 const std = @import("std");
+const stmt = @import("statement.zig");
 
 pub const ArithmeticOps = enum { Add, Sub, Mul, Div, Expo };
 pub const BooleanOps = enum { And, Or, Not };
@@ -36,6 +37,11 @@ pub const FunctionCall = struct {
     args: []const Expression,
 };
 
+pub const Function = struct {
+    args: []const Identifier,
+    body: []const stmt.Statement,
+};
+
 pub const StructureAccess = struct {
     strct: *const Expression,
     key: *const Expression,
@@ -63,6 +69,7 @@ pub const Expression = union(enum) {
     wrapped: *Expression,
     struct_access: StructureAccess,
     functioncall: FunctionCall,
+    function: Function,
     array: Array,
     dictionary: Dictionary,
 };

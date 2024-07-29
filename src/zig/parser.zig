@@ -85,6 +85,10 @@ fn nextToken(self: *Self) ?Token {
     return if (self.current_position + 1 < self.tokens.len) self.tokens[self.current_position + 1] else null;
 }
 
+fn nextNextToken(self: *Self) ?Token {
+    return if (self.current_position + 2 < self.tokens.len) self.tokens[self.current_position + 2] else null;
+}
+
 fn unexpectedToken(lexer: Lexer, actual: Lexer.Token, expected: []const Lexer.TokenKind, expected_chars: ?[]const u8) ParserError!void {
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
@@ -155,6 +159,18 @@ fn parseValue(self: *Self) ParserError!expr.Expression {
                 break :b self.parseIdentifier();
             },
             .Boolean => self.parseBoolean(),
+            .OpenParen => b: {
+                if (self.nextNextToken()) |t| {
+                    if (t.kind == .ArgSep) {
+                        break :b self.parseFunction();
+                    } else {
+                        _ = try self.expect(.OpenParen, "(");
+                        var ex = try self.parseExpression();
+                        _ = try self.expect(.CloseParen, ")");
+                        break :b .{ .wrapped = &ex };
+                    }
+                } else break :b ParserError.EndOfFile;
+            },
             else => |k| b: {
                 if (k == .CloseParen) {
                     self.last_expected = .Number;
@@ -177,6 +193,33 @@ fn parseIdentifier(self: *Self) ParserError!expr.Expression {
 fn parseFunctionCallExpr(self: *Self) ParserError!expr.Expression {
     _ = self;
     return todo(expr.Expression, "parsing of expression function calls");
+}
+
+fn parseFunctionArguments(self: *Self) ParserError![]expr.Identifier {
+    var args = std.ArrayList(expr.Identifier).init(self.allocator);
+    var id = self.expect(.Identifier, null) catch {
+        return ParserError.ArgumentParsingFailure;
+    };
+    args.append(.{ .name = id.chars }) catch return ParserError.MemoryFailure;
+    while (self.expect(.ArgSep, null)) |_| {
+        id = try self.expect(.Identifier, null);
+        args.append(.{ .name = id.chars }) catch return ParserError.MemoryFailure;
+    } else |err| {
+        if (err == ParserError.UnexpectedToken)
+            return args.toOwnedSlice() catch ParserError.MemoryFailure;
+
+        return err;
+    }
+    return args.toOwnedSlice() catch ParserError.MemoryFailure;
+}
+
+fn parseFunction(self: *Self) ParserError!expr.Expression {
+    _ = try self.expect(.OpenParen, "(");
+    const args = try self.parseFunctionArguments();
+    _ = try self.expect(.CloseParen, ")");
+    _ = try self.expect(.LambdaArrow, null);
+    const body = try self.parseCodeblock();
+    return .{ .function = .{ .args = args, .body = body } };
 }
 
 fn parseStructAccess(self: *Self) ParserError!expr.Expression {
@@ -278,7 +321,7 @@ fn parseReturn(self: *Self) ParserError!stmt.Statement {
     return .{ .ret = .{ .value = ex } };
 }
 
-fn parseFunctionArguments(self: *Self) ParserError![]expr.Expression {
+fn parseFunctionCallArguments(self: *Self) ParserError![]expr.Expression {
     var args = std.ArrayList(expr.Expression).init(self.allocator);
     var ex = self.parseExpression() catch {
         return ParserError.ArgumentParsingFailure;
@@ -289,18 +332,18 @@ fn parseFunctionArguments(self: *Self) ParserError![]expr.Expression {
         args.append(ex) catch return ParserError.MemoryFailure;
     } else |err| {
         if (err == ParserError.UnexpectedToken)
-            return args.items;
+            return args.toOwnedSlice() catch ParserError.MemoryFailure;
 
         return err;
     }
-    return args.items;
+    return args.toOwnedSlice() catch ParserError.MemoryFailure;
 }
 
 fn parseFunctionCall(self: *Self) ParserError!stmt.Statement {
     const func_name = try self.expect(.Identifier, null);
     _ = try self.expect(.OpenParen, "(");
 
-    const args = self.parseFunctionArguments() catch |err| {
+    const args = self.parseFunctionCallArguments() catch |err| {
         if (err == ParserError.ArgumentParsingFailure)
             return .{ .functioncall = .{
                 .func = &.{ .identifier = .{ .name = func_name.chars } },
