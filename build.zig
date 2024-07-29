@@ -7,8 +7,10 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const program_name = if (target.query.os_tag == .macos) "yadl-mac" else if (target.query.os_tag == .windows) "yadl-win" else "yadl-linux";
+
     const exe = b.addExecutable(.{
-        .name = "yadl",
+        .name = program_name,
         .root_source_file = b.path("src/zig/main.zig"),
         .target = target,
         .optimize = optimize,

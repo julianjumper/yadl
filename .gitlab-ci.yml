@@ -10,8 +10,9 @@ stages:
   variables:
     YADL_PATH: &path target/scala-3.4.1
     YADL_JAR: &jar $YADL_PATH/yadl.jar
-    YADL_EXE: &exe zig-out/bin/yadl.exe
-    YADL: &yadl zig-out/bin/yadl
+    YADL_WIN: &win zig-out/bin/yadl-win.exe
+    YADL_LINUX: &linux zig-out/bin/yadl-linux
+    YADL_MAC: &mac zig-out/bin/yadl-mac
 
 
 default:
@@ -50,8 +51,9 @@ python-test-script:
   artifacts:
     paths:
       - *jar
-      - *exe
-      - *yadl
+      - *win
+      - *linux
+      - *mac
   timeout: 5 min
 
 ## zig build pipeline
@@ -60,8 +62,9 @@ build-zig:
   script:
     - rm -rf zig-out
     - rm -rf zig-cache
-    - zig build
-    - zig build -Dtarget=x86_64-windows-gnu
+    - zig build -Dtarget=x86_64-linux
+    - zig build -Dtarget=x86_64-windows
+    - zig build -Dtarget=aarch64-macos
   rules: *default_rules
   timeout: 3 min
 
@@ -91,8 +94,9 @@ build-main-zig:
   script:
     - rm -rf zig-out
     - rm -rf zig-cache
-    - zig build
-    - zig build -Dtarget=x86_64-windows-gnu
+    - zig build -Dtarget=x86_64-linux
+    - zig build -Dtarget=x86_64-windows
+    - zig build -Dtarget=aarch64-macos
   timeout: 3 min
 
 python-script-main:
@@ -108,8 +112,9 @@ python-script-main:
   artifacts:
     paths:
       - *jar
-      - *yadl
-      - *exe
+      - *win
+      - *linux
+      - *mac
   timeout: 5 min
 
 
