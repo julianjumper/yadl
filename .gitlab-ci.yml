@@ -70,7 +70,7 @@ unit-tests-zig:
   needs:
     - build-zig
   script:
-    - zig build test
+    - zig build test --summary all
   rules: *default_rules  
   timeout: 5 min
 

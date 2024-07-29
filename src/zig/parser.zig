@@ -497,8 +497,12 @@ test "assignment of function" {
     const result_stmt = result[0];
     try std.testing.expect(result_stmt == .assignment);
     try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
-    try std.testing.expect(result_stmt.assignment.value == .identifier);
-    try std.testing.expectEqualStrings(expected.assignment.value.identifier.name, result_stmt.assignment.value.identifier.name);
+    try std.testing.expect(result_stmt.assignment.value == .function);
+    const function = result_stmt.assignment.value.function;
+    defer parser.allocator.free(function.body);
+    defer parser.allocator.free(function.args);
+    try std.testing.expectEqual(expected.assignment.value.function.args.len, function.args.len);
+    try std.testing.expectEqual(expected.assignment.value.function.body.len, function.body.len);
 }
 
 test "simple assignment - no newline" {
