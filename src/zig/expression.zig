@@ -60,9 +60,9 @@ pub const Dictionary = struct {
 };
 
 pub const Expression = union(enum) {
+    boolean: Boolean,
     binary_op: BinaryOp,
     unary_op: UnaryOp,
-    boolean: Boolean,
     identifier: Identifier,
     number: Number,
     string: String,
@@ -95,4 +95,42 @@ pub fn mapOp(chars: []const u8) Operator {
     if (std.mem.eql(u8, chars, ">")) return .{ .compare = .Greater };
 
     unreachable;
+}
+
+fn printIdent(out: std.io.AnyWriter, level: u8) !void {
+    var l = level;
+    while (l > 0) : (l -= 1) {
+        try out.print("  ", .{});
+    }
+}
+
+pub fn printExpression(out: std.io.AnyWriter, expr: Expression, indent: u8) !void {
+    switch (expr) {
+        .identifier => |id| {
+            try printIdent(out, indent);
+            try out.print("{s}\n", .{id.name});
+        },
+        .number => |n| {
+            try printIdent(out, indent);
+            switch (n) {
+                .float => |v| try out.print("{}\n", .{v}),
+                .integer => |v| try out.print("{}\n", .{v}),
+            }
+        },
+        .boolean => |b| {
+            try printIdent(out, indent);
+            try out.print("{}\n", .{b.value});
+        },
+        .binary_op => |bin| {
+            try printIdent(out, indent);
+            switch (bin.op) {
+                .arithmetic => |op| try out.print("{}\n", .{op}),
+                .compare => |op| try out.print("{}\n", .{op}),
+                .boolean => |op| try out.print("{}\n", .{op}),
+            }
+            try printExpression(out, bin.left.*, indent + 1);
+            try printExpression(out, bin.right.*, indent + 1);
+        },
+        else => |ex| try out.print("TODO: {}\n", .{ex}),
+    }
 }

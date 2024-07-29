@@ -1,5 +1,6 @@
 const std = @import("std");
 const Parser = @import("parser.zig");
+const stmt = @import("statement.zig");
 
 var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 const allocator = arena.allocator();
@@ -17,6 +18,9 @@ pub fn main() !void {
         \\    while (true and false) {
         \\  aoeu = 12341234
         \\}
+        \\ aoeu = () => {
+        \\    return 42
+        \\}
     ;
 
     var parser = try Parser.init(input, allocator);
@@ -26,7 +30,9 @@ pub fn main() !void {
         std.process.exit(1);
     };
 
-    try stdout.print("{any}\n", .{exprs});
+    for (exprs) |expr| {
+        try stmt.printStatement(stdout.any(), expr, 1);
+    }
 
     try bw.flush(); // don't forget to flush!
 }

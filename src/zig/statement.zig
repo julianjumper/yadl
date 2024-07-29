@@ -42,3 +42,64 @@ pub fn whileloop(cond: expr.Expression, code: []const Statement) Statement {
         .body = code,
     } } };
 }
+
+fn printIdent(out: std.io.AnyWriter, level: u8) !void {
+    var l = level;
+    while (l > 0) : (l -= 1) {
+        try out.print("  ", .{});
+    }
+}
+
+pub fn printStatement(out: std.io.AnyWriter, st: Statement, indent: u8) !void {
+    switch (st) {
+        .ret => |r| {
+            try printIdent(out, indent);
+            try out.print("Return\n", .{});
+            try expr.printExpression(out, r.value, indent + 1);
+        },
+        .whileloop => |w| {
+            try printIdent(out, indent);
+            try out.print("While loop\n", .{});
+            try printIdent(out, indent);
+            try out.print(" Condition\n", .{});
+            try expr.printExpression(out, w.loop.condition, indent + 1);
+            try printIdent(out, indent);
+            try out.print(" Body\n", .{});
+            for (w.loop.body) |stmt| {
+                try printStatement(out, stmt, indent + 1);
+            }
+        },
+        .assignment => |a| {
+            try printIdent(out, indent);
+            try out.print("Assignment\n", .{});
+            try expr.printExpression(out, .{ .identifier = a.varName }, indent + 1);
+            try expr.printExpression(out, a.value, indent + 1);
+        },
+        .struct_assignment => {
+            try out.print("TODO: struct_assignment", .{});
+        },
+        .if_statement => |i| {
+            try printIdent(out, indent);
+            try out.print("If Statement\n", .{});
+            try printIdent(out, indent);
+            try out.print(" Condition\n", .{});
+            try expr.printExpression(out, i.ifBranch.condition, indent + 1);
+            try printIdent(out, indent);
+            try out.print(" Body\n", .{});
+            for (i.ifBranch.body) |stmt| {
+                try printStatement(out, stmt, indent + 1);
+            }
+
+            if (i.elseBranch) |stmts| {
+                try printIdent(out, indent);
+                try out.print(" Else branch\n", .{});
+                for (stmts) |stmt| {
+                    try printStatement(out, stmt, indent + 1);
+                }
+            }
+        },
+        .functioncall => {
+            try out.print("TODO: functioncall", .{});
+        },
+    }
+}

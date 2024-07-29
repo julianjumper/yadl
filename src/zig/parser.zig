@@ -160,16 +160,15 @@ fn parseValue(self: *Self) ParserError!expr.Expression {
             },
             .Boolean => self.parseBoolean(),
             .OpenParen => b: {
-                if (self.nextNextToken()) |t| {
-                    if (t.kind == .ArgSep) {
-                        break :b self.parseFunction();
-                    } else {
-                        _ = try self.expect(.OpenParen, "(");
-                        var ex = try self.parseExpression();
-                        _ = try self.expect(.CloseParen, ")");
-                        break :b .{ .wrapped = &ex };
-                    }
-                } else break :b ParserError.EndOfFile;
+                const pos = self.current_position;
+                const val = self.parseFunction() catch {
+                    self.current_position = pos;
+                    _ = self.expect(.OpenParen, "(") catch unreachable;
+                    var ex = try self.parseExpression();
+                    _ = try self.expect(.CloseParen, ")");
+                    break :b .{ .wrapped = &ex };
+                };
+                break :b val;
             },
             else => |k| b: {
                 if (k == .CloseParen) {
@@ -215,7 +214,7 @@ fn parseFunctionArguments(self: *Self) ParserError![]expr.Identifier {
 
 fn parseFunction(self: *Self) ParserError!expr.Expression {
     _ = try self.expect(.OpenParen, "(");
-    const args = try self.parseFunctionArguments();
+    const args: []expr.Identifier = self.parseFunctionArguments() catch &[_]expr.Identifier{};
     _ = try self.expect(.CloseParen, ")");
     _ = try self.expect(.LambdaArrow, null);
     const body = try self.parseCodeblock();
@@ -271,9 +270,8 @@ fn parseCondition(self: *Self) ParserError!expr.Expression {
 
 fn parseCodeblock(self: *Self) ParserError![]stmt.Statement {
     _ = try self.expect(.OpenParen, "{");
-    _ = self.expect(.Newline, null) catch {};
+    _ = try self.expect(.Newline, null);
     const code = try self.parseStatements(true);
-    _ = self.expect(.Newline, null) catch {};
     _ = try self.expect(.CloseParen, "}");
     return code;
 }
