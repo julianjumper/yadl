@@ -473,6 +473,36 @@ test "simple assignment" {
     try std.testing.expectEqualStrings(expected.assignment.value.identifier.name, result_stmt.assignment.value.identifier.name);
 }
 
+test "assignment of function" {
+    const input =
+        \\aoeu = (x) => {
+        \\    return x
+        \\}
+        \\
+    ;
+    const expected: stmt.Statement = .{ .assignment = .{
+        .varName = .{ .name = "aoeu" },
+        .value = .{ .function = .{
+            .args = &[_]expr.Identifier{.{ .name = "x" }},
+            .body = &[_]stmt.Statement{
+                .{ .ret = .{ .value = .{ .identifier = expr.identifier("x") } } },
+            },
+        } },
+    } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = try parser.parse();
+    defer parser.deinit();
+    defer parser.allocator.free(result);
+
+    try std.testing.expectEqual(1, result.len);
+    const result_stmt = result[0];
+    try std.testing.expect(result_stmt == .assignment);
+    try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
+    try std.testing.expect(result_stmt.assignment.value == .identifier);
+    try std.testing.expectEqualStrings(expected.assignment.value.identifier.name, result_stmt.assignment.value.identifier.name);
+}
+
 test "simple assignment - no newline" {
     const input = "aoeu = aoeu";
     const expected: stmt.Statement = .{ .assignment = .{
