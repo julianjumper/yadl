@@ -31,6 +31,7 @@ pub fn init(input: []const u8, allocator: std.mem.Allocator) Lexer.LexerError!Se
         .lexer = Lexer.init(input),
         .allocator = allocator,
     };
+    // TODO: prefetching all tokens might turn into a memory problem later for huge files
     var ts = std.ArrayList(Lexer.Token).init(allocator);
     try tmp.lexer.allTokens(&ts);
     tmp.tokens = ts.toOwnedSlice() catch return Lexer.LexerError.MemoryFailure;
@@ -213,7 +214,7 @@ fn parseFunctionArguments(self: *Self) ParserError![]expr.Identifier {
 }
 
 fn parseFunction(self: *Self) ParserError!expr.Expression {
-    _ = try self.expect(.OpenParen, "(");
+    _ = self.expect(.OpenParen, "(") catch unreachable;
     const args: []expr.Identifier = self.parseFunctionArguments() catch &[_]expr.Identifier{};
     _ = try self.expect(.CloseParen, ")");
     _ = try self.expect(.LambdaArrow, null);
