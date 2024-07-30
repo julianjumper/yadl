@@ -29,6 +29,7 @@ pub fn main() !void {
             return err;
         std.process.exit(1);
     };
+    defer parser.freeStatements(exprs);
 
     for (exprs) |expr| {
         try stmt.printStatement(stdout.any(), expr, 1);
