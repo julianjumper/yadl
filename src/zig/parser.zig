@@ -42,6 +42,89 @@ pub fn deinit(self: *Self) void {
     self.allocator.free(self.tokens);
 }
 
+pub fn freeStatements(self: *Self, stmts: []const stmt.Statement) void {
+    for (stmts) |st| {
+        self.freeStatement(st);
+    }
+    self.allocator.free(stmts);
+}
+pub fn freeStatement(self: *Self, st: stmt.Statement) void {
+    switch (st) {
+        .ret => |r| {
+            self.freeExpression(r.value);
+        },
+        .whileloop => |w| {
+            self.freeExpression(w.loop.condition);
+            self.freeStatements(w.loop.body);
+        },
+        .assignment => |a| {
+            self.freeExpression(a.value);
+        },
+        .if_statement => |i| {
+            self.freeExpression(i.ifBranch.condition);
+            self.freeStatements(i.ifBranch.body);
+            if (i.elseBranch) |b| {
+                self.freeStatements(b);
+            }
+        },
+        .functioncall => |fc| {
+            for (fc.args) |*arg| {
+                self.freeExpression(arg);
+            }
+            self.freeExpression(fc.func);
+        },
+        .struct_assignment => |sa| {
+            self.freeExpression(sa.value);
+            const ex: expr.Expression = .{ .struct_access = sa.access.* };
+            self.freeExpression(&ex);
+        },
+    }
+}
+
+pub fn freeExpression(self: *Self, ex: *const expr.Expression) void {
+    switch (ex.*) {
+        .wrapped => |e| {
+            self.freeExpression(e);
+        },
+        .unary_op => |u| {
+            self.freeExpression(u.operant);
+        },
+        .binary_op => |b| {
+            self.freeExpression(b.left);
+            self.freeExpression(b.right);
+        },
+        .struct_access => |sta| {
+            self.freeExpression(sta.key);
+            self.freeExpression(sta.strct);
+        },
+        .functioncall => |fc| {
+            self.freeExpression(fc.func);
+            for (fc.args) |*arg| {
+                self.freeExpression(arg);
+            }
+        },
+        .function => |f| {
+            self.freeStatements(f.body);
+            self.allocator.free(f.args);
+        },
+        .array => |a| {
+            for (a.elements) |*e| {
+                self.freeExpression(e);
+            }
+            self.allocator.free(a.elements);
+        },
+        .dictionary => |d| {
+            for (d.entries) |*e| {
+                self.freeExpression(e.key);
+                self.freeExpression(e.value);
+            }
+            self.allocator.free(d.entries);
+        },
+        else => {},
+    }
+    self.allocator.destroy(ex);
+}
+
 pub fn reset(self: *Self) void {
     self.current_position = 0;
 }
@@ -119,7 +202,7 @@ fn unexpectedToken(lexer: Lexer, actual: Lexer.Token, expected: []const Lexer.To
 }
 
 // Expression parsing
-fn parseExpression(self: *Self) ParserError!expr.Expression {
+fn parseExpression(self: *Self) ParserError!*expr.Expression {
     const value = try self.parseValue();
     const op = self.expect(.Operator, null) catch |err| {
         if (err == ParserError.UnexpectedToken or err == ParserError.EndOfFile)
@@ -127,24 +210,30 @@ fn parseExpression(self: *Self) ParserError!expr.Expression {
         return err;
     };
     const ex = try self.parseExpression();
-    return .{ .binary_op = .{
-        .left = &value,
-        .right = &ex,
+    const out = self.allocator.create(expr.Expression) catch return ParserError.MemoryFailure;
+    out.* = .{ .binary_op = .{
+        .left = value,
+        .right = ex,
         .op = expr.mapOp(op.chars),
     } };
+    return out;
 }
 
-fn parseBoolean(self: *Self) ParserError!expr.Expression {
+fn parseBoolean(self: *Self) ParserError!*expr.Expression {
     const b = self.expect(.Boolean, null) catch unreachable;
     if (std.mem.eql(u8, b.chars, "true")) {
-        return .{ .boolean = .{ .value = true } };
+        const out = self.allocator.create(expr.Expression) catch return ParserError.MemoryFailure;
+        out.* = .{ .boolean = .{ .value = true } };
+        return out;
     } else if (std.mem.eql(u8, b.chars, "false")) {
-        return .{ .boolean = .{ .value = false } };
+        const out = self.allocator.create(expr.Expression) catch return ParserError.MemoryFailure;
+        out.* = .{ .boolean = .{ .value = false } };
+        return out;
     }
     unreachable;
 }
 
-fn parseValue(self: *Self) ParserError!expr.Expression {
+fn parseValue(self: *Self) ParserError!*expr.Expression {
     if (self.currentToken()) |token| {
         return switch (token.kind) {
             .Number => self.parseNumber(),
@@ -165,9 +254,11 @@ fn parseValue(self: *Self) ParserError!expr.Expression {
                 const val = self.parseFunction() catch {
                     self.current_position = pos;
                     _ = self.expect(.OpenParen, "(") catch unreachable;
-                    var ex = try self.parseExpression();
+                    const ex = try self.parseExpression();
                     _ = try self.expect(.CloseParen, ")");
-                    break :b .{ .wrapped = &ex };
+                    const out = self.allocator.create(expr.Expression) catch break :b ParserError.MemoryFailure;
+                    out.* = .{ .wrapped = ex };
+                    break :b out;
                 };
                 break :b val;
             },
@@ -179,20 +270,22 @@ fn parseValue(self: *Self) ParserError!expr.Expression {
 
                 std.debug.print("token type: {}\n", .{k});
                 std.debug.print("token value: '{s}'\n", .{token.chars});
-                break :b todo(expr.Expression, "parsing of expressions");
+                break :b todo(*expr.Expression, "parsing of expressions");
             },
         };
     } else return ParserError.EndOfFile;
 }
 
-fn parseIdentifier(self: *Self) ParserError!expr.Expression {
+fn parseIdentifier(self: *Self) ParserError!*expr.Expression {
     const id = self.expect(.Identifier, null) catch unreachable;
-    return .{ .identifier = expr.identifier(id.chars) };
+    const out = self.allocator.create(expr.Expression) catch return ParserError.MemoryFailure;
+    out.* = .{ .identifier = expr.identifier(id.chars) };
+    return out;
 }
 
-fn parseFunctionCallExpr(self: *Self) ParserError!expr.Expression {
+fn parseFunctionCallExpr(self: *Self) ParserError!*expr.Expression {
     _ = self;
-    return todo(expr.Expression, "parsing of expression function calls");
+    return todo(*expr.Expression, "parsing of expression function calls");
 }
 
 fn parseFunctionArguments(self: *Self) ParserError![]expr.Identifier {
@@ -213,18 +306,20 @@ fn parseFunctionArguments(self: *Self) ParserError![]expr.Identifier {
     return args.toOwnedSlice() catch ParserError.MemoryFailure;
 }
 
-fn parseFunction(self: *Self) ParserError!expr.Expression {
+fn parseFunction(self: *Self) ParserError!*expr.Expression {
     _ = self.expect(.OpenParen, "(") catch unreachable;
     const args: []expr.Identifier = self.parseFunctionArguments() catch &[_]expr.Identifier{};
     _ = try self.expect(.CloseParen, ")");
     _ = try self.expect(.LambdaArrow, null);
     const body = try self.parseCodeblock();
-    return .{ .function = .{ .args = args, .body = body } };
+    const out = self.allocator.create(expr.Expression) catch return ParserError.MemoryFailure;
+    out.* = .{ .function = .{ .args = args, .body = body } };
+    return out;
 }
 
-fn parseStructAccess(self: *Self) ParserError!expr.Expression {
+fn parseStructAccess(self: *Self) ParserError!*expr.Expression {
     _ = self;
-    return todo(expr.Expression, "parsing of structure access");
+    return todo(*expr.Expression, "parsing of structure access");
 }
 
 fn baseOf(digits: []const u8) u8 {
@@ -239,7 +334,7 @@ fn baseOf(digits: []const u8) u8 {
     };
 }
 
-fn parseNumber(self: *Self) ParserError!expr.Expression {
+fn parseNumber(self: *Self) ParserError!*expr.Expression {
     const digits = self.expect(.Number, null) catch unreachable;
     const base = baseOf(digits.chars);
 
@@ -253,16 +348,20 @@ fn parseNumber(self: *Self) ParserError!expr.Expression {
         const fraction = std.fmt.parseInt(i64, fraction_part, base) catch return ParserError.NumberParsingFailure;
         const frac: f64 = @as(f64, @floatFromInt(fraction)) / std.math.pow(f64, @floatFromInt(base), @floatFromInt(fraction_part.len));
         const composite = @as(f64, @floatFromInt(int)) + frac;
-        return .{ .number = .{ .float = composite } };
+        const out = self.allocator.create(expr.Expression) catch return ParserError.MemoryFailure;
+        out.* = .{ .number = .{ .float = composite } };
+        return out;
     } else {
         const int_part = if (base == 10) digits.chars else digits.chars[2..];
         const num = std.fmt.parseInt(i64, int_part, base) catch return ParserError.NumberParsingFailure;
-        return .{ .number = .{ .integer = num } };
+        const out = self.allocator.create(expr.Expression) catch return ParserError.MemoryFailure;
+        out.* = .{ .number = .{ .integer = num } };
+        return out;
     }
 }
 
 // Statement parsing
-fn parseCondition(self: *Self) ParserError!expr.Expression {
+fn parseCondition(self: *Self) ParserError!*expr.Expression {
     _ = try self.expect(.OpenParen, "(");
     const condition = try self.parseExpression();
     _ = try self.expect(.CloseParen, ")");
@@ -325,10 +424,12 @@ fn parseFunctionCallArguments(self: *Self) ParserError![]expr.Expression {
     var ex = self.parseExpression() catch {
         return ParserError.ArgumentParsingFailure;
     };
-    args.append(ex) catch return ParserError.MemoryFailure;
+    args.append(ex.*) catch return ParserError.MemoryFailure;
+    self.allocator.destroy(ex);
     while (self.expect(.ArgSep, null)) |_| {
         ex = try self.parseExpression();
-        args.append(ex) catch return ParserError.MemoryFailure;
+        args.append(ex.*) catch return ParserError.MemoryFailure;
+        self.allocator.destroy(ex);
     } else |err| {
         if (err == ParserError.UnexpectedToken)
             return args.toOwnedSlice() catch ParserError.MemoryFailure;
@@ -445,6 +546,8 @@ fn parseStatements(self: *Self, should_ignore_paran: bool) ParserError![]stmt.St
     return stmts.toOwnedSlice() catch ParserError.MemoryFailure;
 }
 
+/// Returns an owned slice of Statements which must be
+/// freed with `fn freeStatements(Self, []Statement)`
 pub fn parse(self: *Self) ParserError![]stmt.Statement {
     return self.parseStatements(false);
 }
@@ -454,21 +557,22 @@ test "simple assignment" {
         \\aoeu = aoeu
         \\
     ;
+    var ident = .{ .identifier = .{ .name = "aoeu" } };
     const expected: stmt.Statement = .{ .assignment = .{
         .varName = .{ .name = "aoeu" },
-        .value = .{ .identifier = .{ .name = "aoeu" } },
+        .value = &ident,
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
     const result = try parser.parse();
     defer parser.deinit();
-    defer parser.allocator.free(result);
+    defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
     try std.testing.expect(result_stmt == .assignment);
     try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
-    try std.testing.expect(result_stmt.assignment.value == .identifier);
+    try std.testing.expect(result_stmt.assignment.value.* == .identifier);
     try std.testing.expectEqualStrings(expected.assignment.value.identifier.name, result_stmt.assignment.value.identifier.name);
 }
 
@@ -479,50 +583,52 @@ test "assignment of function" {
         \\}
         \\
     ;
+    var ident = .{ .identifier = .{ .name = "x" } };
+    const ret_value = .{ .value = &ident };
+    var fun = .{ .function = .{
+        .args = &[_]expr.Identifier{.{ .name = "x" }},
+        .body = &[_]stmt.Statement{
+            .{ .ret = ret_value },
+        },
+    } };
     const expected: stmt.Statement = .{ .assignment = .{
         .varName = .{ .name = "aoeu" },
-        .value = .{ .function = .{
-            .args = &[_]expr.Identifier{.{ .name = "x" }},
-            .body = &[_]stmt.Statement{
-                .{ .ret = .{ .value = .{ .identifier = expr.identifier("x") } } },
-            },
-        } },
+        .value = &fun,
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
     const result = try parser.parse();
     defer parser.deinit();
-    defer parser.allocator.free(result);
+    defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
     try std.testing.expect(result_stmt == .assignment);
     try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
-    try std.testing.expect(result_stmt.assignment.value == .function);
+    try std.testing.expect(result_stmt.assignment.value.* == .function);
     const function = result_stmt.assignment.value.function;
-    defer parser.allocator.free(function.body);
-    defer parser.allocator.free(function.args);
     try std.testing.expectEqual(expected.assignment.value.function.args.len, function.args.len);
     try std.testing.expectEqual(expected.assignment.value.function.body.len, function.body.len);
 }
 
 test "simple assignment - no newline" {
     const input = "aoeu = aoeu";
+    var ident = .{ .identifier = .{ .name = "aoeu" } };
     const expected: stmt.Statement = .{ .assignment = .{
         .varName = .{ .name = "aoeu" },
-        .value = .{ .identifier = .{ .name = "aoeu" } },
+        .value = &ident,
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
     const result = try parser.parse();
     defer parser.deinit();
-    defer parser.allocator.free(result);
+    defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
     try std.testing.expect(result_stmt == .assignment);
     try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
-    try std.testing.expect(result_stmt.assignment.value == .identifier);
+    try std.testing.expect(result_stmt.assignment.value.* == .identifier);
     try std.testing.expectEqualStrings(expected.assignment.value.identifier.name, result_stmt.assignment.value.identifier.name);
 }
 
@@ -533,23 +639,27 @@ test "simple if statement" {
         \\}
         \\
     ;
-    const expected: stmt.Statement = .{ .if_statement = .{
-        .ifBranch = stmt.Branch{
-            .condition = .{ .boolean = .{ .value = true } },
-            .body = &[_]stmt.Statement{
-                .{ .assignment = .{
-                    .varName = .{ .name = "aoeu" },
-                    .value = .{ .identifier = .{ .name = "aoeu" } },
-                } },
-            },
+    var cond = .{ .boolean = .{ .value = true } };
+    var ident = .{ .identifier = .{ .name = "aoeu" } };
+    const ass = .{ .assignment = .{
+        .varName = .{ .name = "aoeu" },
+        .value = &ident,
+    } };
+    const branch: stmt.Branch = .{
+        .condition = &cond,
+        .body = &[_]stmt.Statement{
+            ass,
         },
+    };
+    const expected: stmt.Statement = .{ .if_statement = .{
+        .ifBranch = branch,
         .elseBranch = null,
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
     const result = try parser.parse();
     defer parser.deinit();
-    defer parser.allocator.free(result);
+    defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
@@ -557,9 +667,8 @@ test "simple if statement" {
 
     const expected_branch = expected.if_statement.ifBranch;
     const result_branch = result_stmt.if_statement.ifBranch;
-    defer parser.allocator.free(result_branch.body);
 
-    try std.testing.expect(result_branch.condition == .boolean);
+    try std.testing.expect(result_branch.condition.* == .boolean);
     try std.testing.expectEqual(expected_branch.condition.boolean.value, result_branch.condition.boolean.value);
 
     const expected_body_statement = expected_branch.body[0];

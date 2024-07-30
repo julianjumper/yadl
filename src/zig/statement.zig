@@ -3,14 +3,14 @@ const expr = @import("expression.zig");
 
 pub const Assignment = struct {
     varName: expr.Identifier,
-    value: expr.Expression,
+    value: *expr.Expression,
 };
 pub const StructuredAssignment = struct {
-    access: expr.StructureAccess,
-    value: expr.Expression,
+    access: *expr.StructureAccess,
+    value: *expr.Expression,
 };
 pub const Branch = struct {
-    condition: expr.Expression,
+    condition: *expr.Expression,
     body: []const Statement,
 };
 pub const If = struct {
@@ -18,7 +18,7 @@ pub const If = struct {
     elseBranch: ?[]const Statement,
 };
 pub const WhileLoop = struct { loop: Branch };
-pub const Return = struct { value: expr.Expression };
+pub const Return = struct { value: *expr.Expression };
 
 pub const Statement = union(enum) {
     assignment: Assignment,
@@ -29,14 +29,14 @@ pub const Statement = union(enum) {
     ret: Return,
 };
 
-pub fn assignment(id: []const u8, expression: expr.Expression) Statement {
+pub fn assignment(id: []const u8, expression: *expr.Expression) Statement {
     return .{ .assignment = .{
         .varName = expr.identifier(id),
         .value = expression,
     } };
 }
 
-pub fn whileloop(cond: expr.Expression, code: []const Statement) Statement {
+pub fn whileloop(cond: *expr.Expression, code: []const Statement) Statement {
     return .{ .whileloop = .{ .loop = .{
         .condition = cond,
         .body = code,
@@ -55,14 +55,14 @@ pub fn printStatement(out: std.io.AnyWriter, st: Statement, indent: u8) !void {
         .ret => |r| {
             try printIdent(out, indent);
             try out.print("Return\n", .{});
-            try expr.printExpression(out, r.value, indent + 1);
+            try expr.printExpression(out, r.value.*, indent + 1);
         },
         .whileloop => |w| {
             try printIdent(out, indent);
             try out.print("While loop\n", .{});
             try printIdent(out, indent);
             try out.print(" Condition\n", .{});
-            try expr.printExpression(out, w.loop.condition, indent + 1);
+            try expr.printExpression(out, w.loop.condition.*, indent + 1);
             try printIdent(out, indent);
             try out.print(" Body\n", .{});
             for (w.loop.body) |stmt| {
@@ -73,7 +73,7 @@ pub fn printStatement(out: std.io.AnyWriter, st: Statement, indent: u8) !void {
             try printIdent(out, indent);
             try out.print("Assignment\n", .{});
             try expr.printExpression(out, .{ .identifier = a.varName }, indent + 1);
-            try expr.printExpression(out, a.value, indent + 1);
+            try expr.printExpression(out, a.value.*, indent + 1);
         },
         .struct_assignment => {
             try out.print("TODO: struct_assignment", .{});
@@ -83,7 +83,7 @@ pub fn printStatement(out: std.io.AnyWriter, st: Statement, indent: u8) !void {
             try out.print("If Statement\n", .{});
             try printIdent(out, indent);
             try out.print(" Condition\n", .{});
-            try expr.printExpression(out, i.ifBranch.condition, indent + 1);
+            try expr.printExpression(out, i.ifBranch.condition.*, indent + 1);
             try printIdent(out, indent);
             try out.print(" Body\n", .{});
             for (i.ifBranch.body) |stmt| {
