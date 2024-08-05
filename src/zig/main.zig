@@ -18,7 +18,7 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    var args = std.process.args();
+    var args = try std.process.argsWithAllocator(allocator);
     _ = args.next() orelse unreachable; // program name
     while (args.next()) |filepath| {
         const input = try readFile(allocator, filepath);
