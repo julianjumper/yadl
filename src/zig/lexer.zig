@@ -82,6 +82,24 @@ fn isIdentifierChar(c: u8) bool {
     return isInitialIdentifierChar(c) or isDecimalDigit(c) or c == '_';
 }
 
+fn lexLineComment(self: *Self) LexerError!Token {
+    _ = self.readChar() catch unreachable; // ignore '/'
+    const char = try self.readChar();
+    if (char == '/') {
+        while (self.peekChar()) |c| {
+            if (c == '\n') {
+                return self.nextToken();
+            }
+            _ = self.readChar() catch unreachable;
+        } else |err| {
+            if (err != LexerError.EndOfFile)
+                return err;
+        }
+    }
+
+    return LexerError.EndOfFile;
+}
+
 fn lexIdentifier(self: *Self) LexerError!Token {
     const pos = self.current_position;
     const c = try self.readChar();
@@ -362,6 +380,8 @@ fn nextToken(self: *Self) LexerError!Token {
         const pos = self.current_position;
         _ = self.readChar() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .Newline);
+    } else if (char == '/') {
+        return self.lexLineComment();
     } else if (char == '\'') {
         return self.lexString();
     } else if (anyOf(char, "({[")) {
