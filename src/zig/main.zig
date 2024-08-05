@@ -5,35 +5,36 @@ const stmt = @import("statement.zig");
 var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 const allocator = arena.allocator();
 
+fn readFile(alloc: std.mem.Allocator, filepath: []const u8) ![]const u8 {
+    const file = try std.fs.cwd().openFile(filepath, .{});
+    defer file.close();
+    const stat = try file.stat();
+    const contents = try file.readToEndAlloc(alloc, stat.size);
+    return contents;
+}
+
 pub fn main() !void {
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    const input =
-        \\aoeusnthaoeu = 1234123
-        \\if (aoeuaoeu == 1234) {
-        \\    aoeuaoeu = 0x1234567890AbCdEf
-        \\}
-        \\    while (true and false) {
-        \\  aoeu = 12341234
-        \\}
-        \\ aoeu = () => {
-        \\    return 42
-        \\}
-    ;
+    var args = std.process.args();
+    _ = args.next() orelse unreachable; // program name
+    while (args.next()) |filepath| {
+        const input = try readFile(allocator, filepath);
 
-    var parser = try Parser.init(input, allocator);
-    const exprs = parser.parse() catch |err| {
-        if (err != Parser.ParserError.EndOfFile and err != Parser.ParserError.UnexpectedToken)
-            return err;
-        std.process.exit(1);
-    };
-    defer parser.freeStatements(exprs);
+        var parser = try Parser.init(input, allocator);
+        const exprs = parser.parse() catch |err| {
+            if (err != Parser.ParserError.EndOfFile and err != Parser.ParserError.UnexpectedToken)
+                return err;
+            std.process.exit(1);
+        };
+        defer parser.freeStatements(exprs);
 
-    for (exprs) |expr| {
-        try stmt.printStatement(stdout.any(), expr, 1);
+        for (exprs) |expr| {
+            try stmt.printStatement(stdout.any(), expr, 1);
+        }
+
+        try bw.flush(); // don't forget to flush!
     }
-
-    try bw.flush(); // don't forget to flush!
 }
