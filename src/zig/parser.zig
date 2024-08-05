@@ -145,6 +145,11 @@ fn expect(self: *Self, kind: Kind, expected_chars: ?[]const u8) Error!Token {
             self.current_position += 1;
             return token;
         } else {
+            if (parser_diagnostic) {
+                std.debug.print("DEBUG: kinds are (act, exp): \n    {}\n    {}\n", .{ token.kind, kind });
+                std.debug.print("DEBUG: chars are (act, exp): \n    {s}\n    {s}\n", .{ token.chars, chars });
+            }
+
             self.last_expected = kind;
             self.last_expected_chars = chars;
             return Error.UnexpectedToken;
@@ -154,6 +159,10 @@ fn expect(self: *Self, kind: Kind, expected_chars: ?[]const u8) Error!Token {
             self.current_position += 1;
             return token;
         } else {
+            if (parser_diagnostic) {
+                std.debug.print("DEBUG: kinds are (act, exp): \n    {}\n    {}\n", .{ token.kind, kind });
+            }
+
             self.last_expected = kind;
             self.last_expected_chars = null;
             return Error.UnexpectedToken;
@@ -253,7 +262,7 @@ fn parseValue(self: *Self) Error!*expr.Expression {
                 const pos = self.current_position;
                 const val = self.parseFunction() catch {
                     self.current_position = pos;
-                    _ = self.expect(.OpenParen, "(") catch unreachable;
+                    _ = try self.expect(.OpenParen, "(");
                     const ex = try self.parseExpression();
                     _ = try self.expect(.CloseParen, ")");
                     const out = self.allocator.create(expr.Expression) catch break :b Error.MemoryFailure;
@@ -307,7 +316,7 @@ fn parseFunctionArguments(self: *Self) Error![]expr.Identifier {
 }
 
 fn parseFunction(self: *Self) Error!*expr.Expression {
-    _ = self.expect(.OpenParen, "(") catch unreachable;
+    _ = try self.expect(.OpenParen, "(");
     const args: []expr.Identifier = self.parseFunctionArguments() catch &[_]expr.Identifier{};
     _ = try self.expect(.CloseParen, ")");
     _ = try self.expect(.LambdaArrow, null);
@@ -587,7 +596,7 @@ test "simple assignment" {
 
 test "assignment of function" {
     const input =
-        \\aoeu = (x) => {
+        \\aoeu = ( x ) => {
         \\    return x
         \\}
         \\
