@@ -25,7 +25,7 @@ pub fn main() !void {
 
         var parser = try Parser.init(input, allocator);
         const exprs = parser.parse() catch |err| {
-            if (err != Parser.ParserError.EndOfFile and err != Parser.ParserError.UnexpectedToken)
+            if (err != Parser.Error.EndOfFile and err != Parser.Error.UnexpectedToken)
                 return err;
             std.process.exit(1);
         };

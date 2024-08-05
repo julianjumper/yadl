@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const LexerError = error{
+pub const Error = error{
     UnexpectedCharacter,
     EndOfFile,
     NotImplemented,
@@ -82,7 +82,7 @@ fn isIdentifierChar(c: u8) bool {
     return isInitialIdentifierChar(c) or isDecimalDigit(c) or c == '_';
 }
 
-fn lexLineComment(self: *Self) LexerError!Token {
+fn lexLineComment(self: *Self) Error!Token {
     _ = self.readChar() catch unreachable; // ignore '/'
     const char = try self.readChar();
     if (char == '/') {
@@ -92,20 +92,20 @@ fn lexLineComment(self: *Self) LexerError!Token {
             }
             _ = self.readChar() catch unreachable;
         } else |err| {
-            if (err != LexerError.EndOfFile)
+            if (err != Error.EndOfFile)
                 return err;
         }
     }
 
-    return LexerError.EndOfFile;
+    return Error.EndOfFile;
 }
 
-fn lexIdentifier(self: *Self) LexerError!Token {
+fn lexIdentifier(self: *Self) Error!Token {
     const pos = self.current_position;
     const c = try self.readChar();
     if (!isInitialIdentifierChar(c)) {
         self.current_position = pos;
-        return LexerError.UnexpectedCharacter;
+        return Error.UnexpectedCharacter;
     }
 
     while (self.readChar()) |char| {
@@ -114,7 +114,7 @@ fn lexIdentifier(self: *Self) LexerError!Token {
             return self.newToken(self.data[pos..self.current_position], TokenKind.Identifier);
         }
     } else |err| {
-        if (err == LexerError.EndOfFile)
+        if (err == Error.EndOfFile)
             return self.newToken(self.data[pos..self.current_position], TokenKind.Identifier);
 
         return err;
@@ -140,22 +140,22 @@ fn isHexDigit(c: u8) bool {
     return isDecimalDigit(c) or anyOfRange(c, CharRange.init('a', 'f')) or anyOfRange(c, CharRange.init('A', 'F'));
 }
 
-fn numberPrefix(self: *Self) LexerError!NumberPrefix {
+fn numberPrefix(self: *Self) Error!NumberPrefix {
     const zero = try self.readChar();
 
     if (zero != '0') {
-        return LexerError.UnexpectedCharacter;
+        return Error.UnexpectedCharacter;
     }
 
     return switch (try self.readChar()) {
         'x' => .Hexadecimal,
         'o' => .Octal,
         'b' => .Binary,
-        else => LexerError.UnexpectedCharacter,
+        else => Error.UnexpectedCharacter,
     };
 }
 
-fn digits(self: *Self, prefix: NumberPrefix) LexerError!void {
+fn digits(self: *Self, prefix: NumberPrefix) Error!void {
     while (self.peekChar()) |char| {
         switch (prefix) {
             .Decimal => {
@@ -177,16 +177,16 @@ fn digits(self: *Self, prefix: NumberPrefix) LexerError!void {
         }
         _ = try self.readChar();
     } else |err| {
-        if (err == LexerError.EndOfFile)
+        if (err == Error.EndOfFile)
             return;
         return err;
     }
 }
 
-fn lexNumber(self: *Self) LexerError!Token {
+fn lexNumber(self: *Self) Error!Token {
     const pos = self.current_position;
     const prefix = self.numberPrefix() catch |err| b: {
-        if (err != LexerError.UnexpectedCharacter)
+        if (err != Error.UnexpectedCharacter)
             return err;
         break :b .Decimal;
     };
@@ -215,7 +215,7 @@ const keywords = [_][]const u8{
     "return",
 };
 
-fn lexKeyword(self: *Self) LexerError!Token {
+fn lexKeyword(self: *Self) Error!Token {
     return self.lexAnyOf(&keywords, .Keyword);
 }
 
@@ -225,17 +225,17 @@ const bool_constants = [_][]const u8{
     "false",
 };
 
-fn lexBoolean(self: *Self) LexerError!Token {
+fn lexBoolean(self: *Self) Error!Token {
     return self.lexAnyOf(&bool_constants, .Boolean);
 }
 
 // String
-fn lexString(self: *Self) LexerError!Token {
+fn lexString(self: *Self) Error!Token {
     const pos = self.current_position;
     const leftQuote = try self.readChar();
     if (leftQuote != '\'') {
         self.current_position = pos;
-        return LexerError.UnexpectedCharacter;
+        return Error.UnexpectedCharacter;
     }
 
     while (self.peekChar()) |char| {
@@ -243,7 +243,7 @@ fn lexString(self: *Self) LexerError!Token {
             break;
 
         if (char == '\n')
-            return LexerError.UnexpectedCharacter;
+            return Error.UnexpectedCharacter;
 
         _ = self.readChar() catch unreachable;
     } else |err| {
@@ -253,7 +253,7 @@ fn lexString(self: *Self) LexerError!Token {
     const rightQuote = try self.readChar();
     if (rightQuote != '\'') {
         self.current_position = pos;
-        return LexerError.UnexpectedCharacter;
+        return Error.UnexpectedCharacter;
     }
     return self.newToken(self.data[pos + 1 .. self.current_position - 1], .String);
 }
@@ -280,11 +280,11 @@ const compare_operators = [_][]const u8{
     ">",
 };
 
-fn lexOperator(self: *Self) LexerError!Token {
+fn lexOperator(self: *Self) Error!Token {
     return self.lexAnyOf(&arithmetic_operators, .Operator) catch self.lexAnyOf(&compare_operators, .Operator) catch self.lexAnyOf(&[_][]const u8{"="}, .Operator);
 }
 
-fn lexBooleanOperator(self: *Self) LexerError!Token {
+fn lexBooleanOperator(self: *Self) Error!Token {
     const pos = self.current_position;
     const tmp = try self.lexAnyOf(&boolean_operators, .Operator);
     const char = try self.peekChar();
@@ -292,15 +292,15 @@ fn lexBooleanOperator(self: *Self) LexerError!Token {
         return tmp;
     } else {
         self.current_position = pos;
-        return LexerError.UnexpectedCharacter;
+        return Error.UnexpectedCharacter;
     }
 }
 
-fn lexLambdaArrow(self: *Self) LexerError!Token {
+fn lexLambdaArrow(self: *Self) Error!Token {
     return self.lexAnyOf(&[_][]const u8{"=>"}, .LambdaArrow);
 }
 
-fn lexAnyOf(self: *Self, strings: []const []const u8, kind: TokenKind) LexerError!Token {
+fn lexAnyOf(self: *Self, strings: []const []const u8, kind: TokenKind) Error!Token {
     const pos = self.current_position;
     for (strings) |str| {
         if (pos + str.len >= self.data.len)
@@ -311,7 +311,7 @@ fn lexAnyOf(self: *Self, strings: []const []const u8, kind: TokenKind) LexerErro
             return self.newToken(str, kind);
         }
     }
-    return LexerError.UnexpectedCharacter;
+    return Error.UnexpectedCharacter;
 }
 fn countNewlines(self: Self) u64 {
     return std.mem.count(u8, self.data[0..self.current_position], "\n") + 1;
@@ -335,12 +335,12 @@ fn newToken(self: Self, chars: []const u8, kind: TokenKind) Token {
     };
 }
 
-fn skipOne(self: *Self) LexerError!void {
+fn skipOne(self: *Self) Error!void {
     _ = try self.readChar();
 }
 
 /// skips whitespce excluding newlines
-fn skipWhitespce(self: *Self) LexerError!void {
+fn skipWhitespce(self: *Self) Error!void {
     var current_char = try self.peekChar();
     while (std.ascii.isWhitespace(current_char) and !(current_char == '\n')) {
         self.skipOne() catch unreachable;
@@ -348,25 +348,25 @@ fn skipWhitespce(self: *Self) LexerError!void {
     }
 }
 
-fn readChar(self: *Self) LexerError!u8 {
+fn readChar(self: *Self) Error!u8 {
     if (self.data.len > self.current_position) {
         const c = self.data[self.current_position];
         self.current_position += 1;
         return c;
     } else {
-        return LexerError.EndOfFile;
+        return Error.EndOfFile;
     }
 }
 
-fn peekChar(self: *Self) LexerError!u8 {
+fn peekChar(self: *Self) Error!u8 {
     if (self.data.len > self.current_position) {
         return self.data[self.current_position];
     } else {
-        return LexerError.EndOfFile;
+        return Error.EndOfFile;
     }
 }
 
-fn nextToken(self: *Self) LexerError!Token {
+fn nextToken(self: *Self) Error!Token {
     try self.skipWhitespce();
     const char = try self.peekChar();
 
@@ -405,13 +405,13 @@ fn nextToken(self: *Self) LexerError!Token {
     }
 }
 
-pub fn allTokens(self: *Self, tokens: *std.ArrayList(Token)) LexerError!void {
+pub fn allTokens(self: *Self, tokens: *std.ArrayList(Token)) Error!void {
     while (self.nextToken()) |token| {
         tokens.append(token) catch {
-            return LexerError.MemoryFailure;
+            return Error.MemoryFailure;
         };
     } else |err| {
-        if (err != LexerError.EndOfFile) {
+        if (err != Error.EndOfFile) {
             return err;
         }
     }
@@ -481,17 +481,17 @@ fn previousLine(self: Self, token: Token) ?[]const u8 {
     return self.data[line_begin..line_end];
 }
 
-pub fn printContext(self: Self, out: std.io.AnyWriter, token: Token) LexerError!void {
+pub fn printContext(self: Self, out: std.io.AnyWriter, token: Token) Error!void {
     if (token.kind == .Newline)
         return;
 
     if (previousLine(self, token)) |previous| {
-        out.print("{d:5}:{s}\n", .{ token.line - 1, previous }) catch return LexerError.UnknownError;
+        out.print("{d:5}:{s}\n", .{ token.line - 1, previous }) catch return Error.UnknownError;
     }
     const current = currentLine(self, token);
-    out.print("{d:5}:{s}\n", .{ token.line, current }) catch return LexerError.UnknownError;
+    out.print("{d:5}:{s}\n", .{ token.line, current }) catch return Error.UnknownError;
 
     if (nextLine(self, token)) |next| {
-        out.print("{d:5}:{s}\n", .{ token.line + 1, next }) catch return LexerError.UnknownError;
+        out.print("{d:5}:{s}\n", .{ token.line + 1, next }) catch return Error.UnknownError;
     }
 }
