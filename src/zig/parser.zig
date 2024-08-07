@@ -359,6 +359,7 @@ fn parseFunctionArguments(self: *Self) Error![]expr.Identifier {
         if (err == Error.UnexpectedToken)
             return args.toOwnedSlice() catch Error.MemoryFailure;
 
+        args.deinit();
         return err;
     }
     return args.toOwnedSlice() catch Error.MemoryFailure;
@@ -369,19 +370,26 @@ fn parseFunction(self: *Self) Error!*expr.Expression {
     const args: []expr.Identifier = self.parseFunctionArguments() catch &[_]expr.Identifier{};
     _ = try self.expect(.CloseParen, ")");
     _ = try self.expect(.LambdaArrow, null);
-    if (self.parseExpression()) |ex| {
-        const body = self.allocator.alloc(stmt.Statement, 1) catch return Error.MemoryFailure;
-        body[0] = .{ .ret = .{ .value = ex } };
-        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-        out.* = .{ .function = .{ .args = args, .body = body } };
-        return out;
-    } else |err| {
-        if (err != Error.UnexpectedToken) return err;
-        const body = try self.parseCodeblock();
-        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-        out.* = .{ .function = .{ .args = args, .body = body } };
-        return out;
-    }
+    // TODO: parsing of a single expression
+    //  The current implementation relies on the tokens being available as
+    //  a slice/an array. Since a ring buffer is currently used this is broken.
+
+    // if (self.parseExpression()) |ex| {
+    //     const body = self.allocator.alloc(stmt.Statement, 1) catch return Error.MemoryFailure;
+    //     body[0] = .{ .ret = .{ .value = ex } };
+    //     const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
+    //     out.* = .{ .function = .{ .args = args, .body = body } };
+    //     return out;
+    // } else |err| {
+    //     if (err != Error.UnexpectedToken) {
+    //         self.allocator.free(args);
+    //         return err;
+    //     }
+    const body = try self.parseCodeblock();
+    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
+    out.* = .{ .function = .{ .args = args, .body = body } };
+    return out;
+    // }
 }
 
 fn parseStructAccess(self: *Self) Error!*expr.Expression {
@@ -630,7 +638,6 @@ test "simple assignment" {
 
     var parser = try Self.init(input, std.testing.allocator);
     const result = try parser.parse();
-    defer parser.deinit();
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
@@ -663,7 +670,6 @@ test "assignment of function" {
 
     var parser = try Self.init(input, std.testing.allocator);
     const result = try parser.parse();
-    defer parser.deinit();
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
@@ -686,7 +692,6 @@ test "simple assignment - no newline" {
 
     var parser = try Self.init(input, std.testing.allocator);
     const result = try parser.parse();
-    defer parser.deinit();
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
@@ -723,7 +728,6 @@ test "simple if statement" {
 
     var parser = try Self.init(input, std.testing.allocator);
     const result = try parser.parse();
-    defer parser.deinit();
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
