@@ -2,6 +2,7 @@ const std = @import("std");
 const Lexer = @import("lexer.zig");
 const stmt = @import("statement.zig");
 const expr = @import("expression.zig");
+const RingBuffer = @import("tokenRingBuffer.zig");
 
 const pError = error{
     UnexpectedToken,
@@ -11,8 +12,7 @@ const pError = error{
 
 pub const Error = Lexer.Error || pError;
 
-current_position: u64,
-tokens: []const Token,
+tokens: RingBuffer = .{},
 lexer: Lexer,
 allocator: std.mem.Allocator,
 last_expected: ?Kind = null,
@@ -25,21 +25,26 @@ const Token = Lexer.Token;
 const Self = @This();
 
 pub fn init(input: []const u8, allocator: std.mem.Allocator) Lexer.Error!Self {
-    var tmp = Self{
-        .current_position = 0,
-        .tokens = undefined,
+    return Self{
         .lexer = Lexer.init(input),
         .allocator = allocator,
     };
-    // TODO: prefetching all tokens might turn into a memory problem later for huge files
-    var ts = std.ArrayList(Token).init(allocator);
-    try tmp.lexer.allTokens(&ts);
-    tmp.tokens = ts.toOwnedSlice() catch return Lexer.Error.MemoryFailure;
-    return tmp;
 }
 
-pub fn deinit(self: *Self) void {
-    self.allocator.free(self.tokens);
+pub fn printLexerContext(self: Self, out: std.io.AnyWriter) !void {
+    const t = Token{
+        .kind = .Unknown,
+        .index = self.lexer.current_position,
+        .line = self.lexer.countNewlines(),
+        .column = self.lexer.currentColumn(),
+        .chars = "",
+    };
+    const l = self.lexer;
+    try out.print(
+        "    current lexing position: {}:{} '{s}'\n",
+        .{ t.line, t.column, l.data[l.current_position .. l.current_position + 1] },
+    );
+    try self.lexer.printContext(out, t);
 }
 
 pub fn freeStatements(self: *Self, stmts: []const stmt.Statement) void {
@@ -125,61 +130,97 @@ pub fn freeExpression(self: *Self, ex: *const expr.Expression) void {
     self.allocator.destroy(ex);
 }
 
-pub fn reset(self: *Self) void {
-    self.current_position = 0;
-}
-
 fn todo(comptime T: type, msg: []const u8) Error!T {
     std.debug.print("TODO: {s}\n", .{msg});
     return Error.NotImplemented;
 }
 
 fn expect(self: *Self, kind: Kind, expected_chars: ?[]const u8) Error!Token {
-    if (self.current_position >= self.tokens.len) {
-        return Error.EndOfFile;
+    if (self.tokens.isEmpty()) {
+        const t = self.lexer.nextToken() catch |err|
+            return err;
+        self.tokens.write(t) catch unreachable;
     }
 
-    const token = self.tokens[self.current_position];
-    if (expected_chars) |chars| {
-        if (token.kind == kind and std.mem.eql(u8, chars, token.chars)) {
-            self.current_position += 1;
-            return token;
-        } else {
-            if (parser_diagnostic) {
-                std.debug.print("DEBUG: kinds are (act, exp): \n    {}\n    {}\n", .{ token.kind, kind });
-                std.debug.print("DEBUG: chars are (act, exp): \n    {s}\n    {s}\n", .{ token.chars, chars });
-            }
+    if (self.tokens.peek()) |token| {
+        if (expected_chars) |chars| {
+            if (token.kind == kind and std.mem.eql(u8, chars, token.chars)) {
+                _ = self.tokens.read() orelse unreachable;
+                return token;
+            } else {
+                if (parser_diagnostic) {
+                    std.debug.print("DEBUG: kinds are (act, exp): \n    {}\n    {}\n", .{ token.kind, kind });
+                    std.debug.print("DEBUG: chars are (act, exp): \n    {s}\n    {s}\n", .{ token.chars, chars });
+                }
 
-            self.last_expected = kind;
-            self.last_expected_chars = chars;
-            return Error.UnexpectedToken;
-        }
-    } else {
-        if (token.kind == kind) {
-            self.current_position += 1;
-            return token;
-        } else {
-            if (parser_diagnostic) {
-                std.debug.print("DEBUG: kinds are (act, exp): \n    {}\n    {}\n", .{ token.kind, kind });
+                self.last_expected = kind;
+                self.last_expected_chars = chars;
+                return Error.UnexpectedToken;
             }
+        } else {
+            if (token.kind == kind) {
+                _ = self.tokens.read() orelse unreachable;
+                return token;
+            } else {
+                if (parser_diagnostic) {
+                    std.debug.print("DEBUG: kinds are (act, exp): \n    {}\n    {}\n", .{ token.kind, kind });
+                }
 
-            self.last_expected = kind;
-            self.last_expected_chars = null;
-            return Error.UnexpectedToken;
+                self.last_expected = kind;
+                self.last_expected_chars = null;
+                return Error.UnexpectedToken;
+            }
         }
-    }
+    } else return Error.EndOfFile;
 }
 
 fn currentToken(self: *Self) ?Token {
-    return if (self.current_position < self.tokens.len) self.tokens[self.current_position] else null;
+    if (self.tokens.isEmpty()) {
+        const t = self.lexer.nextToken() catch |err| {
+            if (err == Lexer.Error.EndOfFile) {
+                return null;
+            } else {
+                const stderr = std.io.getStdErr().writer();
+                stderr.print("ERROR: failed to read next token: {}\n", .{err}) catch @panic("error during write to stderr");
+                self.printLexerContext(stderr.any()) catch @panic("error during write to stderr");
+                std.process.exit(1);
+            }
+        };
+        self.tokens.write(t) catch unreachable;
+    }
+    return self.tokens.peek();
 }
 
 fn nextToken(self: *Self) ?Token {
-    return if (self.current_position + 1 < self.tokens.len) self.tokens[self.current_position + 1] else null;
+    while (self.tokens.len() < 2) {
+        const t = self.lexer.nextToken() catch |err| {
+            if (err == Lexer.Error.EndOfFile) {
+                return null;
+            } else {
+                const stderr = std.io.getStdErr().writer();
+                self.printLexerContext(stderr.any()) catch @panic("error during write to stderr");
+                std.process.exit(1);
+            }
+        };
+        self.tokens.write(t) catch unreachable;
+    }
+    return self.tokens.peekNext();
 }
 
 fn nextNextToken(self: *Self) ?Token {
-    return if (self.current_position + 2 < self.tokens.len) self.tokens[self.current_position + 2] else null;
+    while (self.tokens.len() < 3) {
+        const t = self.lexer.nextToken() catch |err| {
+            if (err == Lexer.Error.EndOfFile) {
+                return null;
+            } else {
+                const stderr = std.io.getStdErr().writer();
+                self.printLexerContext(stderr.any()) catch @panic("error during write to stderr");
+                std.process.exit(1);
+            }
+        };
+        self.tokens.write(t) catch unreachable;
+    }
+    return self.tokens.peekNextNext();
 }
 
 fn unexpectedToken(lexer: Lexer, actual: Token, expected: []const Kind, expected_chars: ?[]const u8) Error!void {
@@ -259,17 +300,25 @@ fn parseValue(self: *Self) Error!*expr.Expression {
             },
             .Boolean => self.parseBoolean(),
             .OpenParen => b: {
-                const pos = self.current_position;
-                const val = self.parseFunction() catch {
-                    self.current_position = pos;
-                    _ = try self.expect(.OpenParen, "(");
-                    const ex = try self.parseExpression();
-                    _ = try self.expect(.CloseParen, ")");
-                    const out = self.allocator.create(expr.Expression) catch break :b Error.MemoryFailure;
-                    out.* = .{ .wrapped = ex };
-                    break :b out;
-                };
-                break :b val;
+                if (std.mem.eql(u8, token.chars, "(")) {
+                    if (self.nextNextToken()) |nnt| {
+                        const nt = self.nextToken() orelse unreachable;
+                        if (nnt.kind == .ArgSep or nt.kind == .CloseParen or nnt.kind == .CloseParen) {
+                            break :b self.parseFunction();
+                        } else {
+                            _ = try self.expect(.OpenParen, "(");
+                            const ex = try self.parseExpression();
+                            _ = try self.expect(.CloseParen, ")");
+                            const out = self.allocator.create(expr.Expression) catch break :b Error.MemoryFailure;
+                            out.* = .{ .wrapped = ex };
+                            break :b out;
+                        }
+                    } else break :b Error.EndOfFile;
+                } else if (std.mem.eql(u8, token.chars, "[")) {
+                    break :b todo(*expr.Expression, "array literal parsing in parseValue");
+                } else if (std.mem.eql(u8, token.chars, "{")) {
+                    break :b todo(*expr.Expression, "dictionary literal parsing in parseValue");
+                } else unreachable;
             },
             else => |k| b: {
                 if (k == .CloseParen) {
@@ -532,8 +581,6 @@ fn parseStatements(self: *Self, should_ignore_paran: bool) Error![]stmt.Statemen
     } else |err| {
         if (Self.parser_diagnostic) {
             std.debug.print("INFO: error: {}\n", .{err});
-            std.debug.print("INFO: current token index: {}\n", .{self.current_position});
-            std.debug.print("INFO: total token conut: {}\n", .{self.tokens.len});
         }
 
         if (err != Error.EndOfFile and err != Error.UnexpectedToken)

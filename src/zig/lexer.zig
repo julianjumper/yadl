@@ -313,11 +313,12 @@ fn lexAnyOf(self: *Self, strings: []const []const u8, kind: TokenKind) Error!Tok
     }
     return Error.UnexpectedCharacter;
 }
-fn countNewlines(self: Self) u64 {
+
+pub fn countNewlines(self: Self) u64 {
     return std.mem.count(u8, self.data[0..self.current_position], "\n") + 1;
 }
 
-fn currentColumn(self: Self) u64 {
+pub fn currentColumn(self: Self) u64 {
     var pos = self.current_position - 1;
     while (self.data[pos] != '\n' and pos > 0) : (pos -= 1) {}
     return self.current_position - pos;
@@ -366,7 +367,7 @@ fn peekChar(self: *Self) Error!u8 {
     }
 }
 
-fn nextToken(self: *Self) Error!Token {
+pub fn nextToken(self: *Self) Error!Token {
     try self.skipWhitespce();
     const char = try self.peekChar();
 
