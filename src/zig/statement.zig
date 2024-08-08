@@ -98,8 +98,17 @@ pub fn printStatement(out: std.io.AnyWriter, st: Statement, indent: u8) !void {
                 }
             }
         },
-        .functioncall => {
-            try out.print("TODO: functioncall", .{});
+        .functioncall => |fc| {
+            try printIdent(out, indent);
+            try out.print("Function Call:\n", .{});
+            try printIdent(out, indent);
+            try out.print(" name:\n", .{});
+            try expr.printExpression(out, fc.func.*, indent + 1);
+            try printIdent(out, indent);
+            try out.print(" args:\n", .{});
+            for (fc.args) |arg| {
+                try expr.printExpression(out, arg, indent + 1);
+            }
         },
     }
 }
