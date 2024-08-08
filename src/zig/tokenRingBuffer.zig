@@ -15,13 +15,11 @@ read_index: usize = 0,
 write_index: usize = 0,
 
 fn maskLen(index: usize) usize {
-    std.debug.assert(@popCount(buffer_size) == 1);
-    return index & (buffer_size - 1);
+    return index % buffer_size;
 }
 
 fn maskTwiceLen(index: usize) usize {
-    std.debug.assert(@popCount(buffer_size) == 1);
-    return index & (buffer_size * 2 - 1);
+    return index % (buffer_size * 2);
 }
 
 pub fn isEmpty(self: Self) bool {
