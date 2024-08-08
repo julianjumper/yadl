@@ -24,17 +24,17 @@ pub fn main() !void {
         const input = try readFile(allocator, filepath);
 
         var parser = try Parser.init(input, allocator);
+
         const exprs = parser.parse() catch |err| {
             if (err != Parser.Error.EndOfFile and err != Parser.Error.UnexpectedToken)
                 return err;
             std.process.exit(1);
         };
-        defer parser.freeStatements(exprs);
 
         for (exprs) |expr| {
             try stmt.printStatement(stdout.any(), expr, 1);
         }
-
-        try bw.flush(); // don't forget to flush!
+        try bw.flush();
+        parser.freeStatements(exprs);
     }
 }
