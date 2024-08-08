@@ -104,18 +104,13 @@ pub fn freeExpression(self: *Self, ex: *const expr.Expression) void {
         },
         .functioncall => |fc| {
             self.freeExpression(fc.func);
-            for (fc.args) |*arg| {
-                self.freeExpression(arg);
-            }
+            self.allocator.free(fc.args);
         },
         .function => |f| {
             self.freeStatements(f.body);
             self.allocator.free(f.args);
         },
         .array => |a| {
-            for (a.elements) |*e| {
-                self.freeExpression(e);
-            }
             self.allocator.free(a.elements);
         },
         .dictionary => |d| {
@@ -315,7 +310,7 @@ fn parseValue(self: *Self) Error!*expr.Expression {
                         }
                     } else break :b Error.EndOfFile;
                 } else if (std.mem.eql(u8, token.chars, "[")) {
-                    break :b todo(*expr.Expression, "array literal parsing in parseValue");
+                    break :b self.parseArrayLiteral();
                 } else if (std.mem.eql(u8, token.chars, "{")) {
                     break :b todo(*expr.Expression, "dictionary literal parsing in parseValue");
                 } else unreachable;
@@ -334,6 +329,21 @@ fn parseValue(self: *Self) Error!*expr.Expression {
     } else return Error.EndOfFile;
 }
 
+fn parseArrayLiteral(self: *Self) Error!*expr.Expression {
+    _ = try self.expect(.OpenParen, "[");
+    const elems = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| b: {
+        if (err != Error.UnexpectedToken)
+            return err;
+
+        _ = try self.expect(.CloseParen, "]");
+        break :b &[_]expr.Expression{};
+    };
+    _ = try self.expect(.CloseParen, "]");
+    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
+    out.* = .{ .array = .{ .elements = elems } };
+    return out;
+}
+
 fn parseIdentifier(self: *Self) Error!*expr.Expression {
     const id = self.expect(.Identifier, null) catch unreachable;
     const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
@@ -342,8 +352,30 @@ fn parseIdentifier(self: *Self) Error!*expr.Expression {
 }
 
 fn parseFunctionCallExpr(self: *Self) Error!*expr.Expression {
-    _ = self;
-    return todo(*expr.Expression, "parsing of expression function calls");
+    const func_name = try self.parseIdentifier();
+    _ = try self.expect(.OpenParen, "(");
+
+    const args = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| {
+        if (err != Error.UnexpectedToken)
+            return err;
+
+        _ = try self.expect(.CloseParen, ")");
+        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
+        out.* = .{ .functioncall = .{
+            .func = func_name,
+            .args = &[_]expr.Expression{},
+        } };
+        return out;
+    };
+
+    _ = try self.expect(.CloseParen, ")");
+
+    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
+    out.* = .{ .functioncall = .{
+        .func = func_name,
+        .args = args,
+    } };
+    return out;
 }
 
 fn parseFunctionArguments(self: *Self) Error![]expr.Identifier {
@@ -393,8 +425,13 @@ fn parseFunction(self: *Self) Error!*expr.Expression {
 }
 
 fn parseStructAccess(self: *Self) Error!*expr.Expression {
-    _ = self;
-    return todo(*expr.Expression, "parsing of structure access");
+    const id = try self.parseIdentifier();
+    _ = try self.expect(.OpenParen, "[");
+    const ex = try self.parseExpression();
+    _ = try self.expect(.OpenParen, "]");
+    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
+    out.* = .{ .struct_access = .{ .key = ex, .strct = id } };
+    return out;
 }
 
 fn baseOf(digits: []const u8) u8 {
@@ -494,31 +531,33 @@ fn parseReturn(self: *Self) Error!stmt.Statement {
     return .{ .ret = .{ .value = ex } };
 }
 
-fn parseFunctionCallArguments(self: *Self) Error![]expr.Expression {
-    var args = std.ArrayList(expr.Expression).init(self.allocator);
-    var ex = self.parseExpression() catch {
-        return Error.ArgumentParsingFailure;
-    };
-    args.append(ex.*) catch return Error.MemoryFailure;
-    self.allocator.destroy(ex);
+fn parseRepeated(self: *Self, comptime T: type, f: fn (*Self) Error!T) Error![]T {
+    var elements = std.ArrayList(T).init(self.allocator);
+    var ex = try f(self);
+    elements.append(ex) catch return Error.MemoryFailure;
     while (self.expect(.ArgSep, null)) |_| {
-        ex = try self.parseExpression();
-        args.append(ex.*) catch return Error.MemoryFailure;
-        self.allocator.destroy(ex);
+        ex = try f(self);
+        elements.append(ex) catch return Error.MemoryFailure;
     } else |err| {
         if (err == Error.UnexpectedToken)
-            return args.toOwnedSlice() catch Error.MemoryFailure;
+            return elements.toOwnedSlice() catch Error.MemoryFailure;
 
         return err;
     }
-    return args.toOwnedSlice() catch Error.MemoryFailure;
+    return elements.toOwnedSlice() catch Error.MemoryFailure;
+}
+
+fn parseExpr(self: *Self) Error!expr.Expression {
+    const ex = try self.parseExpression();
+    defer self.freeExpression(ex);
+    return ex.*;
 }
 
 fn parseFunctionCall(self: *Self) Error!stmt.Statement {
     const func_name = try self.expect(.Identifier, null);
     _ = try self.expect(.OpenParen, "(");
 
-    const args = self.parseFunctionCallArguments() catch |err| {
+    const args = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| {
         if (err == Error.ArgumentParsingFailure)
             return .{ .functioncall = .{
                 .func = &.{ .identifier = .{ .name = func_name.chars } },
@@ -574,7 +613,12 @@ fn parseStatement(self: *Self) Error!stmt.Statement {
         _ = self.expect(.Newline, null) catch |err| {
             if (err == Error.EndOfFile) {
                 return st;
-            } else return err;
+            }
+            if (self.tokens.readPrevious()) |t| {
+                std.debug.print("INFO: previous token kind: {}\n", .{t.kind});
+            }
+
+            return err;
         };
         return st;
     } else return Error.EndOfFile;
@@ -648,7 +692,7 @@ test "simple assignment" {
     try std.testing.expectEqualStrings(expected.assignment.value.identifier.name, result_stmt.assignment.value.identifier.name);
 }
 
-test "assignment of function" {
+test "function" {
     const input =
         \\aoeu = ( x ) => {
         \\    return x
@@ -682,6 +726,39 @@ test "assignment of function" {
     try std.testing.expectEqual(expected.assignment.value.function.body.len, function.body.len);
 }
 
+test "function - no args" {
+    const input =
+        \\aoeu = () => {
+        \\    return x
+        \\}
+        \\
+    ;
+    var ident = .{ .identifier = .{ .name = "x" } };
+    const ret_value = .{ .value = &ident };
+    var fun = .{ .function = .{
+        .args = &[_]expr.Identifier{},
+        .body = &[_]stmt.Statement{
+            .{ .ret = ret_value },
+        },
+    } };
+    const expected: stmt.Statement = .{ .assignment = .{
+        .varName = .{ .name = "aoeu" },
+        .value = &fun,
+    } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = try parser.parse();
+    defer parser.freeStatements(result);
+
+    try std.testing.expectEqual(1, result.len);
+    const result_stmt = result[0];
+    try std.testing.expect(result_stmt == .assignment);
+    try std.testing.expect(result_stmt.assignment.value.* == .function);
+    const function = result_stmt.assignment.value.function;
+    try std.testing.expectEqual(expected.assignment.value.function.args.len, function.args.len);
+    try std.testing.expectEqual(expected.assignment.value.function.body.len, function.body.len);
+}
+
 test "simple assignment - no newline" {
     const input = "aoeu = aoeu";
     var ident = .{ .identifier = .{ .name = "aoeu" } };
@@ -700,6 +777,104 @@ test "simple assignment - no newline" {
     try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
     try std.testing.expect(result_stmt.assignment.value.* == .identifier);
     try std.testing.expectEqualStrings(expected.assignment.value.identifier.name, result_stmt.assignment.value.identifier.name);
+}
+
+test "function call No args" {
+    const input = "aoeu = aoeu()\n";
+    var funCall: expr.Expression = .{ .functioncall = .{
+        .func = &.{ .identifier = .{ .name = "aoeu" } },
+        .args = &[_]expr.Expression{},
+    } };
+    const expected: stmt.Statement = .{ .assignment = .{
+        .varName = .{ .name = "aoeu" },
+        .value = &funCall,
+    } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = try parser.parse();
+    defer parser.freeStatements(result);
+
+    try std.testing.expectEqual(1, result.len);
+    const result_stmt = result[0];
+    try std.testing.expect(result_stmt == .assignment);
+    try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
+    try std.testing.expect(result_stmt.assignment.value.* == .functioncall);
+    const result_fc = result_stmt.assignment.value.functioncall;
+    try std.testing.expectEqualStrings(funCall.functioncall.func.identifier.name, result_fc.func.identifier.name);
+    try std.testing.expectEqualSlices(expr.Expression, funCall.functioncall.args, result_fc.args);
+}
+
+test "function call" {
+    const input = "aoeu = aoeu(1, 2)";
+    var funCall: expr.Expression = .{ .functioncall = .{
+        .func = &.{ .identifier = .{ .name = "aoeu" } },
+        .args = &[_]expr.Expression{
+            .{ .number = .{ .integer = 1 } },
+            .{ .number = .{ .integer = 2 } },
+        },
+    } };
+    const expected: stmt.Statement = .{ .assignment = .{
+        .varName = .{ .name = "aoeu" },
+        .value = &funCall,
+    } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = try parser.parse();
+    defer parser.freeStatements(result);
+
+    try std.testing.expectEqual(1, result.len);
+    const result_stmt = result[0];
+    try std.testing.expect(result_stmt == .assignment);
+    try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
+    try std.testing.expect(result_stmt.assignment.value.* == .functioncall);
+    const result_fc = result_stmt.assignment.value.functioncall;
+    try std.testing.expectEqualStrings(funCall.functioncall.func.identifier.name, result_fc.func.identifier.name);
+    try std.testing.expectEqualSlices(expr.Expression, funCall.functioncall.args, result_fc.args);
+}
+
+test "array" {
+    const input = "aoeu = [ 1, 2 ]";
+    var arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{
+        .{ .number = .{ .integer = 1 } },
+        .{ .number = .{ .integer = 2 } },
+    } } };
+    const expected: stmt.Statement = .{ .assignment = .{
+        .varName = .{ .name = "aoeu" },
+        .value = &arr,
+    } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = try parser.parse();
+    defer parser.freeStatements(result);
+
+    try std.testing.expectEqual(1, result.len);
+    const result_stmt = result[0];
+    try std.testing.expect(result_stmt == .assignment);
+    try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
+    try std.testing.expect(result_stmt.assignment.value.* == .array);
+    const result_arr = result_stmt.assignment.value.array;
+    try std.testing.expectEqualSlices(expr.Expression, arr.array.elements, result_arr.elements);
+}
+
+test "empty array" {
+    const input = "aoeu = [ ] \n";
+    var arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{} } };
+    const expected: stmt.Statement = .{ .assignment = .{
+        .varName = .{ .name = "aoeu" },
+        .value = &arr,
+    } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = try parser.parse();
+    defer parser.freeStatements(result);
+
+    try std.testing.expectEqual(1, result.len);
+    const result_stmt = result[0];
+    try std.testing.expect(result_stmt == .assignment);
+    try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
+    try std.testing.expect(result_stmt.assignment.value.* == .array);
+    const result_arr = result_stmt.assignment.value.array;
+    try std.testing.expectEqualSlices(expr.Expression, arr.array.elements, result_arr.elements);
 }
 
 test "simple if statement" {
