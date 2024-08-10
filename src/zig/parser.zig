@@ -272,43 +272,43 @@ fn parseBoolean(self: *Self) Error!*expr.Expression {
 
 fn parseValue(self: *Self) Error!*expr.Expression {
     if (self.currentToken()) |token| {
-        return switch (token.kind) {
-            .Number => self.parseNumber(),
-            .Identifier => b: {
+        switch (token.kind) {
+            .Number => return self.parseNumber(),
+            .Identifier => {
                 if (self.nextToken()) |t| {
                     if (t.kind == .OpenParen and t.chars[0] == '(') {
-                        break :b self.parseFunctionCallExpr();
+                        return self.parseFunctionCallExpr();
                     } else if (t.kind == .OpenParen and t.chars[0] == '[') {
-                        break :b self.parseStructAccess();
+                        return self.parseStructAccess();
                     }
-                    break :b self.parseIdentifier();
+                    return self.parseIdentifier();
                 }
-                break :b self.parseIdentifier();
+                return self.parseIdentifier();
             },
-            .Boolean => self.parseBoolean(),
-            .String => self.parseString(),
-            .OpenParen => b: {
+            .Boolean => return self.parseBoolean(),
+            .String => return self.parseString(),
+            .OpenParen => {
                 if (std.mem.eql(u8, token.chars, "(")) {
                     if (self.nextNextToken()) |nnt| {
                         const nt = self.nextToken() orelse unreachable;
                         if (nnt.kind == .ArgSep or nt.kind == .CloseParen or nnt.kind == .CloseParen) {
-                            break :b self.parseFunction();
+                            return self.parseFunction();
                         } else {
                             _ = try self.expect(.OpenParen, "(");
                             const ex = try self.parseExpression();
                             _ = try self.expect(.CloseParen, ")");
-                            const out = self.allocator.create(expr.Expression) catch break :b Error.MemoryFailure;
+                            const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
                             out.* = .{ .wrapped = ex };
-                            break :b out;
+                            return out;
                         }
-                    } else break :b Error.EndOfFile;
+                    } else return Error.EndOfFile;
                 } else if (std.mem.eql(u8, token.chars, "[")) {
-                    break :b self.parseArrayLiteral();
+                    return self.parseArrayLiteral();
                 } else if (std.mem.eql(u8, token.chars, "{")) {
-                    break :b todo(*expr.Expression, "dictionary literal parsing in parseValue");
+                    return todo(*expr.Expression, "dictionary literal parsing in parseValue");
                 } else unreachable;
             },
-            else => |k| b: {
+            else => |k| {
                 if (k == .CloseParen) {
                     self.last_expected = .Number;
                     return Error.UnexpectedToken;
@@ -316,13 +316,15 @@ fn parseValue(self: *Self) Error!*expr.Expression {
 
                 std.debug.print("token type: {}\n", .{k});
                 std.debug.print("token value: '{s}'\n", .{token.chars});
-                break :b todo(*expr.Expression, "parsing of expressions");
+                return todo(*expr.Expression, "parsing of expressions");
             },
-        };
+        }
     } else return Error.EndOfFile;
 }
 
 fn parseArrayLiteral(self: *Self) Error!*expr.Expression {
+    // TODO: for some reason a newline is swollowed after the array literal
+    //  One may fix this
     _ = try self.expect(.OpenParen, "[");
     const elems = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| b: {
         if (err != Error.RepeatedParsingNoElements)
