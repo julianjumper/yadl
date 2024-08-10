@@ -327,8 +327,6 @@ fn parseArrayLiteral(self: *Self) Error!*expr.Expression {
     const elems = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| b: {
         if (err != Error.RepeatedParsingNoElements)
             return err;
-
-        _ = try self.expect(.CloseParen, "]");
         break :b &[_]expr.Expression{};
     };
     _ = try self.expect(.CloseParen, "]");
@@ -356,7 +354,7 @@ fn parseFunctionCallExpr(self: *Self) Error!*expr.Expression {
     _ = try self.expect(.OpenParen, "(");
 
     const args = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| {
-        if (err != Error.UnexpectedToken)
+        if (err != Error.RepeatedParsingNoElements)
             return err;
 
         _ = try self.expect(.CloseParen, ")");
@@ -387,7 +385,6 @@ fn parseFunction(self: *Self) Error!*expr.Expression {
     _ = try self.expect(.OpenParen, "(");
     const args = self.parseRepeated(expr.Identifier, Self.parseIdent) catch |err| b: {
         if (err == Error.RepeatedParsingNoElements) {
-            _ = try self.expect(.CloseParen, ")");
             break :b &[_]expr.Identifier{};
         }
         return err;
