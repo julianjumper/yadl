@@ -4,14 +4,12 @@ const stmt = @import("statement.zig");
 const expr = @import("expression.zig");
 const RingBuffer = @import("tokenRingBuffer.zig");
 
-const pError = error{
+pub const Error = Lexer.Error || error{
     UnexpectedToken,
     RepeatedParsingFailure,
     RepeatedParsingNoElements,
     NumberParsingFailure,
 };
-
-pub const Error = Lexer.Error || pError;
 
 tokens: RingBuffer = .{},
 lexer: Lexer,
@@ -26,7 +24,7 @@ const Token = Lexer.Token;
 const Self = @This();
 
 pub fn init(input: []const u8, allocator: std.mem.Allocator) Lexer.Error!Self {
-    Self.parser_diagnostic = true;
+    // Self.parser_diagnostic = true;
     return Self{
         .lexer = Lexer.init(input),
         .allocator = allocator,
@@ -132,16 +130,40 @@ fn todo(comptime T: type, msg: []const u8) Error!T {
     return Error.NotImplemented;
 }
 
+fn putNextToken(self: *Self) Error!void {
+    const t = self.lexer.nextToken() catch |err| {
+        handleAndExit(self, err);
+        return Error.EndOfFile;
+    };
+
+    if (Self.parser_diagnostic) {
+        std.debug.print("-----------------------------\n", .{});
+        std.debug.print(
+            "INFO: ring buffer pos: r {}, w {}\n",
+            .{ self.tokens.read_index, self.tokens.write_index },
+        );
+        std.debug.print(" kind: {}\n", .{t.kind});
+        std.debug.print(" writing element...\n", .{});
+    }
+    self.tokens.write(t) catch return Error.UnknownError;
+
+    if (Self.parser_diagnostic) {
+        std.debug.print(
+            "INFO: ring buffer pos: r {}, w {}\n",
+            .{ self.tokens.read_index, self.tokens.write_index },
+        );
+    }
+}
+
 fn expect(self: *Self, kind: Kind, expected_chars: ?[]const u8) Error!Token {
     if (self.tokens.isEmpty()) {
-        const t = self.lexer.nextToken() catch |err|
-            return err;
-        self.tokens.write(t) catch unreachable;
+        try self.putNextToken();
     }
 
     if (self.tokens.peek()) |token| {
         if (parser_diagnostic) {
             std.debug.print("-----------------------------\n", .{});
+            std.debug.print("DEBUG: current ring buffer read: {}\n", .{self.tokens.read_index});
             std.debug.print("DEBUG: kinds are (act, exp): \n    {}\n    {}\n", .{ token.kind, kind });
             std.debug.print("DEBUG: current chars are: {s}\n", .{token.chars});
 
@@ -175,9 +197,9 @@ fn expect(self: *Self, kind: Kind, expected_chars: ?[]const u8) Error!Token {
     } else return Error.EndOfFile;
 }
 
-fn handleAndExit(self: *Self, err: Error) ?Token {
+fn handleAndExit(self: *Self, err: Error) void {
     if (err == Lexer.Error.EndOfFile) {
-        return null;
+        return;
     } else {
         const stderr = std.io.getStdErr().writer();
         stderr.print("ERROR: failed to read next token: {}\n", .{err}) catch @panic("error during write to stderr");
@@ -187,25 +209,28 @@ fn handleAndExit(self: *Self, err: Error) ?Token {
 }
 
 fn currentToken(self: *Self) ?Token {
-    if (self.tokens.isEmpty()) {
-        const t = self.lexer.nextToken() catch |err| self.handleAndExit(err) orelse return null;
-        self.tokens.write(t) catch unreachable;
-    }
+    if (self.tokens.isEmpty())
+        self.putNextToken() catch return null;
+
     return self.tokens.peek();
 }
 
 fn nextToken(self: *Self) ?Token {
     while (self.tokens.len() < 2) {
-        const t = self.lexer.nextToken() catch |err| self.handleAndExit(err) orelse return null;
-        self.tokens.write(t) catch unreachable;
+        self.putNextToken() catch |err| {
+            self.handleAndExit(err);
+            return null;
+        };
     }
     return self.tokens.peekNext();
 }
 
 fn nextNextToken(self: *Self) ?Token {
     while (self.tokens.len() < 3) {
-        const t = self.lexer.nextToken() catch |err| self.handleAndExit(err) orelse return null;
-        self.tokens.write(t) catch unreachable;
+        self.putNextToken() catch |err| {
+            self.handleAndExit(err);
+            return null;
+        };
     }
     return self.tokens.peekNextNext();
 }
@@ -530,10 +555,10 @@ fn parseRepeated(self: *Self, comptime T: type, f: fn (*Self) Error!T) Error![]T
     var ex = f(self) catch return Error.RepeatedParsingNoElements;
     elements.append(ex) catch return Error.MemoryFailure;
     while (self.expect(.ArgSep, null)) |_| {
-        ex = f(self) catch return Error.RepeatedParsingFailure;
+        ex = try f(self);
         elements.append(ex) catch return Error.MemoryFailure;
     } else |err| {
-        if (err == Error.UnexpectedToken)
+        if (err == Error.UnexpectedToken or err == Error.EndOfFile)
             return elements.toOwnedSlice() catch Error.MemoryFailure;
 
         std.debug.print("ERROR: failure during repeated parsing: {}\n", .{err});
@@ -585,6 +610,10 @@ fn parseStatement(self: *Self) Error!stmt.Statement {
     self.last_expected = null;
     self.last_expected_chars = null;
     if (self.currentToken()) |token| {
+        if (Self.parser_diagnostic) {
+            std.debug.print("DEBUG: current token kind at statement parse: {}\n", .{token.kind});
+        }
+
         const st = try switch (token.kind) {
             .Keyword => if (token.chars[0] == 'r')
                 self.parseReturn()
@@ -599,12 +628,12 @@ fn parseStatement(self: *Self) Error!stmt.Statement {
             else
                 self.parseAssignment()) else Error.UnexpectedToken,
             .OpenParen => todo(stmt.Statement, "parse statement => case open paren"),
-            .Newline => b: {
+            .Newline => {
                 _ = self.expect(.Newline, null) catch unreachable;
                 if (Self.parser_diagnostic) {
                     std.debug.print("DEBUG: read newline as statement\n", .{});
                 }
-                break :b self.parseStatement();
+                return self.parseStatement();
             },
             else => Error.UnexpectedToken,
         };
@@ -613,7 +642,7 @@ fn parseStatement(self: *Self) Error!stmt.Statement {
                 return err;
 
             if (Self.parser_diagnostic) {
-                std.debug.print("DEBUG: failed to read newline after statement\n", .{});
+                std.debug.print("DEBUG: failed to read newline: end of file\n", .{});
             }
 
             return st;
@@ -682,7 +711,7 @@ test "simple assignment" {
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
-    const result = try parser.parse();
+    const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
@@ -714,7 +743,7 @@ test "function" {
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
-    const result = try parser.parse();
+    const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
@@ -748,7 +777,7 @@ test "function - no args" {
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
-    const result = try parser.parse();
+    const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
@@ -769,7 +798,7 @@ test "simple assignment - no newline" {
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
-    const result = try parser.parse();
+    const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
@@ -792,7 +821,7 @@ test "function call No args" {
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
-    const result = try parser.parse();
+    const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
@@ -820,7 +849,7 @@ test "function call" {
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
-    const result = try parser.parse();
+    const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
@@ -845,7 +874,7 @@ test "array" {
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
-    const result = try parser.parse();
+    const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
@@ -857,6 +886,97 @@ test "array" {
     try std.testing.expectEqualSlices(expr.Expression, arr.array.elements, result_arr.elements);
 }
 
+test "assign after array" {
+    const input =
+        \\aoeu = [ 1, 2,3,4]
+        \\aoeu = [ 1, 2,   3 ,4 ]
+        \\aoeu = [ 1, 2 ]
+    ;
+    // NOTE: we assume that the assignment parsing is working correctly
+    const arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{
+        .{ .number = .{ .integer = 1 } },
+        .{ .number = .{ .integer = 2 } },
+        .{ .number = .{ .integer = 3 } },
+        .{ .number = .{ .integer = 4 } },
+    } } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = parser.parse() catch unreachable;
+    defer parser.freeStatements(result);
+
+    try std.testing.expectEqual(3, result.len);
+    const result_stmt_1 = result[0];
+    const result_stmt_2 = result[0];
+    try std.testing.expect(result_stmt_1 == .assignment);
+    try std.testing.expect(result_stmt_2 == .assignment);
+    try std.testing.expect(result_stmt_1.assignment.value.* == .array);
+    try std.testing.expect(result_stmt_2.assignment.value.* == .array);
+    const result_arr_1 = result_stmt_1.assignment.value.array;
+    const result_arr_2 = result_stmt_2.assignment.value.array;
+    try std.testing.expectEqualSlices(expr.Expression, arr.array.elements, result_arr_1.elements);
+    try std.testing.expectEqualSlices(expr.Expression, arr.array.elements, result_arr_2.elements);
+}
+
+test "comment" {
+    const input =
+        \\ // commment
+        \\aoeu = [ 1, 2,3,4]
+        \\aoeu = [ 1, 2,   3 ,4 ]
+    ;
+    // NOTE: we assume that the assignment parsing is working correctly
+    const arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{
+        .{ .number = .{ .integer = 1 } },
+        .{ .number = .{ .integer = 2 } },
+        .{ .number = .{ .integer = 3 } },
+        .{ .number = .{ .integer = 4 } },
+    } } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = parser.parse() catch unreachable;
+    defer parser.freeStatements(result);
+
+    try std.testing.expectEqual(2, result.len);
+    const result_stmt_1 = result[0];
+    const result_stmt_2 = result[0];
+    try std.testing.expect(result_stmt_1 == .assignment);
+    try std.testing.expect(result_stmt_2 == .assignment);
+    try std.testing.expect(result_stmt_1.assignment.value.* == .array);
+    try std.testing.expect(result_stmt_2.assignment.value.* == .array);
+    const result_arr_1 = result_stmt_1.assignment.value.array;
+    const result_arr_2 = result_stmt_2.assignment.value.array;
+    try std.testing.expectEqualSlices(expr.Expression, arr.array.elements, result_arr_1.elements);
+    try std.testing.expectEqualSlices(expr.Expression, arr.array.elements, result_arr_2.elements);
+}
+
+test "newline + assign after array" {
+    const input =
+        \\aoeu = [ 1, 2 ]
+        \\
+        \\aoeu = [ 1, 2 ]
+    ;
+    // NOTE: we assume that the assignment parsing is working correctly
+    const arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{
+        .{ .number = .{ .integer = 1 } },
+        .{ .number = .{ .integer = 2 } },
+    } } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = parser.parse() catch unreachable;
+    defer parser.freeStatements(result);
+
+    try std.testing.expectEqual(2, result.len);
+    const result_stmt_1 = result[0];
+    const result_stmt_2 = result[0];
+    try std.testing.expect(result_stmt_1 == .assignment);
+    try std.testing.expect(result_stmt_2 == .assignment);
+    try std.testing.expect(result_stmt_1.assignment.value.* == .array);
+    try std.testing.expect(result_stmt_2.assignment.value.* == .array);
+    const result_arr_1 = result_stmt_1.assignment.value.array;
+    const result_arr_2 = result_stmt_2.assignment.value.array;
+    try std.testing.expectEqualSlices(expr.Expression, arr.array.elements, result_arr_1.elements);
+    try std.testing.expectEqualSlices(expr.Expression, arr.array.elements, result_arr_2.elements);
+}
+
 test "empty array" {
     const input = "aoeu = [ ] \n";
     var arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{} } };
@@ -866,7 +986,7 @@ test "empty array" {
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
-    const result = try parser.parse();
+    const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
@@ -903,7 +1023,7 @@ test "simple if statement" {
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
-    const result = try parser.parse();
+    const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
     try std.testing.expectEqual(1, result.len);
