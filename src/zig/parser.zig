@@ -330,7 +330,7 @@ fn parseValue(self: *Self) Error!*expr.Expression {
                 } else if (std.mem.eql(u8, token.chars, "[")) {
                     return self.parseArrayLiteral();
                 } else if (std.mem.eql(u8, token.chars, "{")) {
-                    return todo(*expr.Expression, "dictionary literal parsing in parseValue");
+                    return self.parseDictionaryLiteral();
                 } else unreachable;
             },
             else => |k| {
@@ -348,8 +348,6 @@ fn parseValue(self: *Self) Error!*expr.Expression {
 }
 
 fn parseArrayLiteral(self: *Self) Error!*expr.Expression {
-    // TODO: for some reason a newline is swollowed after the array literal
-    //  One may fix this
     _ = try self.expect(.OpenParen, "[");
     const elems = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| b: {
         if (err != Error.RepeatedParsingNoElements)
@@ -359,6 +357,29 @@ fn parseArrayLiteral(self: *Self) Error!*expr.Expression {
     _ = try self.expect(.CloseParen, "]");
     const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
     out.* = .{ .array = .{ .elements = elems } };
+    return out;
+}
+
+fn parseEntry(self: *Self) Error!expr.DictionaryEntry {
+    const key = try self.parseExpression();
+    _ = try self.expect(.KeyValueSep, null);
+    const value = try self.parseExpression();
+    return .{
+        .key = key,
+        .value = value,
+    };
+}
+
+fn parseDictionaryLiteral(self: *Self) Error!*expr.Expression {
+    _ = try self.expect(.OpenParen, "{");
+    const elems = self.parseRepeated(expr.DictionaryEntry, Self.parseEntry) catch |err| b: {
+        if (err != Error.RepeatedParsingNoElements)
+            return err;
+        break :b &[_]expr.DictionaryEntry{};
+    };
+    _ = try self.expect(.CloseParen, "}");
+    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
+    out.* = .{ .dictionary = .{ .entries = elems } };
     return out;
 }
 
@@ -418,26 +439,28 @@ fn parseFunction(self: *Self) Error!*expr.Expression {
     };
     _ = try self.expect(.CloseParen, ")");
     _ = try self.expect(.LambdaArrow, null);
-    // TODO: parsing of a single expression
-    //  The current implementation relies on the tokens being available as
-    //  a slice/an array. Since a ring buffer is currently used this is broken.
+    const pos = self.tokens.read_index;
 
-    // if (self.parseExpression()) |ex| {
-    //     const body = self.allocator.alloc(stmt.Statement, 1) catch return Error.MemoryFailure;
-    //     body[0] = .{ .ret = .{ .value = ex } };
-    //     const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-    //     out.* = .{ .function = .{ .args = args, .body = body } };
-    //     return out;
-    // } else |err| {
-    //     if (err != Error.UnexpectedToken) {
-    //         self.allocator.free(args);
-    //         return err;
-    //     }
-    const body = try self.parseCodeblock();
-    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-    out.* = .{ .function = .{ .args = args, .body = body } };
-    return out;
-    // }
+    if (self.parseCodeblock()) |body| {
+        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
+        out.* = .{ .function = .{ .args = args, .body = body } };
+        return out;
+    } else |err| {
+        if (err != Error.UnexpectedToken) {
+            self.allocator.free(args);
+            return err;
+        }
+        // TODO: resetting the read index might fail if function calls and structure access
+        //  allow any expression to be called/accessed
+        self.tokens.read_index = pos;
+        const ex = try self.parseExpression();
+        const ret: stmt.Return = .{ .value = ex };
+        var statemants = self.allocator.alloc(stmt.Statement, 1) catch return Error.MemoryFailure;
+        statemants[0] = .{ .ret = ret };
+        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
+        out.* = .{ .function = .{ .args = args, .body = statemants } };
+        return out;
+    }
 }
 
 fn parseStructAccess(self: *Self) Error!*expr.Expression {
@@ -862,15 +885,18 @@ test "function call" {
     try std.testing.expectEqualSlices(expr.Expression, funCall.functioncall.args, result_fc.args);
 }
 
-test "array" {
-    const input = "aoeu = [ 1, 2 ]";
-    var arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{
-        .{ .number = .{ .integer = 1 } },
-        .{ .number = .{ .integer = 2 } },
+test "dictionary" {
+    const input = "aoeu = { 1 : 1 }";
+    const exp: expr.Expression = .{ .number = .{ .integer = 1 } };
+    var dict: expr.Expression = .{ .dictionary = .{ .entries = &[_]expr.DictionaryEntry{
+        .{
+            .key = &exp,
+            .value = &exp,
+        },
     } } };
-    const expected: stmt.Statement = .{ .assignment = .{
+    const expected_: stmt.Statement = .{ .assignment = .{
         .varName = .{ .name = "aoeu" },
-        .value = &arr,
+        .value = &dict,
     } };
 
     var parser = try Self.init(input, std.testing.allocator);
@@ -880,10 +906,67 @@ test "array" {
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
     try std.testing.expect(result_stmt == .assignment);
-    try std.testing.expectEqualStrings(expected.assignment.varName.name, result_stmt.assignment.varName.name);
-    try std.testing.expect(result_stmt.assignment.value.* == .array);
-    const result_arr = result_stmt.assignment.value.array;
-    try std.testing.expectEqualSlices(expr.Expression, arr.array.elements, result_arr.elements);
+    try std.testing.expectEqualStrings(expected_.assignment.varName.name, result_stmt.assignment.varName.name);
+    try std.testing.expect(result_stmt.assignment.value.* == .dictionary);
+    const result_arr = result_stmt.assignment.value.dictionary;
+    try std.testing.expectEqual(dict.dictionary.entries.len, result_arr.entries.len);
+    for (dict.dictionary.entries, result_arr.entries) |expected, actual| {
+        try std.testing.expectEqual(expected.key.*, actual.key.*);
+        try std.testing.expectEqual(expected.value.*, actual.value.*);
+    }
+}
+
+test "dictionary 3 entries" {
+    const input = "aoeu = { 1 : 1, 2:2   , 3   :   3 }";
+    const exp1: expr.Expression = .{ .number = .{ .integer = 1 } };
+    const exp2: expr.Expression = .{ .number = .{ .integer = 2 } };
+    const exp3: expr.Expression = .{ .number = .{ .integer = 3 } };
+    var dict: expr.Expression = .{ .dictionary = .{ .entries = &[_]expr.DictionaryEntry{
+        .{ .key = &exp1, .value = &exp1 },
+        .{ .key = &exp2, .value = &exp2 },
+        .{ .key = &exp3, .value = &exp3 },
+    } } };
+    const expected_: stmt.Statement = .{ .assignment = .{
+        .varName = .{ .name = "aoeu" },
+        .value = &dict,
+    } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = parser.parse() catch unreachable;
+    defer parser.freeStatements(result);
+
+    try std.testing.expectEqual(1, result.len);
+    const result_stmt = result[0];
+    try std.testing.expect(result_stmt == .assignment);
+    try std.testing.expectEqualStrings(expected_.assignment.varName.name, result_stmt.assignment.varName.name);
+    try std.testing.expect(result_stmt.assignment.value.* == .dictionary);
+    const result_arr = result_stmt.assignment.value.dictionary;
+    try std.testing.expectEqual(dict.dictionary.entries.len, result_arr.entries.len);
+    for (dict.dictionary.entries, result_arr.entries) |expected, actual| {
+        try std.testing.expectEqual(expected.key.*, actual.key.*);
+        try std.testing.expectEqual(expected.value.*, actual.value.*);
+    }
+}
+
+test "dictionary empty" {
+    const input = "aoeu = { }";
+    var dict: expr.Expression = .{ .dictionary = .{ .entries = &[_]expr.DictionaryEntry{} } };
+    const expected_: stmt.Statement = .{ .assignment = .{
+        .varName = .{ .name = "aoeu" },
+        .value = &dict,
+    } };
+
+    var parser = try Self.init(input, std.testing.allocator);
+    const result = parser.parse() catch unreachable;
+    defer parser.freeStatements(result);
+
+    try std.testing.expectEqual(1, result.len);
+    const result_stmt = result[0];
+    try std.testing.expect(result_stmt == .assignment);
+    try std.testing.expectEqualStrings(expected_.assignment.varName.name, result_stmt.assignment.varName.name);
+    try std.testing.expect(result_stmt.assignment.value.* == .dictionary);
+    const result_arr = result_stmt.assignment.value.dictionary;
+    try std.testing.expectEqual(dict.dictionary.entries.len, result_arr.entries.len);
 }
 
 test "assign after array" {

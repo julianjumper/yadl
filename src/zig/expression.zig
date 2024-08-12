@@ -51,7 +51,7 @@ pub const Array = struct {
     elements: []const Expression,
 };
 
-const DictionaryEntry = struct {
+pub const DictionaryEntry = struct {
     key: *const Expression,
     value: *const Expression,
 };

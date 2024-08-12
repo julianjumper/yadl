@@ -16,6 +16,7 @@ pub const TokenKind = enum {
 
     Operator,
     ArgSep,
+    KeyValueSep,
     OpenParen, // NOTE: refers to all of: { [ (
     CloseParen, // NOTE: refers to all of: } ] )
     LambdaArrow,
@@ -381,6 +382,10 @@ pub fn nextToken(self: *Self) Error!Token {
         const pos = self.current_position;
         _ = self.readChar() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .Newline);
+    } else if (char == ':') {
+        const pos = self.current_position;
+        _ = self.readChar() catch unreachable;
+        return self.newToken(self.data[pos..self.current_position], .KeyValueSep);
     } else if (char == '/') {
         return self.lexLineComment();
     } else if (char == '\'') {
