@@ -439,7 +439,7 @@ fn parseFunction(self: *Self) Error!*expr.Expression {
     };
     _ = try self.expect(.CloseParen, ")");
     _ = try self.expect(.LambdaArrow, null);
-    const pos = self.tokens.read_index;
+    const pos = self.lexer.current_position;
 
     if (self.parseCodeblock()) |body| {
         const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
@@ -450,9 +450,9 @@ fn parseFunction(self: *Self) Error!*expr.Expression {
             self.allocator.free(args);
             return err;
         }
-        // TODO: resetting the read index might fail if function calls and structure access
-        //  allow any expression to be called/accessed
-        self.tokens.read_index = pos;
+        self.lexer.current_position = pos;
+        self.tokens.read_index = 0;
+        self.tokens.write_index = 0;
         const ex = try self.parseExpression();
         const ret: stmt.Return = .{ .value = ex };
         var statemants = self.allocator.alloc(stmt.Statement, 1) catch return Error.MemoryFailure;
