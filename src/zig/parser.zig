@@ -23,7 +23,7 @@ const Kind = Lexer.TokenKind;
 const Token = Lexer.Token;
 const Self = @This();
 
-pub fn init(input: []const u8, allocator: std.mem.Allocator) Lexer.Error!Self {
+pub fn init(input: []const u8, allocator: std.mem.Allocator) Self {
     // Self.parser_diagnostic = true;
     return Self{
         .lexer = Lexer.init(input),

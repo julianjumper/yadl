@@ -14,6 +14,8 @@ fn readFile(alloc: std.mem.Allocator, filepath: []const u8) ![]const u8 {
 }
 
 pub fn main() !void {
+    defer arena.deinit();
+
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
@@ -23,7 +25,7 @@ pub fn main() !void {
     while (args.next()) |filepath| {
         const input = try readFile(allocator, filepath);
 
-        var parser = try Parser.init(input, allocator);
+        var parser = Parser.init(input, allocator);
 
         const exprs = parser.parse() catch |err| {
             if (err != Parser.Error.EndOfFile and err != Parser.Error.UnexpectedToken)
