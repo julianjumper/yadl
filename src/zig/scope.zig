@@ -10,6 +10,8 @@ const Functions = std.StringHashMap(expr.Function);
 
 const Scope = @This();
 
+const Error = std.mem.Allocator.Error;
+
 allocator: std.mem.Allocator,
 parent: ?*Scope = null,
 locals: Bindings,
@@ -40,15 +42,27 @@ pub fn hasResult(self: Scope) bool {
     return if (self.return_result) |_| true else false;
 }
 
+pub fn result(self: *Scope) ?*Expression {
+    if (self.return_result) |res| {
+        self.return_result = null;
+        return res;
+    } else return null;
+}
+
 pub fn isGlobal(self: Scope) bool {
     return if (self.parent) |_| false else true;
 }
 
-pub fn lookup(self: Scope, ident: expr.Identifier) ?Expression {
+pub fn lookup(self: Scope, ident: expr.Identifier) Error!?*Expression {
     if (self.locals.get(ident.name)) |ex| {
-        return if (ex != .{ .identifier = ident }) ex else null;
+        return if (ex.* == .identifier and std.mem.eql(u8, ex.identifier.name, ident.name)) ex else null;
     } else {
-        return self.lookupInParent(ident) orelse self.lookupFunction(ident);
+        return try self.lookupInParent(ident) orelse b: {
+            const f = self.lookupFunction(ident) orelse break :b null;
+            const out = try self.allocator.create(Expression);
+            out.* = .{ .function = f };
+            break :b out;
+        };
     }
 }
 
@@ -60,9 +74,9 @@ pub fn lookupFunction(self: Scope, ident: expr.Identifier) ?expr.Function {
     }
 }
 
-fn lookupInParent(self: Scope, ident: expr.Identifier) ?Expression {
+fn lookupInParent(self: Scope, ident: expr.Identifier) Error!?*Expression {
     if (self.parent) |p| {
-        return p.lookup(ident);
+        return try p.lookup(ident);
     } else return null;
 }
 
@@ -76,9 +90,9 @@ fn lookupFunctionInParent(self: Scope, ident: expr.Identifier) ?expr.Function {
     } else return null;
 }
 
-pub fn update(self: Scope, ident: expr.Identifier, value: *Expression) !void {
-    if (value == .function) {
-        if (self.functions.get(ident)) |func| {
+pub fn update(self: *Scope, ident: expr.Identifier, value: *Expression) Error!void {
+    if (value.* == .function) {
+        if (self.functions.get(ident.name)) |func| {
             _ = func;
             std.debug.print("TODO: updating function in scope", .{});
             unreachable;
