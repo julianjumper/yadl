@@ -733,7 +733,7 @@ test "simple assignment" {
         .value = &ident,
     } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -765,7 +765,7 @@ test "function" {
         .value = &fun,
     } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -799,7 +799,7 @@ test "function - no args" {
         .value = &fun,
     } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -820,7 +820,7 @@ test "simple assignment - no newline" {
         .value = &ident,
     } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -843,7 +843,7 @@ test "function call No args" {
         .value = &funCall,
     } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -871,7 +871,7 @@ test "function call" {
         .value = &funCall,
     } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -899,7 +899,7 @@ test "dictionary" {
         .value = &dict,
     } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -931,7 +931,7 @@ test "dictionary 3 entries" {
         .value = &dict,
     } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -956,7 +956,7 @@ test "dictionary empty" {
         .value = &dict,
     } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -983,7 +983,7 @@ test "assign after array" {
         .{ .number = .{ .integer = 4 } },
     } } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -1014,7 +1014,7 @@ test "comment" {
         .{ .number = .{ .integer = 4 } },
     } } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -1043,7 +1043,7 @@ test "newline + assign after array" {
         .{ .number = .{ .integer = 2 } },
     } } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -1068,7 +1068,7 @@ test "empty array" {
         .value = &arr,
     } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
@@ -1105,7 +1105,7 @@ test "simple if statement" {
         .elseBranch = null,
     } };
 
-    var parser = try Self.init(input, std.testing.allocator);
+    var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
     defer parser.freeStatements(result);
 
