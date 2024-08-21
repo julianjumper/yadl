@@ -112,3 +112,40 @@ pub fn printStatement(out: std.io.AnyWriter, st: Statement, indent: u8) !void {
         },
     }
 }
+
+pub fn free(allocator: std.mem.Allocator, st: Statement) void {
+    switch (st) {
+        .ret => |r| {
+            expr.free(allocator, r.value);
+        },
+        .whileloop => |w| {
+            expr.free(allocator, w.loop.condition);
+            allocator.free(w.loop.body);
+        },
+        .assignment => |a| {
+            expr.free(allocator, a.value);
+        },
+        .if_statement => |i| {
+            expr.free(allocator, i.ifBranch.condition);
+            for (i.ifBranch.body) |s| {
+                free(allocator, s);
+            }
+            allocator.free(i.ifBranch.body);
+            if (i.elseBranch) |b| {
+                allocator.free(b);
+            }
+        },
+        .functioncall => |fc| {
+            for (fc.args) |*arg| {
+                expr.free(allocator, arg);
+            }
+            expr.free(allocator, fc.func);
+        },
+        .struct_assignment => |sa| {
+            expr.free(allocator, sa.value);
+            // TODO: check if this is needed
+            // const ex: expr.Expression = .{ .struct_access = sa.access.* };
+            // expr.free(allocator, &ex);
+        },
+    }
+}

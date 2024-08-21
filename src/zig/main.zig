@@ -19,9 +19,9 @@ fn readFile(alloc: std.mem.Allocator, filepath: []const u8) ![]const u8 {
 pub fn main() !void {
     defer arena.deinit();
 
-    // const stdout_file = std.io.getStdOut().writer();
-    // var bw = std.io.bufferedWriter(stdout_file);
-    // const stdout = bw.writer();
+    const stdout_file = std.io.getStdOut().writer();
+    var bw = std.io.bufferedWriter(stdout_file);
+    const stdout = bw.writer();
 
     var args = try std.process.argsWithAllocator(allocator);
     _ = args.next() orelse unreachable; // program name
@@ -35,12 +35,14 @@ pub fn main() !void {
                 return err;
             std.process.exit(1);
         };
-        var scope = Scope.empty(allocator);
+        var scope = Scope.empty(allocator, stdout.any());
 
         for (stmts) |st| {
             try interpreter.evalStatement(st, &scope);
         }
-        // try bw.flush();
-        parser.freeStatements(stmts);
+        try bw.flush();
+        for (stmts) |st| {
+            stmt.free(allocator, st);
+        }
     }
 }

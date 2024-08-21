@@ -47,84 +47,6 @@ pub fn printLexerContext(self: Self, out: std.io.AnyWriter) !void {
     try self.lexer.printContext(out, t);
 }
 
-pub fn freeStatements(self: *Self, stmts: []const stmt.Statement) void {
-    for (stmts) |st| {
-        self.freeStatement(st);
-    }
-    self.allocator.free(stmts);
-}
-pub fn freeStatement(self: *Self, st: stmt.Statement) void {
-    switch (st) {
-        .ret => |r| {
-            self.freeExpression(r.value);
-        },
-        .whileloop => |w| {
-            self.freeExpression(w.loop.condition);
-            self.freeStatements(w.loop.body);
-        },
-        .assignment => |a| {
-            self.freeExpression(a.value);
-        },
-        .if_statement => |i| {
-            self.freeExpression(i.ifBranch.condition);
-            self.freeStatements(i.ifBranch.body);
-            if (i.elseBranch) |b| {
-                self.freeStatements(b);
-            }
-        },
-        .functioncall => |fc| {
-            for (fc.args) |*arg| {
-                self.freeExpression(arg);
-            }
-            self.freeExpression(fc.func);
-        },
-        .struct_assignment => |sa| {
-            self.freeExpression(sa.value);
-            const ex: expr.Expression = .{ .struct_access = sa.access.* };
-            self.freeExpression(&ex);
-        },
-    }
-}
-
-pub fn freeExpression(self: *Self, ex: *const expr.Expression) void {
-    switch (ex.*) {
-        .wrapped => |e| {
-            self.freeExpression(e);
-        },
-        .unary_op => |u| {
-            self.freeExpression(u.operant);
-        },
-        .binary_op => |b| {
-            self.freeExpression(b.left);
-            self.freeExpression(b.right);
-        },
-        .struct_access => |sta| {
-            self.freeExpression(sta.key);
-            self.freeExpression(sta.strct);
-        },
-        .functioncall => |fc| {
-            self.freeExpression(fc.func);
-            self.allocator.free(fc.args);
-        },
-        .function => |f| {
-            self.freeStatements(f.body);
-            self.allocator.free(f.args);
-        },
-        .array => |a| {
-            self.allocator.free(a.elements);
-        },
-        .dictionary => |d| {
-            for (d.entries) |*e| {
-                self.freeExpression(e.key);
-                self.freeExpression(e.value);
-            }
-            self.allocator.free(d.entries);
-        },
-        else => {},
-    }
-    self.allocator.destroy(ex);
-}
-
 fn todo(comptime T: type, msg: []const u8) Error!T {
     std.debug.print("TODO: {s}\n", .{msg});
     return Error.NotImplemented;
@@ -592,8 +514,9 @@ fn parseRepeated(self: *Self, comptime T: type, f: fn (*Self) Error!T) Error![]T
 
 fn parseExpr(self: *Self) Error!expr.Expression {
     const ex = try self.parseExpression();
-    defer self.freeExpression(ex);
-    return ex.*;
+    const out = ex.*;
+    defer self.allocator.destroy(ex);
+    return out;
 }
 
 fn parseFunctionCall(self: *Self) Error!stmt.Statement {
@@ -717,7 +640,7 @@ fn parseStatements(self: *Self, should_ignore_paran: bool) Error![]stmt.Statemen
 }
 
 /// Returns an owned slice of Statements which must be
-/// freed with `fn freeStatements(Self, []Statement)`
+/// freed with `fn free(std.mem.Allocator, Statement)` in statements.zig
 pub fn parse(self: *Self) Error![]stmt.Statement {
     return self.parseStatements(false);
 }
@@ -735,7 +658,10 @@ test "simple assignment" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
@@ -767,7 +693,10 @@ test "function" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
@@ -801,7 +730,10 @@ test "function - no args" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
@@ -822,7 +754,10 @@ test "simple assignment - no newline" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
@@ -845,7 +780,10 @@ test "function call No args" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
@@ -859,12 +797,13 @@ test "function call No args" {
 
 test "function call" {
     const input = "aoeu = aoeu(1, 2)";
+    var args = [2]expr.Expression{
+        .{ .number = .{ .integer = 1 } },
+        .{ .number = .{ .integer = 2 } },
+    };
     var funCall: expr.Expression = .{ .functioncall = .{
         .func = &.{ .identifier = .{ .name = "aoeu" } },
-        .args = &[_]expr.Expression{
-            .{ .number = .{ .integer = 1 } },
-            .{ .number = .{ .integer = 2 } },
-        },
+        .args = &args,
     } };
     const expected: stmt.Statement = .{ .assignment = .{
         .varName = .{ .name = "aoeu" },
@@ -873,7 +812,10 @@ test "function call" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
@@ -887,7 +829,7 @@ test "function call" {
 
 test "dictionary" {
     const input = "aoeu = { 1 : 1 }";
-    const exp: expr.Expression = .{ .number = .{ .integer = 1 } };
+    var exp: expr.Expression = .{ .number = .{ .integer = 1 } };
     var dict: expr.Expression = .{ .dictionary = .{ .entries = &[_]expr.DictionaryEntry{
         .{
             .key = &exp,
@@ -901,7 +843,10 @@ test "dictionary" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
@@ -918,9 +863,9 @@ test "dictionary" {
 
 test "dictionary 3 entries" {
     const input = "aoeu = { 1 : 1, 2:2   , 3   :   3 }";
-    const exp1: expr.Expression = .{ .number = .{ .integer = 1 } };
-    const exp2: expr.Expression = .{ .number = .{ .integer = 2 } };
-    const exp3: expr.Expression = .{ .number = .{ .integer = 3 } };
+    var exp1: expr.Expression = .{ .number = .{ .integer = 1 } };
+    var exp2: expr.Expression = .{ .number = .{ .integer = 2 } };
+    var exp3: expr.Expression = .{ .number = .{ .integer = 3 } };
     var dict: expr.Expression = .{ .dictionary = .{ .entries = &[_]expr.DictionaryEntry{
         .{ .key = &exp1, .value = &exp1 },
         .{ .key = &exp2, .value = &exp2 },
@@ -933,7 +878,10 @@ test "dictionary 3 entries" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
@@ -958,7 +906,10 @@ test "dictionary empty" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
@@ -985,7 +936,10 @@ test "assign after array" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(3, result.len);
     const result_stmt_1 = result[0];
@@ -1016,7 +970,10 @@ test "comment" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(2, result.len);
     const result_stmt_1 = result[0];
@@ -1045,7 +1002,10 @@ test "newline + assign after array" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(2, result.len);
     const result_stmt_1 = result[0];
@@ -1070,7 +1030,10 @@ test "empty array" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];
@@ -1107,7 +1070,10 @@ test "simple if statement" {
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
-    defer parser.freeStatements(result);
+    defer std.testing.allocator.free(result);
+    defer for (result) |st| {
+        stmt.free(std.testing.allocator, st);
+    };
 
     try std.testing.expectEqual(1, result.len);
     const result_stmt = result[0];

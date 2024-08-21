@@ -12,13 +12,13 @@ pub const Operator = union(enum) {
 };
 
 pub const BinaryOp = struct {
-    left: *const Expression,
-    right: *const Expression,
+    left: *Expression,
+    right: *Expression,
     op: Operator,
 };
 
 pub const UnaryOp = struct {
-    operant: *const Expression,
+    operant: *Expression,
     op: Operator,
 };
 
@@ -27,6 +27,18 @@ pub const Identifier = struct { name: []const u8 };
 pub const Number = union(enum) {
     integer: i64,
     float: f64,
+
+    pub fn eql(self: Number, other: Number) bool {
+        if (self == .float and other == .float) {
+            return self.float == other.float;
+        } else if (self == .integer and other == .integer) {
+            return self.integer == other.integer;
+        } else if (self == .float) {
+            return self.float == @as(f64, @floatFromInt(other.integer));
+        } else {
+            return other.float == @as(f64, @floatFromInt(self.integer));
+        }
+    }
 };
 
 pub const String = struct { value: []const u8 };
@@ -34,7 +46,7 @@ pub const Boolean = struct { value: bool };
 
 pub const FunctionCall = struct {
     func: *const Expression,
-    args: []const Expression,
+    args: []Expression,
 };
 
 pub const Function = struct {
@@ -43,8 +55,8 @@ pub const Function = struct {
 };
 
 pub const StructureAccess = struct {
-    strct: *const Expression,
-    key: *const Expression,
+    strct: *Expression,
+    key: *Expression,
 };
 
 pub const Array = struct {
@@ -52,8 +64,8 @@ pub const Array = struct {
 };
 
 pub const DictionaryEntry = struct {
-    key: *const Expression,
-    value: *const Expression,
+    key: *Expression,
+    value: *Expression,
 };
 pub const Dictionary = struct {
     entries: []const DictionaryEntry,
@@ -72,6 +84,13 @@ pub const Expression = union(enum) {
     function: Function,
     array: Array,
     dictionary: Dictionary,
+
+    pub fn eql(self: Expression, other: Expression) bool {
+        _ = other;
+        return switch (self) {
+            else => unreachable,
+        };
+    }
 };
 
 pub fn identifier(chars: []const u8) Identifier {
@@ -133,4 +152,46 @@ pub fn printExpression(out: std.io.AnyWriter, expr: Expression, indent: u8) !voi
         },
         else => |ex| try out.print("TODO: {}\n", .{ex}),
     }
+}
+
+pub fn free(allocator: std.mem.Allocator, expr: *const Expression) void {
+    switch (expr.*) {
+        .wrapped => |e| {
+            free(allocator, e);
+        },
+        .unary_op => |u| {
+            free(allocator, u.operant);
+        },
+        .binary_op => |b| {
+            free(allocator, b.left);
+            free(allocator, b.right);
+        },
+        .struct_access => |sta| {
+            free(allocator, sta.key);
+            free(allocator, sta.strct);
+        },
+        .functioncall => |fc| {
+            free(allocator, fc.func);
+            allocator.free(fc.args);
+        },
+        .function => |f| {
+            for (f.body) |st| {
+                stmt.free(allocator, st);
+            }
+            allocator.free(f.body);
+            allocator.free(f.args);
+        },
+        .array => |a| {
+            allocator.free(a.elements);
+        },
+        .dictionary => |d| {
+            for (d.entries) |*e| {
+                free(allocator, e.key);
+                free(allocator, e.value);
+            }
+            allocator.free(d.entries);
+        },
+        else => {},
+    }
+    allocator.destroy(expr);
 }
