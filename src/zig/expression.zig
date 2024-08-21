@@ -15,14 +15,46 @@ pub const BinaryOp = struct {
     left: *Expression,
     right: *Expression,
     op: Operator,
+
+    pub fn init(alloc: std.mem.Allocator, op: Operator, l: *Expression, r: *Expression) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .binary_op = BinaryOp{
+            .op = op,
+            .left = l,
+            .right = r,
+        } };
+        return out;
+    }
 };
 
 pub const UnaryOp = struct {
     operant: *Expression,
     op: Operator,
+
+    pub fn init(alloc: std.mem.Allocator, op: Operator, operant: *Expression) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .unary_op = UnaryOp{
+            .op = op,
+            .operant = operant,
+        } };
+        return out;
+    }
 };
 
-pub const Identifier = struct { name: []const u8 };
+pub const Identifier = struct {
+    name: []const u8,
+
+    pub fn init(
+        alloc: std.mem.Allocator,
+        name: []const u8,
+    ) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .identifier = Identifier{
+            .name = name,
+        } };
+        return out;
+    }
+};
 
 pub const Number = union(enum) {
     integer: i64,
@@ -39,28 +71,113 @@ pub const Number = union(enum) {
             return other.float == @as(f64, @floatFromInt(self.integer));
         }
     }
+
+    pub fn init(alloc: std.mem.Allocator, comptime T: type, value: T) !*Expression {
+        std.debug.assert(T == f64 or T == i64);
+        const out = try alloc.create(Expression);
+        if (T == f64) {
+            out.* = .{ .number = Number{
+                .float = value,
+            } };
+        } else if (T == i64) {
+            out.* = .{ .number = Number{
+                .integer = value,
+            } };
+        } else unreachable;
+        return out;
+    }
 };
 
-pub const String = struct { value: []const u8 };
-pub const Boolean = struct { value: bool };
+pub const String = struct {
+    value: []const u8,
+
+    pub fn init(alloc: std.mem.Allocator, value: []const u8) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .string = String{
+            .value = value,
+        } };
+        return out;
+    }
+};
+pub const Boolean = struct {
+    value: bool,
+
+    pub fn init(alloc: std.mem.Allocator, value: bool) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .boolean = Boolean{
+            .value = value,
+        } };
+        return out;
+    }
+};
 
 pub const FunctionCall = struct {
     func: *const Expression,
     args: []Expression,
+
+    pub fn init(
+        alloc: std.mem.Allocator,
+        func: *const Expression,
+        args: []Expression,
+    ) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .functioncall = FunctionCall{
+            .args = args,
+            .func = func,
+        } };
+        return out;
+    }
 };
 
 pub const Function = struct {
     args: []const Identifier,
     body: []const stmt.Statement,
+
+    pub fn init(
+        alloc: std.mem.Allocator,
+        args: []const Identifier,
+        body: []const stmt.Statement,
+    ) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .function = Function{
+            .args = args,
+            .body = body,
+        } };
+        return out;
+    }
 };
 
 pub const StructureAccess = struct {
     strct: *Expression,
     key: *Expression,
+
+    pub fn init(
+        alloc: std.mem.Allocator,
+        strct: *Expression,
+        key: *Expression,
+    ) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .struct_access = StructureAccess{
+            .key = key,
+            .strct = strct,
+        } };
+        return out;
+    }
 };
 
 pub const Array = struct {
     elements: []const Expression,
+
+    pub fn init(
+        alloc: std.mem.Allocator,
+        elements: []const Expression,
+    ) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .array = Array{
+            .elements = elements,
+        } };
+        return out;
+    }
 };
 
 pub const DictionaryEntry = struct {
@@ -69,6 +186,17 @@ pub const DictionaryEntry = struct {
 };
 pub const Dictionary = struct {
     entries: []const DictionaryEntry,
+
+    pub fn init(
+        alloc: std.mem.Allocator,
+        entries: []const DictionaryEntry,
+    ) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .dictionary = Dictionary{
+            .entries = entries,
+        } };
+        return out;
+    }
 };
 
 pub const Expression = union(enum) {

@@ -194,25 +194,15 @@ fn parseExpression(self: *Self) Error!*expr.Expression {
         return err;
     };
     const ex = try self.parseExpression();
-    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-    out.* = .{ .binary_op = .{
-        .left = value,
-        .right = ex,
-        .op = expr.mapOp(op.chars),
-    } };
-    return out;
+    return expr.BinaryOp.init(self.allocator, expr.mapOp(op.chars), value, ex) catch Error.MemoryFailure;
 }
 
 fn parseBoolean(self: *Self) Error!*expr.Expression {
     const b = self.expect(.Boolean, null) catch unreachable;
     if (std.mem.eql(u8, b.chars, "true")) {
-        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-        out.* = .{ .boolean = .{ .value = true } };
-        return out;
+        return expr.Boolean.init(self.allocator, true) catch Error.MemoryFailure;
     } else if (std.mem.eql(u8, b.chars, "false")) {
-        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-        out.* = .{ .boolean = .{ .value = false } };
-        return out;
+        return expr.Boolean.init(self.allocator, false) catch Error.MemoryFailure;
     }
     unreachable;
 }
@@ -277,9 +267,7 @@ fn parseArrayLiteral(self: *Self) Error!*expr.Expression {
         break :b &[_]expr.Expression{};
     };
     _ = try self.expect(.CloseParen, "]");
-    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-    out.* = .{ .array = .{ .elements = elems } };
-    return out;
+    return expr.Array.init(self.allocator, elems) catch Error.MemoryFailure;
 }
 
 fn parseEntry(self: *Self) Error!expr.DictionaryEntry {
@@ -300,23 +288,17 @@ fn parseDictionaryLiteral(self: *Self) Error!*expr.Expression {
         break :b &[_]expr.DictionaryEntry{};
     };
     _ = try self.expect(.CloseParen, "}");
-    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-    out.* = .{ .dictionary = .{ .entries = elems } };
-    return out;
+    return expr.Dictionary.init(self.allocator, elems) catch Error.MemoryFailure;
 }
 
 fn parseIdentifier(self: *Self) Error!*expr.Expression {
     const id = self.expect(.Identifier, null) catch unreachable;
-    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-    out.* = .{ .identifier = expr.identifier(id.chars) };
-    return out;
+    return expr.Identifier.init(self.allocator, id.chars) catch Error.MemoryFailure;
 }
 
 fn parseString(self: *Self) Error!*expr.Expression {
     const str = self.expect(.String, null) catch unreachable;
-    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-    out.* = .{ .string = .{ .value = str.chars } };
-    return out;
+    return expr.String.init(self.allocator, str.chars) catch Error.MemoryFailure;
 }
 
 fn parseFunctionCallExpr(self: *Self) Error!*expr.Expression {
@@ -328,22 +310,12 @@ fn parseFunctionCallExpr(self: *Self) Error!*expr.Expression {
             return err;
 
         _ = try self.expect(.CloseParen, ")");
-        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-        out.* = .{ .functioncall = .{
-            .func = func_name,
-            .args = &[_]expr.Expression{},
-        } };
-        return out;
+        return expr.FunctionCall.init(self.allocator, func_name, &[_]expr.Expression{}) catch Error.MemoryFailure;
     };
 
     _ = try self.expect(.CloseParen, ")");
 
-    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-    out.* = .{ .functioncall = .{
-        .func = func_name,
-        .args = args,
-    } };
-    return out;
+    return expr.FunctionCall.init(self.allocator, func_name, args) catch Error.MemoryFailure;
 }
 
 fn parseIdent(self: *Self) Error!expr.Identifier {
@@ -364,9 +336,7 @@ fn parseFunction(self: *Self) Error!*expr.Expression {
     const pos = self.lexer.current_position;
 
     if (self.parseCodeblock()) |body| {
-        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-        out.* = .{ .function = .{ .args = args, .body = body } };
-        return out;
+        return expr.Function.init(self.allocator, args, body) catch Error.MemoryFailure;
     } else |err| {
         if (err != Error.UnexpectedToken) {
             self.allocator.free(args);
@@ -379,9 +349,7 @@ fn parseFunction(self: *Self) Error!*expr.Expression {
         const ret: stmt.Return = .{ .value = ex };
         var statemants = self.allocator.alloc(stmt.Statement, 1) catch return Error.MemoryFailure;
         statemants[0] = .{ .ret = ret };
-        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-        out.* = .{ .function = .{ .args = args, .body = statemants } };
-        return out;
+        return expr.Function.init(self.allocator, args, statemants) catch Error.MemoryFailure;
     }
 }
 
@@ -390,9 +358,7 @@ fn parseStructAccess(self: *Self) Error!*expr.Expression {
     _ = try self.expect(.OpenParen, "[");
     const ex = try self.parseExpression();
     _ = try self.expect(.OpenParen, "]");
-    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-    out.* = .{ .struct_access = .{ .key = ex, .strct = id } };
-    return out;
+    return expr.StructureAccess.init(self.allocator, id, ex) catch Error.MemoryFailure;
 }
 
 fn baseOf(digits: []const u8) u8 {
@@ -421,15 +387,11 @@ fn parseNumber(self: *Self) Error!*expr.Expression {
         const fraction = std.fmt.parseInt(i64, fraction_part, base) catch return Error.NumberParsingFailure;
         const frac: f64 = @as(f64, @floatFromInt(fraction)) / std.math.pow(f64, @floatFromInt(base), @floatFromInt(fraction_part.len));
         const composite = @as(f64, @floatFromInt(int)) + frac;
-        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-        out.* = .{ .number = .{ .float = composite } };
-        return out;
+        return expr.Number.init(self.allocator, f64, composite) catch Error.MemoryFailure;
     } else {
         const int_part = if (base == 10) digits.chars else digits.chars[2..];
         const num = std.fmt.parseInt(i64, int_part, base) catch return Error.NumberParsingFailure;
-        const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-        out.* = .{ .number = .{ .integer = num } };
-        return out;
+        return expr.Number.init(self.allocator, i64, num) catch Error.MemoryFailure;
     }
 }
 
