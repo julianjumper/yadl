@@ -10,29 +10,35 @@ const Functions = std.StringHashMap(expr.Function);
 
 const Scope = @This();
 
-const Error = std.mem.Allocator.Error;
+pub const Error = std.mem.Allocator.Error || error{
+    NotImplemented,
+};
 
 allocator: std.mem.Allocator,
+out: std.io.AnyWriter,
 parent: ?*Scope = null,
 locals: Bindings,
 functions: Functions,
 return_result: ?*Expression = null,
 
-pub fn empty(alloc: std.mem.Allocator) Scope {
+pub fn empty(alloc: std.mem.Allocator, out: std.io.AnyWriter) Scope {
     return .{
         .allocator = alloc,
+        .out = out,
         .locals = Bindings.init(alloc),
         .functions = Functions.init(alloc),
     };
 }
 
-pub fn init(alloc: std.mem.Allocator, parent: *Scope, vars: []const expr.Identifier, exprs: []const Expression) !Scope {
+pub fn init(alloc: std.mem.Allocator, out: std.io.AnyWriter, parent: *Scope, vars: []const expr.Identifier, exprs: []Expression) !Scope {
     var tmp: Scope = .{
+        .allocator = alloc,
+        .out = out,
         .parent = parent,
         .locals = Bindings.init(alloc),
         .functions = Functions.init(alloc),
     };
-    for (vars, exprs) |v, e| {
+    for (vars, exprs) |v, *e| {
         try tmp.locals.put(v.name, e);
     }
     return tmp;
@@ -55,7 +61,13 @@ pub fn isGlobal(self: Scope) bool {
 
 pub fn lookup(self: Scope, ident: expr.Identifier) Error!?*Expression {
     if (self.locals.get(ident.name)) |ex| {
-        return if (ex.* == .identifier and std.mem.eql(u8, ex.identifier.name, ident.name)) ex else null;
+        if (ex.* == .identifier and !std.mem.eql(u8, ex.identifier.name, ident.name)) {
+            return ex;
+        } else if (ex.* != .identifier) {
+            return ex;
+        } else {
+            return self.lookupInParent(ident);
+        }
     } else {
         return try self.lookupInParent(ident) orelse b: {
             const f = self.lookupFunction(ident) orelse break :b null;
@@ -94,8 +106,8 @@ pub fn update(self: *Scope, ident: expr.Identifier, value: *Expression) Error!vo
     if (value.* == .function) {
         if (self.functions.get(ident.name)) |func| {
             _ = func;
-            std.debug.print("TODO: updating function in scope", .{});
-            unreachable;
+            std.debug.print("TODO: updating function in scope\n", .{});
+            return Error.NotImplemented;
         } else {
             try self.functions.put(ident.name, value.function);
         }
