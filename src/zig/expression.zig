@@ -72,6 +72,16 @@ pub const Number = union(enum) {
         }
     }
 
+    pub fn add(self: Number, other: Number) Number {
+        if (self == .float and other == .float) {
+            return Number{ .float = self.float + other.float };
+        } else if (self == .integer and other == .integer) {
+            return Number{ .integer = self.integer + other.integer };
+        } else if (self == .float) {
+            return Number{ .float = self.float + @as(f64, @floatFromInt(other.integer)) };
+        } else return Number{ .float = @as(f64, @floatFromInt(self.integer)) + other.float };
+    }
+
     pub fn init(alloc: std.mem.Allocator, comptime T: type, value: T) !*Expression {
         std.debug.assert(T == f64 or T == i64);
         const out = try alloc.create(Expression);
