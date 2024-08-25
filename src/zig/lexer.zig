@@ -230,17 +230,43 @@ fn lexBoolean(self: *Self) Error!Token {
     return self.lexAnyOf(&bool_constants, .Boolean);
 }
 
+const StringBorder = enum {
+    SingleQuote,
+    DoubleQuote,
+};
+
+fn expectStringBorder(self: *Self, borderType: ?StringBorder) Error!StringBorder {
+    const quote = try self.peekChar();
+    if (borderType) |b| {
+        if (checkStringBorder(quote, b)) {
+            _ = self.readChar() catch unreachable;
+            return b;
+        } else {
+            return Error.UnexpectedCharacter;
+        }
+    } else {
+        if (quote == '\'') {
+            _ = self.readChar() catch unreachable;
+            return .SingleQuote;
+        } else if (quote == '"') {
+            _ = self.readChar() catch unreachable;
+            return .DoubleQuote;
+        } else {
+            return Error.UnexpectedCharacter;
+        }
+    }
+}
+
+fn checkStringBorder(char: u8, borderType: StringBorder) bool {
+    return char == '\'' and borderType == .SingleQuote or char == '\"' and borderType == .DoubleQuote;
+}
+
 // String
 fn lexString(self: *Self) Error!Token {
     const pos = self.current_position;
-    const leftQuote = try self.readChar();
-    if (leftQuote != '\'') {
-        self.current_position = pos;
-        return Error.UnexpectedCharacter;
-    }
-
+    const leftQuote = try self.expectStringBorder(null);
     while (self.peekChar()) |char| {
-        if (char == '\'')
+        if (checkStringBorder(char, leftQuote))
             break;
 
         if (char == '\n')
@@ -251,11 +277,10 @@ fn lexString(self: *Self) Error!Token {
         return err;
     }
 
-    const rightQuote = try self.readChar();
-    if (rightQuote != '\'') {
+    _ = self.expectStringBorder(leftQuote) catch |err| {
         self.current_position = pos;
-        return Error.UnexpectedCharacter;
-    }
+        return err;
+    };
     return self.newToken(self.data[pos + 1 .. self.current_position - 1], .String);
 }
 
@@ -388,7 +413,7 @@ pub fn nextToken(self: *Self) Error!Token {
         return self.newToken(self.data[pos..self.current_position], .KeyValueSep);
     } else if (char == '/') {
         return self.lexLineComment();
-    } else if (char == '\'') {
+    } else if (char == '\'' or char == '"') {
         return self.lexString();
     } else if (anyOf(char, "({[")) {
         const pos = self.current_position;
