@@ -26,7 +26,10 @@ pub fn main() !void {
     var args = try std.process.argsWithAllocator(allocator);
     _ = args.next() orelse unreachable; // program name
     while (args.next()) |filepath| {
-        const input = try readFile(allocator, filepath);
+        const input = readFile(allocator, filepath) catch |err| {
+            try stdout.print("ERROR: reading file '{s}' failed: {}\n", .{ filepath, err });
+            continue;
+        };
 
         var parser = Parser.init(input, allocator);
 
