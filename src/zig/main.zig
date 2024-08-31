@@ -47,5 +47,6 @@ pub fn main() !void {
         for (stmts) |st| {
             stmt.free(allocator, st);
         }
+        allocator.free(stmts);
     }
 }
