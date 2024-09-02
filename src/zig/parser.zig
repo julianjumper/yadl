@@ -483,35 +483,52 @@ fn parseCodeblock(self: *Self) Error![]stmt.Statement {
     return code;
 }
 
-fn parseIfStatement(self: *Self) Error!stmt.Statement {
-    _ = self.expect(.Keyword, "if") catch unreachable;
+fn parseBranch(self: *Self) Error!stmt.Branch {
     const condition = try self.parseCondition();
     const code = try self.parseCodeblock();
 
-    const branch: stmt.Branch = .{
+    return .{
         .condition = condition,
         .body = code,
     };
+}
+
+fn parseIfStatement(self: *Self, is_initial_branch: bool) Error!stmt.Statement {
+    if (is_initial_branch) {
+        _ = self.expect(.Keyword, "if") catch unreachable;
+    }
+
+    const branch = try self.parseBranch();
 
     _ = self.expect(.Newline, null) catch {};
-    _ = self.expect(.Keyword, "else") catch |err| {
-        if (err == Error.UnexpectedToken or err == Error.EndOfFile) {
-            return .{
-                .if_statement = .{
-                    .ifBranch = branch,
-                    .elseBranch = null,
-                },
-            };
-        }
-        return err;
-    };
+    if (self.expect(.Keyword, "elif")) |_| {
+        const tmp = try self.parseIfStatement(false);
+        const stmts = self.allocator.alloc(stmt.Statement, 1) catch return Error.MemoryFailure;
+        stmts[0] = tmp;
+        return .{ .if_statement = .{
+            .ifBranch = branch,
+            .elseBranch = stmts,
+        } };
+    } else |e| {
+        if (e != Error.UnexpectedToken and e != Error.EndOfFile) return e;
 
-    const elseCode = try self.parseCodeblock();
+        _ = self.expect(.Keyword, "else") catch |err| {
+            if (err != Error.UnexpectedToken and err != Error.EndOfFile)
+                return err;
 
-    return .{ .if_statement = .{
-        .ifBranch = branch,
-        .elseBranch = elseCode,
-    } };
+            return .{ .if_statement = .{
+                .ifBranch = branch,
+                .elseBranch = null,
+            } };
+        };
+
+        const elseCode = try self.parseCodeblock();
+
+        return .{ .if_statement = .{
+            .ifBranch = branch,
+            .elseBranch = elseCode,
+        } };
+    }
 }
 
 fn parseWhileloop(self: *Self) Error!stmt.Statement {
@@ -596,7 +613,7 @@ fn parseStatement(self: *Self) Error!stmt.Statement {
             .Keyword => if (token.chars[0] == 'r')
                 self.parseReturn()
             else if (token.chars[0] == 'i')
-                self.parseIfStatement()
+                self.parseIfStatement(true)
             else
                 self.parseWhileloop(),
             .Identifier => if (self.nextToken()) |t| (if (t.kind == .OpenParen and t.chars[0] == '(')
