@@ -252,6 +252,66 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                 return Error.NotImplemented;
             },
         },
+        .Mul => switch (leftEval.*) {
+            .number => |l| switch (rightEval.*) {
+                .number => |r| {
+                    const n = l.mul(r);
+                    if (n == .float) {
+                        const tmp = try expr.Number.init(scope.allocator, f64, n.float);
+                        scope.return_result = tmp;
+                    } else {
+                        const tmp = try expr.Number.init(scope.allocator, i64, n.integer);
+                        scope.return_result = tmp;
+                    }
+                },
+                else => |v| {
+                    std.debug.print("ERROR: unhandled case in arith. Mul - number: {}\n", .{v});
+                    return Error.NotImplemented;
+                },
+            },
+            else => |v| {
+                std.debug.print("ERROR: unhandled case in arith. Mul: {}\n", .{v});
+                return Error.NotImplemented;
+            },
+        },
+        .Sub => switch (leftEval.*) {
+            .number => |l| switch (rightEval.*) {
+                .number => |r| {
+                    const n = l.sub(r);
+                    if (n == .float) {
+                        const tmp = try expr.Number.init(scope.allocator, f64, n.float);
+                        scope.return_result = tmp;
+                    } else {
+                        const tmp = try expr.Number.init(scope.allocator, i64, n.integer);
+                        scope.return_result = tmp;
+                    }
+                },
+                else => return Error.NotImplemented,
+            },
+            else => {
+                std.debug.print("ERROR: can not add value of type '{}'\n", .{leftEval});
+                return Error.NotImplemented;
+            },
+        },
+        .Expo => switch (leftEval.*) {
+            .number => |l| switch (rightEval.*) {
+                .number => |r| {
+                    const n = l.expo(r);
+                    if (n == .float) {
+                        const tmp = try expr.Number.init(scope.allocator, f64, n.float);
+                        scope.return_result = tmp;
+                    } else {
+                        const tmp = try expr.Number.init(scope.allocator, i64, n.integer);
+                        scope.return_result = tmp;
+                    }
+                },
+                else => return Error.NotImplemented,
+            },
+            else => {
+                std.debug.print("ERROR: can not add value of type '{}'\n", .{leftEval});
+                return Error.NotImplemented;
+            },
+        },
         else => |v| {
             std.debug.print("ERROR: unhandled case in arith. bin. op.: {}\n", .{v});
             return Error.NotImplemented;
