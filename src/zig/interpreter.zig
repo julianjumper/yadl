@@ -34,6 +34,36 @@ pub fn evalStatement(statement: Statement, scope: *Scope) Error!void {
             const result = scope.result() orelse unreachable;
             scope.return_result = result;
         },
+        .whileloop => |w| {
+            var cond = false;
+            try evalExpression(w.loop.condition, scope);
+            var tmp = scope.result() orelse unreachable;
+            cond = tmp.* == .boolean and tmp.boolean.value;
+            while (cond) {
+                for (w.loop.body) |st| {
+                    try evalStatement(st, scope);
+                }
+
+                try evalExpression(w.loop.condition, scope);
+                tmp = scope.result() orelse unreachable;
+                cond = tmp.* == .boolean and tmp.boolean.value;
+            }
+        },
+        .if_statement => |i| {
+            try evalExpression(i.ifBranch.condition, scope);
+            const tmp = scope.result() orelse unreachable;
+            if (tmp.* == .boolean and tmp.boolean.value) {
+                for (i.ifBranch.body) |st| {
+                    try evalStatement(st, scope);
+                }
+            } else {
+                if (i.elseBranch) |b| {
+                    for (b) |st| {
+                        try evalStatement(st, scope);
+                    }
+                }
+            }
+        },
         else => |st| {
             std.debug.print("TODO: unhandled case in eval statement: {}\n", .{st});
             return Error.NotImplemented;
