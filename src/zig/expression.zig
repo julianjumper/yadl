@@ -1,7 +1,7 @@
 const std = @import("std");
 const stmt = @import("statement.zig");
 
-pub const ArithmeticOps = enum { Add, Sub, Mul, Div, Expo };
+pub const ArithmeticOps = enum { Add, Sub, Mul, Div, Expo, Mod };
 pub const BooleanOps = enum { And, Or, Not };
 pub const CompareOps = enum { Less, LessEqual, Greater, GreaterEqual, Equal, NotEqual };
 
@@ -80,6 +80,42 @@ pub const Number = union(enum) {
         } else if (self == .float) {
             return Number{ .float = self.float + @as(f64, @floatFromInt(other.integer)) };
         } else return Number{ .float = @as(f64, @floatFromInt(self.integer)) + other.float };
+    }
+
+    pub fn sub(self: Number, other: Number) Number {
+        if (self == .float and other == .float) {
+            return Number{ .float = self.float - other.float };
+        } else if (self == .integer and other == .integer) {
+            return Number{ .integer = self.integer - other.integer };
+        } else if (self == .float) {
+            return Number{ .float = self.float - @as(f64, @floatFromInt(other.integer)) };
+        } else return Number{ .float = @as(f64, @floatFromInt(self.integer)) - other.float };
+    }
+
+    pub fn mul(self: Number, other: Number) Number {
+        if (self == .float and other == .float) {
+            return Number{ .float = self.float * other.float };
+        } else if (self == .integer and other == .integer) {
+            return Number{ .integer = self.integer * other.integer };
+        } else if (self == .float) {
+            return Number{ .float = self.float * @as(f64, @floatFromInt(other.integer)) };
+        } else return Number{ .float = @as(f64, @floatFromInt(self.integer)) * other.float };
+    }
+
+    pub fn expo(self: Number, other: Number) Number {
+        if (self == .float and other == .float) {
+            const tmp = std.math.pow(f64, self.float, other.float);
+            return Number{ .float = tmp };
+        } else if (self == .integer and other == .integer) {
+            const tmp = std.math.pow(i64, self.integer, other.integer);
+            return Number{ .integer = tmp };
+        } else if (self == .float) {
+            const tmp = std.math.pow(f64, self.float, @as(f64, @floatFromInt(other.integer)));
+            return Number{ .float = tmp };
+        } else {
+            const tmp = std.math.pow(f64, @floatFromInt(self.integer), other.float);
+            return Number{ .float = tmp };
+        }
     }
 
     pub fn init(alloc: std.mem.Allocator, comptime T: type, value: T) !*Expression {
@@ -241,6 +277,7 @@ pub fn mapOp(chars: []const u8) Operator {
     if (std.mem.eql(u8, chars, "*")) return .{ .arithmetic = .Mul };
     if (std.mem.eql(u8, chars, "/")) return .{ .arithmetic = .Div };
     if (std.mem.eql(u8, chars, "^")) return .{ .arithmetic = .Expo };
+    if (std.mem.eql(u8, chars, "%")) return .{ .arithmetic = .Mod };
     if (std.mem.eql(u8, chars, "and")) return .{ .boolean = .And };
     if (std.mem.eql(u8, chars, "or")) return .{ .boolean = .Or };
     if (std.mem.eql(u8, chars, "not")) return .{ .boolean = .Not };
