@@ -132,6 +132,9 @@ pub fn free(allocator: std.mem.Allocator, st: Statement) void {
             }
             allocator.free(i.ifBranch.body);
             if (i.elseBranch) |b| {
+                for (b) |s| {
+                    free(allocator, s);
+                }
                 allocator.free(b);
             }
         },

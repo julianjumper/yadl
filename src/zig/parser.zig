@@ -495,7 +495,7 @@ fn parseIfStatement(self: *Self) Error!stmt.Statement {
 
     _ = self.expect(.Newline, null) catch {};
     _ = self.expect(.Keyword, "else") catch |err| {
-        if (err == Error.UnexpectedToken) {
+        if (err == Error.UnexpectedToken or err == Error.EndOfFile) {
             return .{
                 .if_statement = .{
                     .ifBranch = branch,
