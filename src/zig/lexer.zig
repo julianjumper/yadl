@@ -291,6 +291,7 @@ const arithmetic_operators = [_][]const u8{
     "*",
     "/",
     "^",
+    "%",
 };
 const boolean_operators = [_][]const u8{
     "and",
