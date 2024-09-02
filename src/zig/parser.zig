@@ -31,6 +31,18 @@ pub fn init(input: []const u8, allocator: std.mem.Allocator) Self {
     };
 }
 
+fn reset(self: *Self, position: ?usize) void {
+    if (position) |p| {
+        self.lexer.current_position = p;
+        self.tokens.read_index = 0;
+        self.tokens.write_index = 0;
+    } else {
+        self.lexer.current_position = 0;
+        self.tokens.read_index = 0;
+        self.tokens.write_index = 0;
+    }
+}
+
 pub fn printLexerContext(self: Self, out: std.io.AnyWriter) !void {
     const t = Token{
         .kind = .Unknown,
