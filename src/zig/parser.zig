@@ -197,16 +197,47 @@ fn unexpectedToken(lexer: Lexer, actual: Token, expected: []const Kind, expected
     return Error.UnexpectedToken;
 }
 
+fn presedenceOf(op: expr.Operator) usize {
+    return switch (op) {
+        .arithmetic => |a| switch (a) {
+            .Add => 5,
+            .Sub => 5,
+            .Mul => 6,
+            .Mod => 6,
+            .Div => 6,
+            .Expo => 7,
+        },
+        .compare => 4,
+        .boolean => |b| switch (b) {
+            .Or => 1,
+            .And => 2,
+            .Not => 3,
+        },
+        // else => 0,
+    };
+}
+
 // Expression parsing
-fn parseExpression(self: *Self) Error!*expr.Expression {
-    const value = try self.parseValue();
-    const op = self.expect(.Operator, null) catch |err| {
+fn parseExpression(self: *Self, presedence: usize) Error!*expr.Expression {
+    var value = try self.parseValue();
+    var pos = self.lexer.current_position;
+    while (self.expect(.Operator, null)) |op_token| {
+        const op = expr.mapOp(op_token.chars);
+        const op_pres = presedenceOf(op);
+        // TODO: .Expo is right assosiative. the current implementation does not reflect that.
+        if (op_pres > presedence) {
+            const ex = try self.parseExpression(op_pres);
+            value = expr.BinaryOp.init(self.allocator, op, value, ex) catch return Error.MemoryFailure;
+        } else {
+            self.reset(pos);
+            return value;
+        }
+        pos = self.lexer.current_position;
+    } else |err| {
         if (err == Error.UnexpectedToken or err == Error.EndOfFile)
             return value;
         return err;
-    };
-    const ex = try self.parseExpression();
-    return expr.BinaryOp.init(self.allocator, expr.mapOp(op.chars), value, ex) catch Error.MemoryFailure;
+    }
 }
 
 fn parseBoolean(self: *Self) Error!*expr.Expression {
@@ -238,34 +269,26 @@ fn parseValue(self: *Self) Error!*expr.Expression {
             .String => return self.parseString(),
             .OpenParen => {
                 if (std.mem.eql(u8, token.chars, "(")) {
-                    if (self.nextNextToken()) |nnt| {
-                        const nt = self.nextToken() orelse unreachable;
-                        if (nnt.kind == .ArgSep or nt.kind == .CloseParen or nnt.kind == .CloseParen) {
-                            return self.parseFunction();
-                        } else {
-                            _ = try self.expect(.OpenParen, "(");
-                            const ex = try self.parseExpression();
-                            _ = try self.expect(.CloseParen, ")");
-                            const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
-                            out.* = .{ .wrapped = ex };
-                            return out;
-                        }
-                    } else return Error.EndOfFile;
+                    const pos = self.lexer.current_position;
+                    return self.parseFunction() catch {
+                        self.reset(pos);
+                        return self.parseFunctionCallExpr();
+                    };
                 } else if (std.mem.eql(u8, token.chars, "[")) {
                     return self.parseArrayLiteral();
                 } else if (std.mem.eql(u8, token.chars, "{")) {
                     return self.parseDictionaryLiteral();
                 } else unreachable;
             },
-            else => |k| {
-                if (k == .CloseParen) {
-                    self.last_expected = .Number;
-                    return Error.UnexpectedToken;
-                }
+            .Operator => return self.parseUnaryOp(),
+            else => {
+                self.last_expected = .Unknown;
+                self.last_expected_chars = "'number', 'boolean', 'string' or 'open paren'";
+                return Error.UnexpectedToken;
 
-                std.debug.print("token type: {}\n", .{k});
-                std.debug.print("token value: '{s}'\n", .{token.chars});
-                return todo(*expr.Expression, "parsing of expressions");
+                // std.debug.print("token type: {}\n", .{k});
+                // std.debug.print("token value: '{s}'\n", .{token.chars});
+                // return todo(*expr.Expression, "parsing of expressions");
             },
         }
     } else return Error.EndOfFile;
@@ -283,9 +306,9 @@ fn parseArrayLiteral(self: *Self) Error!*expr.Expression {
 }
 
 fn parseEntry(self: *Self) Error!expr.DictionaryEntry {
-    const key = try self.parseExpression();
+    const key = try self.parseExpression(0);
     _ = try self.expect(.KeyValueSep, null);
-    const value = try self.parseExpression();
+    const value = try self.parseExpression(0);
     return .{
         .key = key,
         .value = value,
@@ -304,8 +327,40 @@ fn parseDictionaryLiteral(self: *Self) Error!*expr.Expression {
 }
 
 fn parseIdentifier(self: *Self) Error!*expr.Expression {
-    const id = self.expect(.Identifier, null) catch unreachable;
+    const id = try self.expect(.Identifier, null);
     return expr.Identifier.init(self.allocator, id.chars) catch Error.MemoryFailure;
+}
+
+fn parseUnaryOp(self: *Self) Error!*expr.Expression {
+    const op_token = self.expect(.Operator, null) catch unreachable;
+    const op = expr.mapOp(op_token.chars);
+    if ((op == .arithmetic and op.arithmetic != .Sub) or (op == .boolean and op.boolean != .Not)) {
+        self.last_expected = .Operator;
+        self.last_expected_chars = "'-' or 'not'";
+        return Error.UnexpectedToken;
+    }
+
+    if (self.nextNextToken()) |t| {
+        if (t.kind == .Operator and std.mem.eql(u8, "^", t.chars)) {
+            const v = try self.parseExpression(0);
+            return expr.UnaryOp.init(self.allocator, op, v) catch Error.MemoryFailure;
+        } else {
+            const v = try self.parseValue();
+            return expr.UnaryOp.init(self.allocator, op, v) catch Error.MemoryFailure;
+        }
+    } else {
+        const v = try self.parseValue();
+        return expr.UnaryOp.init(self.allocator, op, v) catch Error.MemoryFailure;
+    }
+}
+
+fn parseWrappedExpression(self: *Self) Error!*expr.Expression {
+    _ = try self.expect(.OpenParen, "(");
+    const ex = try self.parseExpression(0);
+    _ = try self.expect(.CloseParen, ")");
+    const out = self.allocator.create(expr.Expression) catch return Error.MemoryFailure;
+    out.* = .{ .wrapped = ex };
+    return out;
 }
 
 fn parseString(self: *Self) Error!*expr.Expression {
@@ -314,8 +369,12 @@ fn parseString(self: *Self) Error!*expr.Expression {
 }
 
 fn parseFunctionCallExpr(self: *Self) Error!*expr.Expression {
-    const func_name = try self.parseIdentifier();
-    _ = try self.expect(.OpenParen, "(");
+    const func_name = self.parseIdentifier() catch try self.parseWrappedExpression();
+    _ = self.expect(.OpenParen, "(") catch |err| {
+        if (err != Error.UnexpectedToken)
+            return err;
+        return func_name;
+    };
 
     const args = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| {
         if (err != Error.RepeatedParsingNoElements)
@@ -354,10 +413,8 @@ fn parseFunction(self: *Self) Error!*expr.Expression {
             self.allocator.free(args);
             return err;
         }
-        self.lexer.current_position = pos;
-        self.tokens.read_index = 0;
-        self.tokens.write_index = 0;
-        const ex = try self.parseExpression();
+        self.reset(pos);
+        const ex = try self.parseExpression(0);
         const ret: stmt.Return = .{ .value = ex };
         var statemants = self.allocator.alloc(stmt.Statement, 1) catch return Error.MemoryFailure;
         statemants[0] = .{ .ret = ret };
@@ -368,7 +425,7 @@ fn parseFunction(self: *Self) Error!*expr.Expression {
 fn parseStructAccess(self: *Self) Error!*expr.Expression {
     const id = try self.parseIdentifier();
     _ = try self.expect(.OpenParen, "[");
-    const ex = try self.parseExpression();
+    const ex = try self.parseExpression(0);
     _ = try self.expect(.OpenParen, "]");
     return expr.StructureAccess.init(self.allocator, id, ex) catch Error.MemoryFailure;
 }
@@ -410,7 +467,7 @@ fn parseNumber(self: *Self) Error!*expr.Expression {
 // Statement parsing
 fn parseCondition(self: *Self) Error!*expr.Expression {
     _ = try self.expect(.OpenParen, "(");
-    const condition = try self.parseExpression();
+    const condition = try self.parseExpression(0);
     _ = try self.expect(.CloseParen, ")");
     return condition;
 }
@@ -436,6 +493,7 @@ fn parseIfStatement(self: *Self) Error!stmt.Statement {
         .body = code,
     };
 
+    _ = self.expect(.Newline, null) catch {};
     _ = self.expect(.Keyword, "else") catch |err| {
         if (err == Error.UnexpectedToken) {
             return .{
@@ -465,7 +523,7 @@ fn parseWhileloop(self: *Self) Error!stmt.Statement {
 
 fn parseReturn(self: *Self) Error!stmt.Statement {
     _ = try self.expect(.Keyword, "return");
-    const ex = try self.parseExpression();
+    const ex = try self.parseExpression(0);
     return .{ .ret = .{ .value = ex } };
 }
 
@@ -487,7 +545,7 @@ fn parseRepeated(self: *Self, comptime T: type, f: fn (*Self) Error!T) Error![]T
 }
 
 fn parseExpr(self: *Self) Error!expr.Expression {
-    const ex = try self.parseExpression();
+    const ex = try self.parseExpression(0);
     const out = ex.*;
     defer self.allocator.destroy(ex);
     return out;
@@ -517,7 +575,7 @@ fn parseFunctionCall(self: *Self) Error!stmt.Statement {
 fn parseAssignment(self: *Self) Error!stmt.Statement {
     const id = self.expect(.Identifier, null) catch unreachable;
     _ = try self.expect(.Operator, "=");
-    const expression = try self.parseExpression();
+    const expression = try self.parseExpression(0);
     return stmt.assignment(id.chars, expression);
 }
 
