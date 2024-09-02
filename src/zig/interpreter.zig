@@ -88,11 +88,12 @@ fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
                 for (tmpArgs) |*value| {
                     if (has_printed) {
                         scope.out.print(" ", .{}) catch return Error.IOWrite;
-                    }
+                    } else has_printed = true;
                     try printValue(value.*, scope);
-                    has_printed = true;
                 }
                 scope.out.print("\n", .{}) catch return Error.IOWrite;
+            } else if (false) { // stdlib functions
+                return Error.NotImplemented;
             } else if (scope.lookupFunction(id)) |f| {
                 var localScope = try Scope.init(scope.allocator, scope.out, scope, f.args, tmpArgs);
                 for (f.body) |st| {
