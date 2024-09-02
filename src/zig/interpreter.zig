@@ -146,6 +146,7 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
             scope.return_result = v;
         },
         .binary_op => |bin| try evalBinaryOp(bin.op, bin.left, bin.right, scope),
+        .unary_op => |un| try evalUnaryOp(un.op, un.operant, scope),
         .wrapped => |w| {
             try evalExpression(w, scope);
         },
@@ -174,6 +175,37 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
             std.debug.print("TODO: unhandled case in eval expr: {}\n", .{v});
             return Error.NotImplemented;
         },
+    }
+}
+
+fn evalUnaryOp(op: expr.Operator, operant: *Expression, scope: *Scope) !void {
+    switch (op) {
+        .arithmetic => |ops| {
+            if (ops != .Sub) unreachable;
+            switch (operant.*) {
+                .number => |num| {
+                    if (num == .float) {
+                        const tmp = try expr.Number.init(scope.allocator, f64, -num.float);
+                        scope.return_result = tmp;
+                    } else {
+                        const tmp = try expr.Number.init(scope.allocator, i64, -num.integer);
+                        scope.return_result = tmp;
+                    }
+                },
+                else => return Error.NotImplemented,
+            }
+        },
+        .boolean => |ops| {
+            if (ops != .Not) unreachable;
+            switch (operant.*) {
+                .boolean => |b| {
+                    const tmp = try expr.Boolean.init(scope.allocator, !b.value);
+                    scope.return_result = tmp;
+                },
+                else => return Error.NotImplemented,
+            }
+        },
+        else => unreachable,
     }
 }
 
