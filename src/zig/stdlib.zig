@@ -17,6 +17,10 @@ pub const FunctionContext = struct {
     const Type = *const fn ([]const Expression) Expression;
 };
 
+// TODO: we may want to prefer a comptime hashmap since
+//  all builtin functions are known at compile time
+//      (see scala implementation)
+//      (see `std.static_string_map.StaticStringMap` in docs)
 const BuiltinsHashMap = std.StringHashMap(FunctionContext);
 
 var builtins: ?BuiltinsHashMap = null;
