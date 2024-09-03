@@ -45,16 +45,13 @@ python-test-script:
   stage: interpretation-testing
   needs:
     - unit-tests
-    - unit-tests-zig
   script:
-    - pytest
+    - pytest test/interpretation_test.py test/todos_test.py
   artifacts:
     paths:
       - *jar
-      - *win
-      - *linux
-      - *mac
   timeout: 5 min
+
 
 ## zig build pipeline
 build-zig:
@@ -74,9 +71,24 @@ unit-tests-zig:
     - build-zig
   script:
     - zig build test --summary all
-  rules: *default_rules  
+  rules: *default_rules
   timeout: 5 min
 
+python-test-script-zig:
+  <<: *config
+  stage: interpretation-testing
+  needs:
+    - unit-tests-zig
+  script:
+    - pytest test/zig_interpretation_test.py
+  artifacts:
+    paths:
+      - *win
+      - *linux
+      - *mac
+  timeout: 5 min
+
+## build pipeline for main branch
 build-main:
   <<: *config
   stage: build
@@ -106,12 +118,24 @@ python-script-main:
     - if: $CI_COMMIT_BRANCH == "main"
   needs:
     - build-main
-    - build-main-zig
   script:
-    - pytest
+    - pytest test/interpretation_test.py test/todos_test.py
   artifacts:
     paths:
       - *jar
+  timeout: 5 min
+
+python-script-main-zig:
+  <<: *config
+  stage: interpretation-testing
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  needs:
+    - build-main-zig
+  script:
+    - pytest test/zig_interpretation_test.py
+  artifacts:
+    paths:
       - *win
       - *linux
       - *mac
