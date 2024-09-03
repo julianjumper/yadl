@@ -34,7 +34,7 @@ build-scala:
 unit-tests-scala:
   stage: unit-testing
   needs:
-    - build
+    - build-scala
   script:
     - sbt test
   rules: *default_rules
@@ -44,7 +44,7 @@ python-test-script-scala:
   <<: *config
   stage: interpretation-testing
   needs:
-    - unit-tests
+    - unit-tests-scala
   script:
     - pytest test/interpretation_test.py test/todos_test.py
   artifacts:
@@ -117,7 +117,7 @@ python-script-main-scala:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   needs:
-    - build-main
+    - build-main-scala
   script:
     - pytest test/interpretation_test.py test/todos_test.py
   artifacts:
