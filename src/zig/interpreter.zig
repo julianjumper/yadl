@@ -3,6 +3,7 @@ const stmt = @import("statement.zig");
 const expr = @import("expression.zig");
 
 const Scope = @import("scope.zig");
+const stdlib = @import("stdlib.zig");
 
 const Expression = expr.Expression;
 const Statement = stmt.Statement;
@@ -70,6 +71,12 @@ pub fn evalStatement(statement: Statement, scope: *Scope) Error!void {
         },
     }
 }
+fn evalStdlibCall(context: stdlib.FunctionContext, evaled_args: []const Expression, scope: *Scope) Error!void {
+    _ = context;
+    _ = evaled_args;
+    _ = scope;
+    return Error.NotImplemented;
+}
 
 fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
     const tmpArgs = try scope.allocator.alloc(Expression, fc.args.len);
@@ -92,15 +99,28 @@ fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
                     try printValue(value.*, scope);
                 }
                 scope.out.print("\n", .{}) catch return Error.IOWrite;
-            } else if (false) { // stdlib functions
-                return Error.NotImplemented;
-            } else if (scope.lookupFunction(id)) |f| {
-                var localScope = try Scope.init(scope.allocator, scope.out, scope, f.args, tmpArgs);
-                for (f.body) |st| {
-                    try evalStatement(st, &localScope);
+            } else if (stdlib.getBuiltin(id.name)) |fn_ctxt| { // stdlib functions
+                try evalStdlibCall(fn_ctxt, tmpArgs, scope);
+            } else |err| {
+                if (err == stdlib.Error.BuiltinsNotInitialized) {
+                    stdlib.initBuiltins(scope.allocator);
                 }
-                const result = localScope.result();
-                scope.return_result = result;
+
+                if (stdlib.getBuiltin(id.name)) |fn_ctxt| {
+                    try evalStdlibCall(fn_ctxt, tmpArgs, scope);
+                } else |e| if (e != stdlib.Error.FunctionNotFound) return Error.OutOfMemory;
+
+                if (scope.lookupFunction(id)) |f| {
+                    var localScope = try Scope.init(scope.allocator, scope.out, scope, f.args, tmpArgs);
+                    for (f.body) |st| {
+                        try evalStatement(st, &localScope);
+                    }
+                    const result = localScope.result();
+                    scope.return_result = result;
+                } else {
+                    std.debug.print("ERROR: no function found under the name '{s}'\n", .{id.name});
+                    return Error.FunctionNotFound;
+                }
             }
         },
         else => |e| {
