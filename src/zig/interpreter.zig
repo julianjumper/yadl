@@ -14,6 +14,7 @@ pub const Error = error{
     ValueNotFound,
     IOWrite,
     InvalidExpressoinType,
+    ArityMismatch,
 } || Scope.Error;
 
 pub fn evalStatement(statement: Statement, scope: *Scope) Error!void {
@@ -72,10 +73,16 @@ pub fn evalStatement(statement: Statement, scope: *Scope) Error!void {
     }
 }
 fn evalStdlibCall(context: stdlib.FunctionContext, evaled_args: []const Expression, scope: *Scope) Error!void {
-    _ = context;
-    _ = evaled_args;
-    _ = scope;
-    return Error.NotImplemented;
+    if (context.arity != evaled_args.len) {
+        std.debug.print(
+            "ERROR: incorrect number of arguments: expected {}, but got {}\n",
+            .{ context.arity, evaled_args.len },
+        );
+        return Error.ArityMismatch;
+    }
+    const tmp = try scope.allocator.create(Expression);
+    tmp.* = context.function(evaled_args) catch unreachable; // TODO: handle error once error values are added
+    scope.return_result = tmp;
 }
 
 fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
@@ -99,15 +106,16 @@ fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
                     try printValue(value.*, scope);
                 }
                 scope.out.print("\n", .{}) catch return Error.IOWrite;
-            } else if (stdlib.getBuiltin(id.name)) |fn_ctxt| { // stdlib functions
+            } else if (stdlib.getBuiltin(id.name)) |fn_ctxt| {
                 try evalStdlibCall(fn_ctxt, tmpArgs, scope);
             } else |err| {
                 if (err == stdlib.Error.BuiltinsNotInitialized) {
-                    stdlib.initBuiltins(scope.allocator);
+                    stdlib.initBuiltins(scope.allocator) catch return Error.OutOfMemory;
                 }
 
                 if (stdlib.getBuiltin(id.name)) |fn_ctxt| {
                     try evalStdlibCall(fn_ctxt, tmpArgs, scope);
+                    return;
                 } else |e| if (e != stdlib.Error.FunctionNotFound) return Error.OutOfMemory;
 
                 if (scope.lookupFunction(id)) |f| {

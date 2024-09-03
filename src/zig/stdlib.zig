@@ -1,12 +1,15 @@
 const std = @import("std");
 
 const expression = @import("expression.zig");
+const functions = @import("stdlib/functions.zig");
 
 pub const Error = error{
     NotImplemented,
     FunctionNotFound,
     BuiltinsNotInitialized,
-};
+} || std.mem.Allocator.Error;
+
+const EvalError = functions.Error;
 
 const Expression = expression.Expression;
 
@@ -14,7 +17,7 @@ pub const FunctionContext = struct {
     function: Type,
     arity: u32,
 
-    const Type = *const fn ([]const Expression) Expression;
+    const Type = *const fn ([]const Expression) EvalError!Expression;
 };
 
 // TODO: we may want to prefer a comptime hashmap since
@@ -25,9 +28,12 @@ const BuiltinsHashMap = std.StringHashMap(FunctionContext);
 
 var builtins: ?BuiltinsHashMap = null;
 
-pub fn initBuiltins(allocator: std.mem.Allocator) void {
+pub fn initBuiltins(allocator: std.mem.Allocator) Error!void {
     builtins = BuiltinsHashMap.init(allocator);
-    // return Error.NotImplemented;
+
+    if (builtins) |*b| {
+        try b.put("len", .{ .function = &functions.length, .arity = 1 });
+    } else unreachable;
 }
 
 pub fn deinitBuiltins() void {
