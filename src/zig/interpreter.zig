@@ -80,12 +80,10 @@ fn evalStdlibCall(context: stdlib.FunctionContext, evaled_args: []const Expressi
         );
         return Error.ArityMismatch;
     }
-    const tmp = try scope.allocator.create(Expression);
-    tmp.* = context.function(evaled_args) catch unreachable; // TODO: handle error once error values are added
-    scope.return_result = tmp;
+    context.function(evaled_args, scope) catch unreachable; // TODO: handle error once error values are added
 }
 
-fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
+pub fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
     const tmpArgs = try scope.allocator.alloc(Expression, fc.args.len);
     defer scope.allocator.free(tmpArgs);
 
@@ -138,7 +136,7 @@ fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
     }
 }
 
-fn printValue(value: Expression, scope: *Scope) Error!void {
+pub fn printValue(value: Expression, scope: *Scope) Error!void {
     switch (value) {
         .number => |n| {
             if (n == .float) {
@@ -150,6 +148,18 @@ fn printValue(value: Expression, scope: *Scope) Error!void {
         },
         .string => |v| {
             scope.out.print("{s}", .{v.value}) catch return Error.IOWrite;
+        },
+        .array => |v| {
+            scope.out.print("[", .{}) catch return Error.IOWrite;
+            var has_printed = false;
+            for (v.elements) |val| {
+                if (has_printed) {
+                    scope.out.print(", ", .{}) catch return Error.IOWrite;
+                } else has_printed = true;
+                try printValue(val, scope);
+            }
+            scope.out.print("]", .{}) catch return Error.IOWrite;
+            scope.out.print("\n", .{}) catch return Error.IOWrite;
         },
         else => |v| {
             std.debug.print("TODO: printing of value: {}\n", .{v});
@@ -339,6 +349,24 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                 std.debug.print("ERROR: can not add value of type '{}'\n", .{leftEval});
                 return Error.NotImplemented;
             },
+        },
+        .Mod => switch (leftEval.*) {
+            .number => |l| switch (rightEval.*) {
+                .number => |r| {
+                    if (r == .integer and l == .integer) {
+                        const tmp = std.math.mod(i64, l.integer, r.integer) catch return Error.InvalidExpressoinType;
+                        scope.return_result = try expr.Number.init(scope.allocator, i64, tmp);
+                    } else {
+                        const leftmp = if (l == .integer) @as(f64, @floatFromInt(l.integer)) else l.float;
+                        const rightmp = if (r == .integer) @as(f64, @floatFromInt(r.integer)) else r.float;
+
+                        const tmp = std.math.mod(f64, leftmp, rightmp) catch return Error.InvalidExpressoinType;
+                        scope.return_result = try expr.Number.init(scope.allocator, f64, tmp);
+                    }
+                },
+                else => return Error.NotImplemented,
+            },
+            else => return Error.NotImplemented,
         },
         else => |v| {
             std.debug.print("ERROR: unhandled case in arith. bin. op.: {}\n", .{v});
