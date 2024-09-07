@@ -35,6 +35,7 @@ pub fn initBuiltins(allocator: std.mem.Allocator) Error!void {
     if (builtins) |*b| {
         try b.put("len", .{ .function = &functions.length, .arity = 1 });
         try b.put("map", .{ .function = &functions.map, .arity = 2 });
+        try b.put("reduce", .{ .function = &functions.reduce, .arity = 2 });
         try b.put("print3", .{ .function = &functions.print3, .arity = 1 });
     } else unreachable;
 }

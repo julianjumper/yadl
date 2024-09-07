@@ -2,6 +2,6 @@
 words = ["Hello", " ", "World", "!"]
 concat = (acc, str) => acc + str
 result = reduce(words, concat)
-tmp = print3(result)
+print3(result)
 
 // CHECK-OUT: Hello World!

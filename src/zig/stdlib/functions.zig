@@ -12,10 +12,18 @@ pub const Error = error{
 pub fn length(args: []const Expression, scope: *Scope) Error!void {
     switch (args[0]) {
         .array => |a| {
-            scope.return_result = try expression.Number.init(scope.allocator, i64, @intCast(a.elements.len));
+            scope.return_result = try expression.Number.init(
+                scope.allocator,
+                i64,
+                @intCast(a.elements.len),
+            );
         },
         .dictionary => |d| {
-            scope.return_result = try expression.Number.init(scope.allocator, i64, @intCast(d.entries.len));
+            scope.return_result = try expression.Number.init(
+                scope.allocator,
+                i64,
+                @intCast(d.entries.len),
+            );
         },
         else => unreachable,
     }
@@ -32,6 +40,7 @@ pub fn map(args: []const Expression, scope: *Scope) Error!void {
             const func = callable.function;
             for (a.elements, tmp) |e, *t| {
                 var tmp2 = try scope.allocator.alloc(Expression, 1);
+                defer scope.allocator.free(tmp2);
                 tmp2[0] = e;
                 var tmpScope = try Scope.init(scope.allocator, scope.out, scope, func.args, tmp2);
                 for (func.body) |st| {
@@ -44,6 +53,43 @@ pub fn map(args: []const Expression, scope: *Scope) Error!void {
                 }
             }
             scope.return_result = try expression.Array.init(scope.allocator, tmp);
+        },
+        else => return Error.NotImplemented,
+    }
+}
+
+pub fn reduce(args: []const Expression, scope: *Scope) Error!void {
+    const elements = args[0];
+    const callable = args[1];
+    std.debug.assert(callable == .function);
+    if (callable.function.args.len != 2) {
+        std.debug.print("ERROR: the provided function has {} arguments\n", .{callable.function.args.len});
+        std.debug.print("   needed are {}\n", .{2});
+        std.process.exit(1);
+    }
+    const func = callable.function;
+
+    switch (elements) {
+        .array => |a| {
+            var acc = a.elements[0];
+            for (a.elements[1..]) |e| {
+                var tmp = try scope.allocator.alloc(Expression, 2);
+                tmp[0] = acc;
+                tmp[1] = e;
+                var tmpScope = try Scope.init(scope.allocator, scope.out, scope, func.args, tmp);
+                for (func.body) |st| {
+                    try interpreter.evalStatement(st, &tmpScope);
+                }
+                if (tmpScope.result()) |r| {
+                    acc = r.*;
+                } else {
+                    return Error.ValueNotFound;
+                }
+                scope.allocator.free(tmp);
+            }
+            const out = try scope.allocator.create(Expression);
+            out.* = acc;
+            scope.return_result = out;
         },
         else => return Error.NotImplemented,
     }
