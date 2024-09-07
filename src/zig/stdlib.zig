@@ -36,6 +36,10 @@ pub fn initBuiltins(allocator: std.mem.Allocator) Error!void {
         try b.put("len", .{ .function = &functions.length, .arity = 1 });
         try b.put("map", .{ .function = &functions.map, .arity = 2 });
         try b.put("reduce", .{ .function = &functions.reduce, .arity = 2 });
+        try b.put("count", .{ .function = &functions.count, .arity = 2 });
+        try b.put("check_all", .{ .function = &functions.check_all, .arity = 2 });
+        try b.put("check_any", .{ .function = &functions.check_any, .arity = 2 });
+        try b.put("check_none", .{ .function = &functions.check_none, .arity = 2 });
         try b.put("print3", .{ .function = &functions.print3, .arity = 1 });
     } else unreachable;
 }

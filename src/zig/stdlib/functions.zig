@@ -95,6 +95,166 @@ pub fn reduce(args: []const Expression, scope: *Scope) Error!void {
     }
 }
 
+pub fn count(args: []const Expression, scope: *Scope) Error!void {
+    const elements = args[0];
+    const callable = args[1];
+
+    std.debug.assert(callable == .function);
+    if (callable.function.args.len != 1) {
+        std.debug.print("ERROR: the provided function has {} arguments\n", .{callable.function.args.len});
+        std.debug.print("   needed are {}\n", .{1});
+        std.process.exit(1);
+    }
+    const func = callable.function;
+
+    switch (elements) {
+        .array => |a| {
+            var acc: i64 = 0;
+            for (a.elements) |e| {
+                var tmp = try scope.allocator.alloc(Expression, 1);
+                tmp[0] = e;
+                var tmpScope = try Scope.init(scope.allocator, scope.out, scope, func.args, tmp);
+                for (func.body) |st| {
+                    try interpreter.evalStatement(st, &tmpScope);
+                }
+                if (tmpScope.result()) |r| {
+                    if (r.* == .boolean and r.boolean.value) {
+                        acc += 1;
+                    } else if (r.* != .boolean) {
+                        std.debug.print("ERROR: returned value of function in count is not a boolean\n", .{});
+                        return Error.InvalidExpressoinType;
+                    }
+                } else {
+                    return Error.ValueNotFound;
+                }
+                scope.allocator.free(tmp);
+            }
+            scope.return_result = try expression.Number.init(scope.allocator, i64, acc);
+        },
+        else => return Error.NotImplemented,
+    }
+}
+
+pub fn check_all(args: []const Expression, scope: *Scope) Error!void {
+    const elements = args[0];
+    const callable = args[1];
+
+    std.debug.assert(callable == .function);
+    if (callable.function.args.len != 1) {
+        std.debug.print("ERROR: the provided function has {} arguments\n", .{callable.function.args.len});
+        std.debug.print("   needed are {}\n", .{1});
+        std.process.exit(1);
+    }
+    const func = callable.function;
+
+    switch (elements) {
+        .array => |a| {
+            var acc = true;
+            for (a.elements) |e| {
+                var tmp = try scope.allocator.alloc(Expression, 1);
+                tmp[0] = e;
+                var tmpScope = try Scope.init(scope.allocator, scope.out, scope, func.args, tmp);
+                for (func.body) |st| {
+                    try interpreter.evalStatement(st, &tmpScope);
+                }
+                if (tmpScope.result()) |r| {
+                    if (r.* == .boolean) {
+                        acc = acc and r.boolean.value;
+                    } else if (r.* != .boolean) {
+                        std.debug.print("ERROR: returned value of function in count is not a boolean\n", .{});
+                        return Error.InvalidExpressoinType;
+                    }
+                } else {
+                    return Error.ValueNotFound;
+                }
+                scope.allocator.free(tmp);
+            }
+            scope.return_result = try expression.Boolean.init(scope.allocator, acc);
+        },
+        else => return Error.NotImplemented,
+    }
+}
+
+pub fn check_any(args: []const Expression, scope: *Scope) Error!void {
+    const elements = args[0];
+    const callable = args[1];
+
+    std.debug.assert(callable == .function);
+    if (callable.function.args.len != 1) {
+        std.debug.print("ERROR: the provided function has {} arguments\n", .{callable.function.args.len});
+        std.debug.print("   needed are {}\n", .{1});
+        std.process.exit(1);
+    }
+    const func = callable.function;
+
+    switch (elements) {
+        .array => |a| {
+            var acc = false;
+            for (a.elements) |e| {
+                var tmp = try scope.allocator.alloc(Expression, 1);
+                tmp[0] = e;
+                var tmpScope = try Scope.init(scope.allocator, scope.out, scope, func.args, tmp);
+                for (func.body) |st| {
+                    try interpreter.evalStatement(st, &tmpScope);
+                }
+                if (tmpScope.result()) |r| {
+                    if (r.* == .boolean) {
+                        acc = acc or r.boolean.value;
+                    } else if (r.* != .boolean) {
+                        std.debug.print("ERROR: returned value of function in count is not a boolean\n", .{});
+                        return Error.InvalidExpressoinType;
+                    }
+                } else {
+                    return Error.ValueNotFound;
+                }
+                scope.allocator.free(tmp);
+            }
+            scope.return_result = try expression.Boolean.init(scope.allocator, acc);
+        },
+        else => return Error.NotImplemented,
+    }
+}
+
+pub fn check_none(args: []const Expression, scope: *Scope) Error!void {
+    const elements = args[0];
+    const callable = args[1];
+
+    std.debug.assert(callable == .function);
+    if (callable.function.args.len != 1) {
+        std.debug.print("ERROR: the provided function has {} arguments\n", .{callable.function.args.len});
+        std.debug.print("   needed are {}\n", .{1});
+        std.process.exit(1);
+    }
+    const func = callable.function;
+
+    switch (elements) {
+        .array => |a| {
+            var acc = false;
+            for (a.elements) |e| {
+                var tmp = try scope.allocator.alloc(Expression, 1);
+                tmp[0] = e;
+                var tmpScope = try Scope.init(scope.allocator, scope.out, scope, func.args, tmp);
+                for (func.body) |st| {
+                    try interpreter.evalStatement(st, &tmpScope);
+                }
+                if (tmpScope.result()) |r| {
+                    if (r.* == .boolean) {
+                        acc = acc or r.boolean.value;
+                    } else if (r.* != .boolean) {
+                        std.debug.print("ERROR: returned value of function in count is not a boolean\n", .{});
+                        return Error.InvalidExpressoinType;
+                    }
+                } else {
+                    return Error.ValueNotFound;
+                }
+                scope.allocator.free(tmp);
+            }
+            scope.return_result = try expression.Boolean.init(scope.allocator, !acc);
+        },
+        else => return Error.NotImplemented,
+    }
+}
+
 pub fn print3(args: []const Expression, scope: *Scope) Error!void {
     try interpreter.printValue(args[0], scope);
 }
