@@ -167,7 +167,7 @@ fn check(context: Context, args: []const Expression, scope: *Scope) Error!void {
                     if (r.* == .boolean) {
                         acc = context.operation(acc, r.boolean.value);
                     } else if (r.* != .boolean) {
-                        std.debug.print("ERROR: returned value of function in count is not a boolean\n", .{});
+                        std.debug.print("ERROR: returned value of function is not a boolean\n", .{});
                         return Error.InvalidExpressoinType;
                     }
                 } else {
@@ -198,6 +198,106 @@ pub fn check_any(args: []const Expression, scope: *Scope) Error!void {
 
 pub fn check_none(args: []const Expression, scope: *Scope) Error!void {
     try check(None_context, args, scope);
+}
+
+pub fn filter(args: []const Expression, scope: *Scope) Error!void {
+    const elements = args[0];
+    const callable = args[1];
+    std.debug.assert(callable == .function);
+
+    switch (elements) {
+        .array => |a| {
+            try count(args, scope);
+            const element_count = (scope.result() orelse unreachable).number.integer;
+            const tmp = try scope.allocator.alloc(Expression, @intCast(element_count));
+            var current_index: usize = 0;
+            const func = callable.function;
+            for (a.elements) |e| {
+                var tmp2 = try scope.allocator.alloc(Expression, 1);
+                defer scope.allocator.free(tmp2);
+                tmp2[0] = e;
+                var tmpScope = try Scope.init(scope.allocator, scope.out, scope, func.args, tmp2);
+                for (func.body) |st| {
+                    try interpreter.evalStatement(st, &tmpScope);
+                }
+                if (tmpScope.result()) |r| {
+                    if (r.* == .boolean and r.boolean.value) {
+                        tmp[current_index] = e;
+                        current_index += 1;
+                    }
+                } else {
+                    return Error.ValueNotFound;
+                }
+            }
+            scope.return_result = try expression.Array.init(scope.allocator, tmp);
+        },
+        else => return Error.NotImplemented,
+    }
+}
+
+pub fn last(args: []const Expression, scope: *Scope) Error!void {
+    const elements = args[0];
+    const callback = args[1];
+    const default_value = args[2];
+    std.debug.assert(callback == .function);
+
+    const func = callback.function;
+    switch (elements) {
+        .array => |a| {
+            var iter = std.mem.reverseIterator(a.elements);
+            while (iter.next()) |e| {
+                var tmp2 = try scope.allocator.alloc(Expression, 1);
+                defer scope.allocator.free(tmp2);
+                tmp2[0] = e;
+                var tmpScope = try Scope.init(scope.allocator, scope.out, scope, func.args, tmp2);
+                for (func.body) |st| {
+                    try interpreter.evalStatement(st, &tmpScope);
+                }
+                if (tmpScope.result()) |r| {
+                    if (r.* == .boolean and r.boolean.value) {
+                        scope.return_result = try e.clone(scope.allocator);
+                        return;
+                    }
+                } else {
+                    return Error.ValueNotFound;
+                }
+            }
+            scope.return_result = try default_value.clone(scope.allocator);
+        },
+        else => return Error.NotImplemented,
+    }
+}
+
+pub fn first(args: []const Expression, scope: *Scope) Error!void {
+    const elements = args[0];
+    const callback = args[1];
+    const default_value = args[2];
+    std.debug.assert(callback == .function);
+
+    const func = callback.function;
+    switch (elements) {
+        .array => |a| {
+            for (a.elements) |e| {
+                var tmp2 = try scope.allocator.alloc(Expression, 1);
+                defer scope.allocator.free(tmp2);
+                tmp2[0] = e;
+                var tmpScope = try Scope.init(scope.allocator, scope.out, scope, func.args, tmp2);
+                for (func.body) |st| {
+                    try interpreter.evalStatement(st, &tmpScope);
+                }
+                if (tmpScope.result()) |r| {
+                    if (r.* == .boolean and r.boolean.value) {
+                        scope.return_result = try e.clone(scope.allocator);
+                        return;
+                    }
+                } else {
+                    return Error.ValueNotFound;
+                }
+            }
+            scope.return_result = try default_value.clone(scope.allocator);
+        },
+        else => return Error.NotImplemented,
+    }
 }
 
 pub fn print3(args: []const Expression, scope: *Scope) Error!void {
