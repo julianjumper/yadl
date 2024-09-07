@@ -1,7 +1,9 @@
 const std = @import("std");
 
 const expression = @import("expression.zig");
+const liberror = @import("stdlib/error.zig");
 const functions = @import("stdlib/functions.zig");
+const conversions = @import("stdlib/conversions.zig");
 const Scope = @import("scope.zig");
 
 pub const Error = error{
@@ -10,7 +12,7 @@ pub const Error = error{
     BuiltinsNotInitialized,
 } || std.mem.Allocator.Error;
 
-const EvalError = functions.Error;
+const EvalError = liberror.Error;
 
 const Expression = expression.Expression;
 
@@ -36,6 +38,11 @@ pub fn initBuiltins(allocator: std.mem.Allocator) Error!void {
         try b.put("len", .{ .function = &functions.length, .arity = 1 });
         try b.put("last", .{ .function = &functions.last, .arity = 3 });
         try b.put("first", .{ .function = &functions.first, .arity = 3 });
+
+        // conversions
+        try b.put("bool", .{ .function = &conversions.toBoolean, .arity = 1 });
+        try b.put("number", .{ .function = &conversions.toNumber, .arity = 1 });
+        try b.put("string", .{ .function = &conversions.toString, .arity = 1 });
 
         // iterable operations
         try b.put("map", .{ .function = &functions.map, .arity = 2 });

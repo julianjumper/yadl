@@ -5,9 +5,7 @@ const interpreter = @import("../interpreter.zig");
 const Scope = @import("../scope.zig");
 const Expression = expression.Expression;
 
-pub const Error = error{
-    NotImplemented,
-} || std.mem.Allocator.Error || interpreter.Error;
+pub const Error = @import("error.zig").Error;
 
 pub fn length(args: []const Expression, scope: *Scope) Error!void {
     switch (args[0]) {
