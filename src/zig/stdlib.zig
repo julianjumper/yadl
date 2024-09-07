@@ -40,6 +40,8 @@ pub fn initBuiltins(allocator: std.mem.Allocator) Error!void {
         try b.put("check_all", .{ .function = &functions.check_all, .arity = 2 });
         try b.put("check_any", .{ .function = &functions.check_any, .arity = 2 });
         try b.put("check_none", .{ .function = &functions.check_none, .arity = 2 });
+
+        // TODO: we may want to remove this one
         try b.put("print3", .{ .function = &functions.print3, .arity = 1 });
     } else unreachable;
 }

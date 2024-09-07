@@ -269,9 +269,8 @@ fn parseValue(self: *Self) Error!*expr.Expression {
             .String => return self.parseString(),
             .OpenParen => {
                 if (std.mem.eql(u8, token.chars, "(")) {
-                    const pos = self.lexer.current_position;
                     return self.parseFunction() catch {
-                        self.reset(pos);
+                        self.reset(token.index);
                         return self.parseFunctionCallExpr();
                     };
                 } else if (std.mem.eql(u8, token.chars, "[")) {
