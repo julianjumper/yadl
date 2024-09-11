@@ -233,6 +233,28 @@ pub fn filter(args: []const Expression, scope: *Scope) Error!void {
     }
 }
 
+pub fn zip(args: []const Expression, scope: *Scope) Error!void {
+    const left_elements = args[0];
+    const right_elements = args[1];
+
+    if (left_elements == .array and right_elements == .array) {
+        const left = left_elements.array.elements;
+        const right = right_elements.array.elements;
+        const element_count = if (left.len < right.len) left.len else right.len;
+        const tmp = try scope.allocator.alloc(Expression, element_count);
+        for (left[0..element_count], right[0..element_count], tmp) |l, r, *t| {
+            const out = try scope.allocator.alloc(Expression, 2);
+            out[0] = l;
+            out[1] = r;
+            t.* = .{ .array = expression.Array{ .elements = out } };
+        }
+        scope.return_result = try expression.Array.init(scope.allocator, tmp);
+        return;
+    }
+
+    return Error.NotImplemented;
+}
+
 pub fn last(args: []const Expression, scope: *Scope) Error!void {
     const elements = args[0];
     const callback = args[1];
@@ -300,4 +322,5 @@ pub fn first(args: []const Expression, scope: *Scope) Error!void {
 
 pub fn print3(args: []const Expression, scope: *Scope) Error!void {
     try interpreter.printValue(args[0], scope);
+    _ = scope.out.write("\n") catch return Error.IOWrite;
 }
