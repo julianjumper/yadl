@@ -159,7 +159,6 @@ pub fn printValue(value: Expression, scope: *Scope) Error!void {
                 try printValue(val, scope);
             }
             scope.out.print("]", .{}) catch return Error.IOWrite;
-            scope.out.print("\n", .{}) catch return Error.IOWrite;
         },
         else => |v| {
             std.debug.print("TODO: printing of value: {}\n", .{v});
