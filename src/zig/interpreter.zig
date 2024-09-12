@@ -187,15 +187,11 @@ fn evalStructAccess(strct: *Expression, key: *Expression, scope: *Scope) Error!v
             try evalStructAccess(sa.strct, sa.key, scope);
             const st = scope.result() orelse unreachable;
             try evalStructAccess(st, key, scope);
-            expr.free(scope.allocator, strct);
-            expr.free(scope.allocator, key);
         },
         .identifier => {
             try evalExpression(strct, scope);
             const st = scope.result() orelse unreachable;
             try evalStructAccess(st, key, scope);
-            expr.free(scope.allocator, strct);
-            expr.free(scope.allocator, key);
         },
         .array => |a| {
             if (key.* != .number or key.number != .integer or key.number.integer >= a.elements.len and key.number.integer < 0) {
@@ -205,8 +201,6 @@ fn evalStructAccess(strct: *Expression, key: *Expression, scope: *Scope) Error!v
             const index = key.number.integer;
             const out = a.elements[@intCast(index)];
             scope.return_result = try out.clone(scope.allocator);
-            expr.free(scope.allocator, key);
-            expr.free(scope.allocator, strct);
         },
         .dictionary => |d| {
             if (key.* != .number and key.* != .string and key.* != .boolean) {
