@@ -260,8 +260,8 @@ pub const Expression = union(enum) {
     dictionary: Dictionary,
 
     pub fn eql(self: Expression, other: Expression) bool {
-        _ = other;
         return switch (self) {
+            .number => |n| if (other == .number) n.eql(other.number) else false,
             else => unreachable,
         };
     }
