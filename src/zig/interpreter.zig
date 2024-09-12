@@ -12,6 +12,7 @@ pub const Error = error{
     NotImplemented,
     FunctionNotFound,
     ValueNotFound,
+    NoEntryForKey,
     IOWrite,
     InvalidExpressoinType,
     ArityMismatch,
@@ -160,8 +161,67 @@ pub fn printValue(value: Expression, scope: *Scope) Error!void {
             }
             scope.out.print("]", .{}) catch return Error.IOWrite;
         },
+        .dictionary => |v| {
+            _ = scope.out.write("{") catch return Error.IOWrite;
+            var has_printed = false;
+            for (v.entries) |val| {
+                if (has_printed) {
+                    _ = scope.out.write(", ") catch return Error.IOWrite;
+                } else has_printed = true;
+                try printValue(val.key.*, scope);
+                _ = scope.out.write(": ") catch return Error.IOWrite;
+                try printValue(val.value.*, scope);
+            }
+            _ = scope.out.write("}") catch return Error.IOWrite;
+        },
         else => |v| {
             std.debug.print("TODO: printing of value: {}\n", .{v});
+            return Error.NotImplemented;
+        },
+    }
+}
+
+fn evalStructAccess(strct: *Expression, key: *Expression, scope: *Scope) Error!void {
+    switch (strct.*) {
+        .struct_access => |sa| {
+            try evalStructAccess(sa.strct, sa.key, scope);
+            const st = scope.result() orelse unreachable;
+            try evalStructAccess(st, key, scope);
+            expr.free(scope.allocator, strct);
+            expr.free(scope.allocator, key);
+        },
+        .identifier => {
+            try evalExpression(strct, scope);
+            const st = scope.result() orelse unreachable;
+            try evalStructAccess(st, key, scope);
+            expr.free(scope.allocator, strct);
+            expr.free(scope.allocator, key);
+        },
+        .array => |a| {
+            if (key.* != .number or key.number != .integer or key.number.integer >= a.elements.len and key.number.integer < 0) {
+                std.debug.print("INFO: expr: {}\n", .{key});
+                return Error.InvalidExpressoinType;
+            }
+            const index = key.number.integer;
+            const out = a.elements[@intCast(index)];
+            scope.return_result = try out.clone(scope.allocator);
+            expr.free(scope.allocator, key);
+            expr.free(scope.allocator, strct);
+        },
+        .dictionary => |d| {
+            if (key.* != .number and key.* != .string and key.* != .boolean) {
+                return Error.InvalidExpressoinType;
+            }
+            for (d.entries) |e| {
+                if (key.eql(e.key.*)) {
+                    scope.return_result = try e.value.clone(scope.allocator);
+                    return;
+                }
+            }
+            return Error.NoEntryForKey;
+        },
+        else => |v| {
+            std.debug.print("TODO: unhandled case in eval expr - struct acc: {}\n", .{v});
             return Error.NotImplemented;
         },
     }
@@ -190,6 +250,7 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
         .functioncall => |fc| {
             try evalFunctionCall(fc, scope);
         },
+        .struct_access => |sa| try evalStructAccess(sa.strct, sa.key, scope),
         .array => {
             scope.return_result = value;
         },
@@ -208,10 +269,10 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
         .boolean => {
             scope.return_result = value;
         },
-        else => |v| {
-            std.debug.print("TODO: unhandled case in eval expr: {}\n", .{v});
-            return Error.NotImplemented;
-        },
+        // else => |v| {
+        //     std.debug.print("TODO: unhandled case in eval expr: {}\n", .{v});
+        //     return Error.NotImplemented;
+        // },
     }
 }
 
