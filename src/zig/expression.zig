@@ -269,7 +269,7 @@ pub const Expression = union(enum) {
     pub fn clone(self: Expression, alloc: std.mem.Allocator) !*Expression {
         return switch (self) {
             .number => |n| if (n == .integer) Number.init(alloc, i64, n.integer) else Number.init(alloc, f64, n.float),
-            else => std.mem.Allocator.Error.OutOfMemory,
+            else => error.NotImplemented,
         };
     }
 };

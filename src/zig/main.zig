@@ -42,8 +42,11 @@ pub fn main() !void {
         // std.debug.print("INFO: memory usage (byte): {}\n", .{arena.queryCapacity()});
 
         for (stmts) |st| {
-            try interpreter.evalStatement(st, &scope);
-            // std.debug.print("INFO: memory usage (byte): {}\n", .{arena.queryCapacity()});
+            interpreter.evalStatement(st, &scope) catch |err| {
+                try bw.flush();
+                return err;
+            };
+            // std.debug.print("INFO: memory usage (byte): {\n", .{arena.queryCapacity()});
         }
         try bw.flush();
 
