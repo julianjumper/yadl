@@ -260,8 +260,8 @@ pub const Expression = union(enum) {
     dictionary: Dictionary,
 
     pub fn eql(self: Expression, other: Expression) bool {
-        _ = other;
         return switch (self) {
+            .number => |n| if (other == .number) n.eql(other.number) else false,
             else => unreachable,
         };
     }
@@ -269,7 +269,20 @@ pub const Expression = union(enum) {
     pub fn clone(self: Expression, alloc: std.mem.Allocator) !*Expression {
         return switch (self) {
             .number => |n| if (n == .integer) Number.init(alloc, i64, n.integer) else Number.init(alloc, f64, n.float),
-            else => std.mem.Allocator.Error.OutOfMemory,
+            .identifier => |id| Identifier.init(alloc, id.name),
+            .array => |a| b: {
+                const tmp = try alloc.alloc(Expression, a.elements.len);
+                for (a.elements, tmp) |elem, *out| {
+                    const t = try elem.clone(alloc);
+                    out.* = t.*;
+                    alloc.destroy(t);
+                }
+                break :b Array.init(alloc, tmp);
+            },
+            else => |v| {
+                std.debug.print("TODO: {}\n", .{v});
+                return error.NotImplemented;
+            },
         };
     }
 };
