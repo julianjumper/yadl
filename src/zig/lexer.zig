@@ -4,9 +4,8 @@ pub const Error = error{
     UnexpectedCharacter,
     EndOfFile,
     NotImplemented,
-    MemoryFailure,
     UnknownError,
-};
+} || std.mem.Allocator.Error;
 
 pub const TokenKind = enum {
     Identifier,
