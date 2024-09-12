@@ -39,14 +39,19 @@ pub fn main() !void {
             std.process.exit(1);
         };
         var scope = Scope.empty(allocator, stdout.any());
+        // std.debug.print("INFO: memory usage (byte): {}\n", .{arena.queryCapacity()});
 
         for (stmts) |st| {
             try interpreter.evalStatement(st, &scope);
+            // std.debug.print("INFO: memory usage (byte): {}\n", .{arena.queryCapacity()});
         }
         try bw.flush();
-        for (stmts) |st| {
-            stmt.free(allocator, st);
+
+        if (!arena.reset(.retain_capacity)) {
+            for (stmts) |st| {
+                stmt.free(allocator, st);
+            }
+            allocator.free(stmts);
         }
-        allocator.free(stmts);
     }
 }
