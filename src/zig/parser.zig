@@ -903,12 +903,9 @@ test "function call" {
 test "dictionary" {
     const input = "aoeu = { 1 : 1 }";
     var exp: expr.Expression = .{ .number = .{ .integer = 1 } };
-    var dict: expr.Expression = .{ .dictionary = .{ .entries = &[_]expr.DictionaryEntry{
-        .{
-            .key = &exp,
-            .value = &exp,
-        },
-    } } };
+    var entries: [1]expr.DictionaryEntry = undefined;
+    entries[0] = .{ .key = &exp, .value = &exp };
+    var dict: expr.Expression = .{ .dictionary = .{ .entries = &entries } };
     const expected_: stmt.Statement = .{ .assignment = .{
         .varName = .{ .name = "aoeu" },
         .value = &dict,
@@ -939,11 +936,11 @@ test "dictionary 3 entries" {
     var exp1: expr.Expression = .{ .number = .{ .integer = 1 } };
     var exp2: expr.Expression = .{ .number = .{ .integer = 2 } };
     var exp3: expr.Expression = .{ .number = .{ .integer = 3 } };
-    var dict: expr.Expression = .{ .dictionary = .{ .entries = &[_]expr.DictionaryEntry{
-        .{ .key = &exp1, .value = &exp1 },
-        .{ .key = &exp2, .value = &exp2 },
-        .{ .key = &exp3, .value = &exp3 },
-    } } };
+    var entries: [3]expr.DictionaryEntry = undefined;
+    entries[0] = .{ .key = &exp1, .value = &exp1 };
+    entries[1] = .{ .key = &exp2, .value = &exp2 };
+    entries[2] = .{ .key = &exp3, .value = &exp3 };
+    var dict: expr.Expression = .{ .dictionary = .{ .entries = &entries } };
     const expected_: stmt.Statement = .{ .assignment = .{
         .varName = .{ .name = "aoeu" },
         .value = &dict,
@@ -971,7 +968,8 @@ test "dictionary 3 entries" {
 
 test "dictionary empty" {
     const input = "aoeu = { }";
-    var dict: expr.Expression = .{ .dictionary = .{ .entries = &[_]expr.DictionaryEntry{} } };
+    const entries: []expr.DictionaryEntry = &[_]expr.DictionaryEntry{};
+    var dict: expr.Expression = .{ .dictionary = .{ .entries = entries } };
     const expected_: stmt.Statement = .{ .assignment = .{
         .varName = .{ .name = "aoeu" },
         .value = &dict,
@@ -1000,12 +998,16 @@ test "assign after array" {
         \\aoeu = [ 1, 2 ]
     ;
     // NOTE: we assume that the assignment parsing is working correctly
-    const arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{
-        .{ .number = .{ .integer = 1 } },
-        .{ .number = .{ .integer = 2 } },
-        .{ .number = .{ .integer = 3 } },
-        .{ .number = .{ .integer = 4 } },
-    } } };
+    var tmp = expr.Expression{ .number = .{ .integer = 1 } };
+    var elements: [4]expr.Expression = undefined;
+    elements[0] = tmp;
+    tmp.number.integer = 2;
+    elements[1] = tmp;
+    tmp.number.integer = 3;
+    elements[2] = tmp;
+    tmp.number.integer = 4;
+    elements[3] = tmp;
+    const arr: expr.Expression = .{ .array = .{ .elements = &elements } };
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
@@ -1034,12 +1036,16 @@ test "comment" {
         \\aoeu = [ 1, 2,   3 ,4 ]
     ;
     // NOTE: we assume that the assignment parsing is working correctly
-    const arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{
-        .{ .number = .{ .integer = 1 } },
-        .{ .number = .{ .integer = 2 } },
-        .{ .number = .{ .integer = 3 } },
-        .{ .number = .{ .integer = 4 } },
-    } } };
+    var tmp = expr.Expression{ .number = .{ .integer = 1 } };
+    var elements: [4]expr.Expression = undefined;
+    elements[0] = tmp;
+    tmp.number.integer = 2;
+    elements[1] = tmp;
+    tmp.number.integer = 3;
+    elements[2] = tmp;
+    tmp.number.integer = 4;
+    elements[3] = tmp;
+    const arr: expr.Expression = .{ .array = .{ .elements = &elements } };
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
@@ -1068,10 +1074,12 @@ test "newline + assign after array" {
         \\aoeu = [ 1, 2 ]
     ;
     // NOTE: we assume that the assignment parsing is working correctly
-    const arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{
-        .{ .number = .{ .integer = 1 } },
-        .{ .number = .{ .integer = 2 } },
-    } } };
+    var tmp = expr.Expression{ .number = .{ .integer = 1 } };
+    var elements: [2]expr.Expression = undefined;
+    elements[0] = tmp;
+    tmp.number.integer = 2;
+    elements[1] = tmp;
+    const arr: expr.Expression = .{ .array = .{ .elements = &elements } };
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
