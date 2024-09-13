@@ -65,14 +65,10 @@ pub const Number = union(enum) {
     }
 
     pub fn eql(self: Number, other: Number) bool {
-        if (self == .float and other == .float) {
-            return self.float == other.float;
-        } else if (self == .integer and other == .integer) {
+        if (self == .integer and other == .integer) {
             return self.integer == other.integer;
-        } else if (self == .float) {
-            return self.float == @as(f64, @floatFromInt(other.integer));
         } else {
-            return other.float == @as(f64, @floatFromInt(self.integer));
+            return self.asFloat() == other.asFloat();
         }
     }
 
@@ -98,6 +94,10 @@ pub const Number = union(enum) {
         } else {
             return Number{ .float = self.asFloat() * other.asFloat() };
         }
+    }
+
+    pub fn div(self: Number, other: Number) Number {
+        return Number{ .float = self.asFloat() / other.asFloat() };
     }
 
     pub fn expo(self: Number, other: Number) Number {
