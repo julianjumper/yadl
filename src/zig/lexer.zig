@@ -393,35 +393,36 @@ fn peekChar(self: *Self) Error!u8 {
     }
 }
 
+fn isCommentBegin(chars: []const u8) bool {
+    if (chars.len < 2) return false;
+    return std.mem.eql(u8, chars[0..2], "//") or std.mem.eql(u8, chars[0..2], "/*");
+}
+
 pub fn nextToken(self: *Self) Error!Token {
     try self.skipWhitespce();
     const char = try self.peekChar();
 
+    const pos = self.current_position;
     if (char == ',') {
-        const pos = self.current_position;
-        _ = self.readChar() catch unreachable;
+        self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .ArgSep);
     } else if (anyOf(char, "ft")) {
         return self.lexBoolean() catch self.lexIdentifier();
     } else if (char == '\n') {
-        const pos = self.current_position;
-        _ = self.readChar() catch unreachable;
+        self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .Newline);
     } else if (char == ':') {
-        const pos = self.current_position;
-        _ = self.readChar() catch unreachable;
+        self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .KeyValueSep);
-    } else if (char == '/') {
+    } else if (isCommentBegin(self.data[self.current_position..])) {
         return self.lexLineComment();
     } else if (char == '\'' or char == '"') {
         return self.lexString();
     } else if (anyOf(char, "({[")) {
-        const pos = self.current_position;
-        _ = self.readChar() catch unreachable;
+        self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .OpenParen);
     } else if (anyOf(char, ")}]")) {
-        const pos = self.current_position;
-        _ = self.readChar() catch unreachable;
+        self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .CloseParen);
     } else if (anyOf(char, "iewr")) {
         return self.lexKeyword() catch self.lexIdentifier();
