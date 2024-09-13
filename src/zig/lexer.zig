@@ -469,7 +469,12 @@ fn nextLine(self: Self, token: Token) ?[]const u8 {
     return self.data[line_begin..line_end];
 }
 
-fn currentLine(self: Self, token: Token) []const u8 {
+const LineContext = struct {
+    chars: []const u8,
+    token_offset: usize,
+};
+
+fn currentLine(self: Self, token: Token) LineContext {
     var line_begin = token.index;
     var line_end = token.index;
 
@@ -485,7 +490,10 @@ fn currentLine(self: Self, token: Token) []const u8 {
             break;
     }
     line_begin = if (line_begin > line_end) line_end else line_begin;
-    return self.data[line_begin..line_end];
+    return .{
+        .chars = self.data[line_begin..line_end],
+        .token_offset = token.index - line_begin,
+    };
 }
 
 fn previousLine(self: Self, token: Token) ?[]const u8 {
@@ -515,12 +523,20 @@ fn previousLine(self: Self, token: Token) ?[]const u8 {
 pub fn printContext(self: Self, out: std.io.AnyWriter, token: Token) Error!void {
     if (token.kind == .Newline)
         return;
+    const tty_config = std.io.tty.detectConfig(std.io.getStdOut());
 
     if (previousLine(self, token)) |previous| {
         out.print("{d:5}:{s}\n", .{ token.line - 1, previous }) catch return Error.UnknownError;
     }
-    const current = currentLine(self, token);
-    out.print("{d:5}:{s}\n", .{ token.line, current }) catch return Error.UnknownError;
+    const context = currentLine(self, token);
+    const line = context.chars;
+
+    out.print("{d:5}:{s}", .{ token.line, line[0..context.token_offset] }) catch return Error.UnknownError;
+    std.io.tty.Config.setColor(tty_config, out, .red) catch return Error.UnknownError;
+    std.io.tty.Config.setColor(tty_config, out, .bold) catch return Error.UnknownError;
+    out.print("{s}", .{line[context.token_offset .. context.token_offset + token.chars.len]}) catch return Error.UnknownError;
+    std.io.tty.Config.setColor(tty_config, out, .reset) catch return Error.UnknownError;
+    out.print("{s}\n", .{line[context.token_offset + token.chars.len ..]}) catch return Error.UnknownError;
 
     if (nextLine(self, token)) |next| {
         out.print("{d:5}:{s}\n", .{ token.line + 1, next }) catch return Error.UnknownError;
