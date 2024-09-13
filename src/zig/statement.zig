@@ -6,7 +6,7 @@ pub const Assignment = struct {
     value: *expr.Expression,
 };
 pub const StructuredAssignment = struct {
-    access: *expr.StructureAccess,
+    access: *expr.Expression,
     value: *expr.Expression,
 };
 pub const Branch = struct {
@@ -146,9 +146,7 @@ pub fn free(allocator: std.mem.Allocator, st: Statement) void {
         },
         .struct_assignment => |sa| {
             expr.free(allocator, sa.value);
-            // TODO: check if this is needed
-            // const ex: expr.Expression = .{ .struct_access = sa.access.* };
-            // expr.free(allocator, &ex);
+            expr.free(allocator, sa.access);
         },
     }
 }

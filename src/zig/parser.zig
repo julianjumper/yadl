@@ -295,7 +295,7 @@ fn parseValue(self: *Self) Error!*expr.Expression {
 
 fn parseArrayLiteral(self: *Self) Error!*expr.Expression {
     _ = try self.expect(.OpenParen, "[");
-    const elems = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| b: {
+    const elems: []expr.Expression = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| b: {
         if (err != Error.RepeatedParsingNoElements)
             return err;
         break :b &[_]expr.Expression{};
@@ -319,7 +319,7 @@ fn parseDictionaryLiteral(self: *Self) Error!*expr.Expression {
     while (self.expect(.Newline, null)) |_| {} else |err| {
         if (err != Error.UnexpectedToken) return err;
     }
-    const elems = self.parseRepeated(expr.DictionaryEntry, Self.parseEntry) catch |err| b: {
+    const elems: []expr.DictionaryEntry = self.parseRepeated(expr.DictionaryEntry, Self.parseEntry) catch |err| b: {
         if (err != Error.RepeatedParsingNoElements)
             return err;
         break :b &[_]expr.DictionaryEntry{};
@@ -615,9 +615,14 @@ fn parseAssignment(self: *Self) Error!stmt.Statement {
 }
 
 fn parseStructAssignment(self: *Self) Error!stmt.Statement {
-    _ = self;
+    const strct = try self.parseStructAccess();
+    _ = try self.expect(.Operator, "=");
+    const ex = try self.parseExpression(0);
 
-    return todo(stmt.Statement, "parsing of struct assignment");
+    return .{ .struct_assignment = .{
+        .access = strct,
+        .value = ex,
+    } };
 }
 
 fn parseStatement(self: *Self) Error!stmt.Statement {
