@@ -77,38 +77,37 @@ pub const Number = union(enum) {
     }
 
     pub fn add(self: Number, other: Number) Number {
-        if (self == .float and other == .float) {
-            return Number{ .float = self.float + other.float };
-        } else if (self == .integer and other == .integer) {
+        if (self == .integer and other == .integer) {
             return Number{ .integer = self.integer + other.integer };
-        } else if (self == .float) {
-            return Number{ .float = self.float + @as(f64, @floatFromInt(other.integer)) };
-        } else return Number{ .float = @as(f64, @floatFromInt(self.integer)) + other.float };
+        } else {
+            return Number{ .float = self.asFloat() + other.asFloat() };
+        }
     }
 
     pub fn sub(self: Number, other: Number) Number {
-        if (self == .float and other == .float) {
-            return Number{ .float = self.float - other.float };
-        } else if (self == .integer and other == .integer) {
+        if (self == .integer and other == .integer) {
             return Number{ .integer = self.integer - other.integer };
-        } else if (self == .float) {
-            return Number{ .float = self.float - @as(f64, @floatFromInt(other.integer)) };
-        } else return Number{ .float = @as(f64, @floatFromInt(self.integer)) - other.float };
+        } else {
+            return Number{ .float = self.asFloat() - other.asFloat() };
+        }
     }
 
     pub fn mul(self: Number, other: Number) Number {
-        if (self == .float and other == .float) {
-            return Number{ .float = self.float * other.float };
-        } else if (self == .integer and other == .integer) {
+        if (self == .integer and other == .integer) {
             return Number{ .integer = self.integer * other.integer };
-        } else if (self == .float) {
-            return Number{ .float = self.float * @as(f64, @floatFromInt(other.integer)) };
-        } else return Number{ .float = @as(f64, @floatFromInt(self.integer)) * other.float };
+        } else {
+            return Number{ .float = self.asFloat() * other.asFloat() };
+        }
     }
 
     pub fn expo(self: Number, other: Number) Number {
-        const tmp = std.math.pow(f64, self.asFloat(), other.asFloat());
-        return Number{ .float = tmp };
+        if (self == .integer and other == .integer and other.integer >= 0) {
+            const tmp = std.math.pow(i64, self.integer, other.integer);
+            return Number{ .integer = tmp };
+        } else {
+            const tmp = std.math.pow(f64, self.asFloat(), other.asFloat());
+            return Number{ .float = tmp };
+        }
     }
 
     pub fn init(alloc: std.mem.Allocator, comptime T: type, value: T) !*Expression {
