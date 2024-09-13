@@ -24,7 +24,7 @@ const Token = Lexer.Token;
 const Self = @This();
 
 pub fn init(input: []const u8, allocator: std.mem.Allocator) Self {
-    // Self.parser_diagnostic = true;
+    Self.parser_diagnostic = std.process.hasEnvVar(allocator, "DIAG") catch false;
     return Self{
         .lexer = Lexer.init(input),
         .allocator = allocator,
@@ -220,7 +220,6 @@ fn presedenceOf(op: expr.Operator) usize {
 // Expression parsing
 fn parseExpression(self: *Self, presedence: usize) Error!*expr.Expression {
     var value = try self.parseValue();
-    var pos = self.lexer.current_position;
     while (self.expect(.Operator, null)) |op_token| {
         const op = expr.mapOp(op_token.chars);
         const op_pres = presedenceOf(op);
@@ -229,14 +228,13 @@ fn parseExpression(self: *Self, presedence: usize) Error!*expr.Expression {
             const ex = try self.parseExpression(op_pres);
             value = try expr.BinaryOp.init(self.allocator, op, value, ex);
         } else {
-            self.reset(pos);
+            self.reset(op_token.index);
             return value;
         }
-        pos = self.lexer.current_position;
     } else |err| {
-        if (err == Error.UnexpectedToken or err == Error.EndOfFile)
-            return value;
-        return err;
+        if (err != Error.UnexpectedToken and err != Error.EndOfFile)
+            return err;
+        return value;
     }
 }
 
@@ -284,10 +282,6 @@ fn parseValue(self: *Self) Error!*expr.Expression {
                 self.last_expected = .Unknown;
                 self.last_expected_chars = "'number', 'boolean', 'string' or 'open paren'";
                 return Error.UnexpectedToken;
-
-                // std.debug.print("token type: {}\n", .{k});
-                // std.debug.print("token value: '{s}'\n", .{token.chars});
-                // return todo(*expr.Expression, "parsing of expressions");
             },
         }
     } else return Error.EndOfFile;
