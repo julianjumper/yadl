@@ -29,7 +29,8 @@ pub fn evalStatement(statement: Statement, scope: *Scope) Error!void {
             try scope.update(a.varName, scope.result_ref() orelse unreachable);
         },
         .functioncall => |fc| {
-            try evalFunctionCall(fc, scope);
+            var tmp = fc;
+            try evalFunctionCall(&tmp, scope);
             scope.return_result = null;
         },
         .ret => |r| {
@@ -129,7 +130,7 @@ fn evalStdlibCall(context: stdlib.FunctionContext, evaled_args: []const Expressi
     context.function(evaled_args, scope) catch unreachable; // TODO: handle error once error values are added
 }
 
-pub fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
+pub fn evalFunctionCall(fc: *expr.FunctionCall, scope: *Scope) Error!void {
     const tmpArgs = try scope.allocator.alloc(Expression, fc.args.len);
     defer scope.allocator.free(tmpArgs);
 
@@ -174,6 +175,29 @@ pub fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
                     return Error.FunctionNotFound;
                 }
             }
+        },
+        .wrapped => |e| {
+            var tmp = .{ .func = e, .args = fc.args };
+            try evalFunctionCall(&tmp, scope);
+        },
+        .functioncall => {
+            var tmp = fc.func.*;
+            try evalExpression(&tmp, scope);
+            const f = scope.result_ref() orelse unreachable;
+            // if (f != .function) {
+            //     std.debug.print("ERROR: returned expression from function call is not a function but '{s}'\n", .{@tagName(f)});
+            //     return Error.InvalidExpressoinType;
+            // }
+            var tmp2 = .{ .func = f, .args = fc.args };
+            try evalFunctionCall(&tmp2, scope);
+        },
+        .function => |f| {
+            var localScope = try Scope.init(scope.allocator, scope.out, scope, f.args, tmpArgs);
+            for (f.body) |st| {
+                try evalStatement(st, &localScope);
+            }
+            const result = localScope.result_ref();
+            scope.return_result = result;
         },
         else => |e| {
             std.debug.print("ERROR: unhandled expression case in function call: {s}\n", .{@tagName(e)});
@@ -287,7 +311,8 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
             try evalExpression(w, scope);
         },
         .functioncall => |fc| {
-            try evalFunctionCall(fc, scope);
+            var tmp = fc;
+            try evalFunctionCall(&tmp, scope);
         },
         .struct_access => |sa| try evalStructAccess(sa.strct, sa.key, scope),
         .array => {

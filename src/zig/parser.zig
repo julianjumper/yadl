@@ -585,11 +585,13 @@ fn parseFunctionCall(self: *Self) Error!stmt.Statement {
     _ = try self.expect(.OpenParen, "(");
 
     const args = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| {
-        if (err == Error.RepeatedParsingNoElements)
+        if (err == Error.RepeatedParsingNoElements) {
+            _ = try self.expect(.CloseParen, ")");
             return .{ .functioncall = .{
                 .func = func_name,
                 .args = &[_]expr.Expression{},
             } };
+        }
         return err;
     };
 
