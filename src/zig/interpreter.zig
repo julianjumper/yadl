@@ -26,7 +26,7 @@ pub fn evalStatement(statement: Statement, scope: *Scope) Error!void {
     switch (statement) {
         .assignment => |a| {
             try evalExpression(a.value, scope);
-            try scope.update(a.varName, scope.result() orelse unreachable);
+            try scope.update(a.varName, scope.result_ref() orelse unreachable);
         },
         .functioncall => |fc| {
             try evalFunctionCall(fc, scope);
@@ -34,14 +34,14 @@ pub fn evalStatement(statement: Statement, scope: *Scope) Error!void {
         },
         .ret => |r| {
             try evalExpression(r.value, scope);
-            const result = scope.result() orelse unreachable;
+            const result = scope.result_ref() orelse unreachable;
             scope.return_result = result;
         },
         .whileloop => |w| {
             var cond = false;
             try evalExpression(w.loop.condition, scope);
             var tmp = scope.result() orelse unreachable;
-            cond = tmp.* == .boolean and tmp.boolean.value;
+            cond = tmp == .boolean and tmp.boolean.value;
             while (cond) {
                 for (w.loop.body) |st| {
                     try evalStatement(st, scope);
@@ -49,13 +49,13 @@ pub fn evalStatement(statement: Statement, scope: *Scope) Error!void {
 
                 try evalExpression(w.loop.condition, scope);
                 tmp = scope.result() orelse unreachable;
-                cond = tmp.* == .boolean and tmp.boolean.value;
+                cond = tmp == .boolean and tmp.boolean.value;
             }
         },
         .if_statement => |i| {
             try evalExpression(i.ifBranch.condition, scope);
             const tmp = scope.result() orelse unreachable;
-            if (tmp.* == .boolean and tmp.boolean.value) {
+            if (tmp == .boolean and tmp.boolean.value) {
                 for (i.ifBranch.body) |st| {
                     try evalStatement(st, scope);
                 }
@@ -76,16 +76,16 @@ pub fn evalStatement(statement: Statement, scope: *Scope) Error!void {
 fn modify(strct: *Expression, value: *Expression, scope: *Scope) Error!void {
     std.debug.assert(strct.* == .struct_access);
     try evalExpression(value, scope);
-    const ex = scope.result() orelse unreachable;
+    const ex = scope.result_ref() orelse unreachable;
     try evalExpression(strct.struct_access.strct, scope);
-    const contianer = scope.result() orelse unreachable;
+    const contianer = scope.result_ref() orelse unreachable;
     try evalExpression(strct.struct_access.key, scope);
-    const key = scope.result() orelse unreachable;
+    const key = scope.result_ref() orelse unreachable;
 
     switch (contianer.*) {
         .array => |*a| {
             if (key.* != .number or key.number != .integer or key.number.integer >= a.elements.len and key.number.integer < 0) {
-                std.debug.print("INFO: expr: {}\n", .{key});
+                std.debug.print("ERROR: invalid expressoin type: {s}\n", .{@tagName(key.*)});
                 return Error.InvalidExpressoinType;
             }
             const index = @as(usize, @intCast(key.number.integer));
@@ -136,7 +136,7 @@ pub fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
     for (fc.args, tmpArgs) |*arg, *tmparg| {
         try evalExpression(arg, scope);
         const tmp = scope.result() orelse unreachable;
-        tmparg.* = tmp.*;
+        tmparg.* = tmp;
     }
 
     switch (fc.func.*) {
@@ -167,7 +167,7 @@ pub fn evalFunctionCall(fc: expr.FunctionCall, scope: *Scope) Error!void {
                     for (f.body) |st| {
                         try evalStatement(st, &localScope);
                     }
-                    const result = localScope.result();
+                    const result = localScope.result_ref();
                     scope.return_result = result;
                 } else {
                     std.debug.print("ERROR: no function found under the name '{s}'\n", .{id.name});
@@ -230,12 +230,12 @@ fn evalStructAccess(strct: *Expression, key: *Expression, scope: *Scope) Error!v
     switch (strct.*) {
         .struct_access => |sa| {
             try evalStructAccess(sa.strct, sa.key, scope);
-            const st = scope.result() orelse unreachable;
+            const st = scope.result_ref() orelse unreachable;
             try evalStructAccess(st, key, scope);
         },
         .identifier => {
             try evalExpression(strct, scope);
-            const st = scope.result() orelse unreachable;
+            const st = scope.result_ref() orelse unreachable;
             try evalStructAccess(st, key, scope);
         },
         .array => |a| {
@@ -244,8 +244,7 @@ fn evalStructAccess(strct: *Expression, key: *Expression, scope: *Scope) Error!v
                 return Error.InvalidExpressoinType;
             }
             const index = key.number.integer;
-            const out = a.elements[@intCast(index)];
-            scope.return_result = try out.clone(scope.allocator);
+            scope.return_result = &a.elements[@intCast(index)];
         },
         .dictionary => |d| {
             if (key.* != .number and key.* != .string and key.* != .boolean) {
@@ -253,7 +252,7 @@ fn evalStructAccess(strct: *Expression, key: *Expression, scope: *Scope) Error!v
             }
             for (d.entries) |e| {
                 if (key.eql(e.key.*)) {
-                    scope.return_result = try e.value.clone(scope.allocator);
+                    scope.return_result = e.value;
                     return;
                 }
             }
@@ -309,10 +308,6 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
         .boolean => {
             scope.return_result = value;
         },
-        // else => |v| {
-        //     std.debug.print("TODO: unhandled case in eval expr: {}\n", .{v});
-        //     return Error.NotImplemented;
-        // },
     }
 }
 
@@ -362,8 +357,8 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
     const rightEval = scope.result() orelse unreachable;
 
     switch (op) {
-        .Add => switch (leftEval.*) {
-            .string => |l| switch (rightEval.*) {
+        .Add => switch (leftEval) {
+            .string => |l| switch (rightEval) {
                 .string => |r| {
                     const out = try scope.allocator.create(Expression);
                     const tmp = try std.mem.join(scope.allocator, "", &[_][]const u8{ l.value, r.value });
@@ -372,7 +367,7 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                 },
                 else => return Error.NotImplemented,
             },
-            .number => |l| switch (rightEval.*) {
+            .number => |l| switch (rightEval) {
                 .number => |r| {
                     const n = l.add(r);
                     if (n == .float) {
@@ -386,12 +381,12 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                 else => return Error.NotImplemented,
             },
             else => {
-                std.debug.print("ERROR: can not add value of type '{s}'\n", .{@tagName(leftEval.*)});
+                std.debug.print("ERROR: can not add value of type '{s}'\n", .{@tagName(leftEval)});
                 return Error.NotImplemented;
             },
         },
-        .Mul => switch (leftEval.*) {
-            .number => |l| switch (rightEval.*) {
+        .Mul => switch (leftEval) {
+            .number => |l| switch (rightEval) {
                 .number => |r| {
                     const n = l.mul(r);
                     if (n == .float) {
@@ -412,8 +407,8 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                 return Error.NotImplemented;
             },
         },
-        .Sub => switch (leftEval.*) {
-            .number => |l| switch (rightEval.*) {
+        .Sub => switch (leftEval) {
+            .number => |l| switch (rightEval) {
                 .number => |r| {
                     const n = l.sub(r);
                     if (n == .float) {
@@ -427,12 +422,12 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                 else => return Error.NotImplemented,
             },
             else => {
-                std.debug.print("ERROR: can not add value of type '{s}'\n", .{@tagName(leftEval.*)});
+                std.debug.print("ERROR: can not add value of type '{s}'\n", .{@tagName(leftEval)});
                 return Error.NotImplemented;
             },
         },
-        .Div => switch (leftEval.*) {
-            .number => |l| switch (rightEval.*) {
+        .Div => switch (leftEval) {
+            .number => |l| switch (rightEval) {
                 .number => |r| {
                     const n = l.div(r);
                     if (n == .float) {
@@ -453,8 +448,8 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                 return Error.NotImplemented;
             },
         },
-        .Expo => switch (leftEval.*) {
-            .number => |l| switch (rightEval.*) {
+        .Expo => switch (leftEval) {
+            .number => |l| switch (rightEval) {
                 .number => |r| {
                     const n = l.expo(r);
                     if (n == .float) {
@@ -468,12 +463,12 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                 else => return Error.NotImplemented,
             },
             else => {
-                std.debug.print("ERROR: can not add value of type '{s}'\n", .{@tagName(leftEval.*)});
+                std.debug.print("ERROR: can not add value of type '{s}'\n", .{@tagName(leftEval)});
                 return Error.NotImplemented;
             },
         },
-        .Mod => switch (leftEval.*) {
-            .number => |l| switch (rightEval.*) {
+        .Mod => switch (leftEval) {
+            .number => |l| switch (rightEval) {
                 .number => |r| {
                     if (r == .integer and l == .integer) {
                         const tmp = std.math.mod(i64, l.integer, r.integer) catch return Error.InvalidExpressoinType;
@@ -506,9 +501,9 @@ fn asNumber(ex: *Expression) expr.Number {
 
 fn evalCompareOps(op: expr.CompareOps, left: *Expression, right: *Expression, scope: *Scope) !void {
     try evalExpression(left, scope);
-    const leftEval = if (scope.result()) |tmp| asNumber(tmp) else unreachable;
+    const leftEval = if (scope.result_ref()) |tmp| asNumber(tmp) else unreachable;
     try evalExpression(right, scope);
-    const rightEval = if (scope.result()) |tmp| asNumber(tmp) else unreachable;
+    const rightEval = if (scope.result_ref()) |tmp| asNumber(tmp) else unreachable;
 
     switch (op) {
         .Equal => {
@@ -561,7 +556,7 @@ fn evalBooleanOps(op: expr.BooleanOps, left: *Expression, right: *Expression, sc
     try evalExpression(right, scope);
     const rightEval = scope.result() orelse unreachable;
 
-    if (leftEval.* != .boolean or rightEval.* != .boolean) {
+    if (leftEval != .boolean or rightEval != .boolean) {
         std.debug.print("ERROR: boolean operators are only allowed for booleans\n", .{});
         return Error.NotImplemented;
     }

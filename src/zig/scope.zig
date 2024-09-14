@@ -48,7 +48,14 @@ pub fn hasResult(self: Scope) bool {
     return if (self.return_result) |_| true else false;
 }
 
-pub fn result(self: *Scope) ?*Expression {
+pub fn result(self: *Scope) ?Expression {
+    if (self.return_result) |res| {
+        self.return_result = null;
+        return res.*;
+    } else return null;
+}
+
+pub fn result_ref(self: *Scope) ?*Expression {
     if (self.return_result) |res| {
         self.return_result = null;
         return res;
