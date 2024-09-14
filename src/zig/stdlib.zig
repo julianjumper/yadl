@@ -3,7 +3,7 @@ const std = @import("std");
 const expression = @import("expression.zig");
 const liberror = @import("stdlib/error.zig");
 const functions = @import("stdlib/functions.zig");
-const conversions = @import("stdlib/conversions.zig");
+pub const conversions = @import("stdlib/conversions.zig");
 const Scope = @import("scope.zig");
 
 pub const Error = error{
@@ -38,6 +38,7 @@ pub fn initBuiltins(allocator: std.mem.Allocator) Error!void {
         try b.put("len", .{ .function = &functions.length, .arity = 1 });
         try b.put("last", .{ .function = &functions.last, .arity = 3 });
         try b.put("first", .{ .function = &functions.first, .arity = 3 });
+        try b.put("type", .{ .function = &functions._type, .arity = 1 });
 
         // conversions
         try b.put("bool", .{ .function = &conversions.toBoolean, .arity = 1 });

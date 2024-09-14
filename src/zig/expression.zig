@@ -60,7 +60,7 @@ pub const Number = union(enum) {
     integer: i64,
     float: f64,
 
-    fn asFloat(self: Number) f64 {
+    pub fn asFloat(self: Number) f64 {
         return if (self == .float) self.float else @as(f64, @floatFromInt(self.integer));
     }
 

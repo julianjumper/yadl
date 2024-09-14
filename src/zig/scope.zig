@@ -113,7 +113,8 @@ pub fn update(self: *Scope, ident: expr.Identifier, value: *Expression) Error!vo
     if (value.* == .function) {
         if (self.functions.get(ident.name)) |func| {
             _ = func;
-            std.debug.print("TODO: updating function in scope\n", .{});
+            std.debug.print("TODO: updating function scope\n", .{});
+            try self.functions.put(ident.name, value.function);
             return Error.NotImplemented;
         } else {
             try self.functions.put(ident.name, value.function);

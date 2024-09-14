@@ -390,6 +390,22 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                     out.* = .{ .string = .{ .value = tmp } };
                     scope.return_result = out;
                 },
+                .boolean => {
+                    try stdlib.conversions.toString(&[_]Expression{rightEval}, scope);
+                    const r = scope.result() orelse unreachable;
+                    const out = try scope.allocator.create(Expression);
+                    const inner = try std.mem.join(scope.allocator, "", &[_][]const u8{ l.value, r.string.value });
+                    out.* = .{ .string = .{ .value = inner } };
+                    scope.return_result = out;
+                },
+                .number => {
+                    try stdlib.conversions.toString(&[_]Expression{rightEval}, scope);
+                    const r = scope.result() orelse unreachable;
+                    const out = try scope.allocator.create(Expression);
+                    const inner = try std.mem.join(scope.allocator, "", &[_][]const u8{ l.value, r.string.value });
+                    out.* = .{ .string = .{ .value = inner } };
+                    scope.return_result = out;
+                },
                 else => return Error.NotImplemented,
             },
             .number => |l| switch (rightEval) {
@@ -405,9 +421,19 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                 },
                 else => return Error.NotImplemented,
             },
-            else => {
-                std.debug.print("ERROR: can not add value of type '{s}'\n", .{@tagName(leftEval)});
-                return Error.NotImplemented;
+            else => |e| {
+                try stdlib.conversions.toNumber(&[_]Expression{e}, scope);
+                const l = scope.result() orelse unreachable;
+                try stdlib.conversions.toNumber(&[_]Expression{rightEval}, scope);
+                const r = scope.result() orelse unreachable;
+                const res = l.number.add(r.number);
+                if (res == .float) {
+                    const tmp = try expr.Number.init(scope.allocator, f64, res.float);
+                    scope.return_result = tmp;
+                } else {
+                    const tmp = try expr.Number.init(scope.allocator, i64, res.integer);
+                    scope.return_result = tmp;
+                }
             },
         },
         .Mul => switch (leftEval) {
@@ -427,9 +453,19 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                     return Error.NotImplemented;
                 },
             },
-            else => |v| {
-                std.debug.print("ERROR: unhandled case in arith. Mul: {}\n", .{v});
-                return Error.NotImplemented;
+            else => |e| {
+                try stdlib.conversions.toNumber(&[_]Expression{e}, scope);
+                const l = scope.result() orelse unreachable;
+                try stdlib.conversions.toNumber(&[_]Expression{rightEval}, scope);
+                const r = scope.result() orelse unreachable;
+                const res = l.number.mul(r.number);
+                if (res == .float) {
+                    const tmp = try expr.Number.init(scope.allocator, f64, res.float);
+                    scope.return_result = tmp;
+                } else {
+                    const tmp = try expr.Number.init(scope.allocator, i64, res.integer);
+                    scope.return_result = tmp;
+                }
             },
         },
         .Sub => switch (leftEval) {
@@ -446,9 +482,19 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                 },
                 else => return Error.NotImplemented,
             },
-            else => {
-                std.debug.print("ERROR: can not add value of type '{s}'\n", .{@tagName(leftEval)});
-                return Error.NotImplemented;
+            else => |e| {
+                try stdlib.conversions.toNumber(&[_]Expression{e}, scope);
+                const l = scope.result() orelse unreachable;
+                try stdlib.conversions.toNumber(&[_]Expression{rightEval}, scope);
+                const r = scope.result() orelse unreachable;
+                const res = l.number.sub(r.number);
+                if (res == .float) {
+                    const tmp = try expr.Number.init(scope.allocator, f64, res.float);
+                    scope.return_result = tmp;
+                } else {
+                    const tmp = try expr.Number.init(scope.allocator, i64, res.integer);
+                    scope.return_result = tmp;
+                }
             },
         },
         .Div => switch (leftEval) {
@@ -468,9 +514,19 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                     return Error.NotImplemented;
                 },
             },
-            else => |v| {
-                std.debug.print("ERROR: unhandled case in arith. Div: {}\n", .{v});
-                return Error.NotImplemented;
+            else => |e| {
+                try stdlib.conversions.toNumber(&[_]Expression{e}, scope);
+                const l = scope.result() orelse unreachable;
+                try stdlib.conversions.toNumber(&[_]Expression{rightEval}, scope);
+                const r = scope.result() orelse unreachable;
+                const res = l.number.div(r.number);
+                if (res == .float) {
+                    const tmp = try expr.Number.init(scope.allocator, f64, res.float);
+                    scope.return_result = tmp;
+                } else {
+                    const tmp = try expr.Number.init(scope.allocator, i64, res.integer);
+                    scope.return_result = tmp;
+                }
             },
         },
         .Expo => switch (leftEval) {
@@ -513,22 +569,11 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
     }
 }
 
-fn asNumber(ex: *Expression) expr.Number {
-    return switch (ex.*) {
-        .number => ex.number,
-        .boolean => |bl| expr.Number{ .integer = @intFromBool(bl.value) },
-        else => {
-            std.debug.print("ERROR: value not convertable to number: {s}\n", .{@tagName(ex.*)});
-            unreachable;
-        },
-    };
-}
-
 fn evalCompareOps(op: expr.CompareOps, left: *Expression, right: *Expression, scope: *Scope) !void {
     try evalExpression(left, scope);
-    const leftEval = if (scope.result_ref()) |tmp| asNumber(tmp) else unreachable;
+    const leftEval = scope.result() orelse unreachable;
     try evalExpression(right, scope);
-    const rightEval = if (scope.result_ref()) |tmp| asNumber(tmp) else unreachable;
+    const rightEval = scope.result() orelse unreachable;
 
     switch (op) {
         .Equal => {
@@ -541,37 +586,39 @@ fn evalCompareOps(op: expr.CompareOps, left: *Expression, right: *Expression, sc
             tmp.* = .{ .boolean = .{ .value = !leftEval.eql(rightEval) } };
             scope.return_result = tmp;
         },
-        .Less => {
-            const out = try scope.allocator.create(Expression);
-            const tmp: bool = switch (leftEval) {
-                .float => |l| switch (rightEval) {
-                    .float => |r| l < r,
-                    .integer => |r| l < @as(f64, @floatFromInt(r)),
+        .Less => switch (leftEval) {
+            .number => |l| switch (rightEval) {
+                .number => |r| {
+                    const out = try scope.allocator.create(Expression);
+                    const tmp: bool = if (l == .integer and r == .integer) l.integer < r.integer else l.asFloat() < r.asFloat();
+                    out.* = .{ .boolean = .{ .value = tmp } };
+                    scope.return_result = out;
                 },
-                .integer => |l| switch (rightEval) {
-                    .float => |r| @as(f64, @floatFromInt(l)) < r,
-                    .integer => |r| l < r,
-                },
-            };
-            out.* = .{ .boolean = .{ .value = tmp } };
-            scope.return_result = out;
+                else => return Error.NotImplemented,
+            },
+            else => return Error.NotImplemented,
         },
         .LessEqual => {
-            const out = try scope.allocator.create(Expression);
-            const tmp: bool = switch (leftEval) {
-                .float => |l| switch (rightEval) {
-                    .float => |r| l <= r,
-                    .integer => |r| l <= @as(f64, @floatFromInt(r)),
-                },
-                .integer => |l| switch (rightEval) {
-                    .float => |r| @as(f64, @floatFromInt(l)) <= r,
-                    .integer => |r| l <= r,
-                },
-            };
-            out.* = .{ .boolean = .{ .value = tmp } };
+            try evalCompareOps(.Less, left, right, scope);
+            const less = scope.result_ref() orelse unreachable;
+            try evalCompareOps(.Equal, left, right, scope);
+            var out = scope.result_ref() orelse unreachable;
+            out.boolean.value = out.boolean.value or less.boolean.value;
+            expr.free(scope.allocator, less);
             scope.return_result = out;
         },
-        else => return Error.NotImplemented,
+        .Greater => {
+            try evalCompareOps(.LessEqual, left, right, scope);
+            var out = scope.result_ref() orelse unreachable;
+            out.boolean.value = !out.boolean.value;
+            scope.return_result = out;
+        },
+        .GreaterEqual => {
+            try evalCompareOps(.Less, left, right, scope);
+            var out = scope.result_ref() orelse unreachable;
+            out.boolean.value = !out.boolean.value;
+            scope.return_result = out;
+        },
     }
 }
 
@@ -583,7 +630,7 @@ fn evalBooleanOps(op: expr.BooleanOps, left: *Expression, right: *Expression, sc
 
     if (leftEval != .boolean or rightEval != .boolean) {
         std.debug.print("ERROR: boolean operators are only allowed for booleans\n", .{});
-        return Error.NotImplemented;
+        return Error.InvalidExpressoinType;
     }
 
     const l = leftEval.boolean.value;
