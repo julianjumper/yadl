@@ -27,6 +27,12 @@ pub fn length(args: []const Expression, scope: *Scope) Error!void {
     }
 }
 
+pub fn _type(args: []const Expression, scope: *Scope) Error!void {
+    const out = try scope.allocator.create(Expression);
+    out.* = .{ .string = .{ .value = @tagName(args[0]) } };
+    scope.return_result = out;
+}
+
 pub fn map(args: []const Expression, scope: *Scope) Error!void {
     const elements = args[0];
     const callable = args[1];
