@@ -393,35 +393,36 @@ fn peekChar(self: *Self) Error!u8 {
     }
 }
 
+fn isCommentBegin(chars: []const u8) bool {
+    if (chars.len < 2) return false;
+    return std.mem.eql(u8, chars[0..2], "//") or std.mem.eql(u8, chars[0..2], "/*");
+}
+
 pub fn nextToken(self: *Self) Error!Token {
     try self.skipWhitespce();
     const char = try self.peekChar();
 
+    const pos = self.current_position;
     if (char == ',') {
-        const pos = self.current_position;
-        _ = self.readChar() catch unreachable;
+        self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .ArgSep);
     } else if (anyOf(char, "ft")) {
         return self.lexBoolean() catch self.lexIdentifier();
     } else if (char == '\n') {
-        const pos = self.current_position;
-        _ = self.readChar() catch unreachable;
+        self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .Newline);
     } else if (char == ':') {
-        const pos = self.current_position;
-        _ = self.readChar() catch unreachable;
+        self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .KeyValueSep);
-    } else if (char == '/') {
+    } else if (isCommentBegin(self.data[self.current_position..])) {
         return self.lexLineComment();
     } else if (char == '\'' or char == '"') {
         return self.lexString();
     } else if (anyOf(char, "({[")) {
-        const pos = self.current_position;
-        _ = self.readChar() catch unreachable;
+        self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .OpenParen);
     } else if (anyOf(char, ")}]")) {
-        const pos = self.current_position;
-        _ = self.readChar() catch unreachable;
+        self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .CloseParen);
     } else if (anyOf(char, "iewr")) {
         return self.lexKeyword() catch self.lexIdentifier();
@@ -469,7 +470,12 @@ fn nextLine(self: Self, token: Token) ?[]const u8 {
     return self.data[line_begin..line_end];
 }
 
-fn currentLine(self: Self, token: Token) []const u8 {
+const LineContext = struct {
+    chars: []const u8,
+    token_offset: usize,
+};
+
+fn currentLine(self: Self, token: Token) LineContext {
     var line_begin = token.index;
     var line_end = token.index;
 
@@ -485,7 +491,10 @@ fn currentLine(self: Self, token: Token) []const u8 {
             break;
     }
     line_begin = if (line_begin > line_end) line_end else line_begin;
-    return self.data[line_begin..line_end];
+    return .{
+        .chars = self.data[line_begin..line_end],
+        .token_offset = token.index - line_begin,
+    };
 }
 
 fn previousLine(self: Self, token: Token) ?[]const u8 {
@@ -515,12 +524,20 @@ fn previousLine(self: Self, token: Token) ?[]const u8 {
 pub fn printContext(self: Self, out: std.io.AnyWriter, token: Token) Error!void {
     if (token.kind == .Newline)
         return;
+    const tty_config = std.io.tty.detectConfig(std.io.getStdOut());
 
     if (previousLine(self, token)) |previous| {
         out.print("{d:5}:{s}\n", .{ token.line - 1, previous }) catch return Error.UnknownError;
     }
-    const current = currentLine(self, token);
-    out.print("{d:5}:{s}\n", .{ token.line, current }) catch return Error.UnknownError;
+    const context = currentLine(self, token);
+    const line = context.chars;
+
+    out.print("{d:5}:{s}", .{ token.line, line[0..context.token_offset] }) catch return Error.UnknownError;
+    std.io.tty.Config.setColor(tty_config, out, .red) catch return Error.UnknownError;
+    std.io.tty.Config.setColor(tty_config, out, .bold) catch return Error.UnknownError;
+    out.print("{s}", .{line[context.token_offset .. context.token_offset + token.chars.len]}) catch return Error.UnknownError;
+    std.io.tty.Config.setColor(tty_config, out, .reset) catch return Error.UnknownError;
+    out.print("{s}\n", .{line[context.token_offset + token.chars.len ..]}) catch return Error.UnknownError;
 
     if (nextLine(self, token)) |next| {
         out.print("{d:5}:{s}\n", .{ token.line + 1, next }) catch return Error.UnknownError;

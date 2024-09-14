@@ -60,60 +60,52 @@ pub const Number = union(enum) {
     integer: i64,
     float: f64,
 
+    fn asFloat(self: Number) f64 {
+        return if (self == .float) self.float else @as(f64, @floatFromInt(self.integer));
+    }
+
     pub fn eql(self: Number, other: Number) bool {
-        if (self == .float and other == .float) {
-            return self.float == other.float;
-        } else if (self == .integer and other == .integer) {
+        if (self == .integer and other == .integer) {
             return self.integer == other.integer;
-        } else if (self == .float) {
-            return self.float == @as(f64, @floatFromInt(other.integer));
         } else {
-            return other.float == @as(f64, @floatFromInt(self.integer));
+            return self.asFloat() == other.asFloat();
         }
     }
 
     pub fn add(self: Number, other: Number) Number {
-        if (self == .float and other == .float) {
-            return Number{ .float = self.float + other.float };
-        } else if (self == .integer and other == .integer) {
+        if (self == .integer and other == .integer) {
             return Number{ .integer = self.integer + other.integer };
-        } else if (self == .float) {
-            return Number{ .float = self.float + @as(f64, @floatFromInt(other.integer)) };
-        } else return Number{ .float = @as(f64, @floatFromInt(self.integer)) + other.float };
+        } else {
+            return Number{ .float = self.asFloat() + other.asFloat() };
+        }
     }
 
     pub fn sub(self: Number, other: Number) Number {
-        if (self == .float and other == .float) {
-            return Number{ .float = self.float - other.float };
-        } else if (self == .integer and other == .integer) {
+        if (self == .integer and other == .integer) {
             return Number{ .integer = self.integer - other.integer };
-        } else if (self == .float) {
-            return Number{ .float = self.float - @as(f64, @floatFromInt(other.integer)) };
-        } else return Number{ .float = @as(f64, @floatFromInt(self.integer)) - other.float };
+        } else {
+            return Number{ .float = self.asFloat() - other.asFloat() };
+        }
     }
 
     pub fn mul(self: Number, other: Number) Number {
-        if (self == .float and other == .float) {
-            return Number{ .float = self.float * other.float };
-        } else if (self == .integer and other == .integer) {
+        if (self == .integer and other == .integer) {
             return Number{ .integer = self.integer * other.integer };
-        } else if (self == .float) {
-            return Number{ .float = self.float * @as(f64, @floatFromInt(other.integer)) };
-        } else return Number{ .float = @as(f64, @floatFromInt(self.integer)) * other.float };
+        } else {
+            return Number{ .float = self.asFloat() * other.asFloat() };
+        }
+    }
+
+    pub fn div(self: Number, other: Number) Number {
+        return Number{ .float = self.asFloat() / other.asFloat() };
     }
 
     pub fn expo(self: Number, other: Number) Number {
-        if (self == .float and other == .float) {
-            const tmp = std.math.pow(f64, self.float, other.float);
-            return Number{ .float = tmp };
-        } else if (self == .integer and other == .integer) {
+        if (self == .integer and other == .integer and other.integer >= 0) {
             const tmp = std.math.pow(i64, self.integer, other.integer);
             return Number{ .integer = tmp };
-        } else if (self == .float) {
-            const tmp = std.math.pow(f64, self.float, @as(f64, @floatFromInt(other.integer)));
-            return Number{ .float = tmp };
         } else {
-            const tmp = std.math.pow(f64, @floatFromInt(self.integer), other.float);
+            const tmp = std.math.pow(f64, self.asFloat(), other.asFloat());
             return Number{ .float = tmp };
         }
     }
@@ -143,6 +135,10 @@ pub const String = struct {
             .value = value,
         } };
         return out;
+    }
+
+    pub fn eql(self: String, other: String) bool {
+        return std.mem.eql(u8, self.value, other.value);
     }
 };
 pub const Boolean = struct {
@@ -212,11 +208,11 @@ pub const StructureAccess = struct {
 };
 
 pub const Array = struct {
-    elements: []const Expression,
+    elements: []Expression,
 
     pub fn init(
         alloc: std.mem.Allocator,
-        elements: []const Expression,
+        elements: []Expression,
     ) !*Expression {
         const out = try alloc.create(Expression);
         out.* = .{ .array = Array{
@@ -231,11 +227,11 @@ pub const DictionaryEntry = struct {
     value: *Expression,
 };
 pub const Dictionary = struct {
-    entries: []const DictionaryEntry,
+    entries: []DictionaryEntry,
 
     pub fn init(
         alloc: std.mem.Allocator,
-        entries: []const DictionaryEntry,
+        entries: []DictionaryEntry,
     ) !*Expression {
         const out = try alloc.create(Expression);
         out.* = .{ .dictionary = Dictionary{
@@ -262,6 +258,7 @@ pub const Expression = union(enum) {
     pub fn eql(self: Expression, other: Expression) bool {
         return switch (self) {
             .number => |n| if (other == .number) n.eql(other.number) else false,
+            .string => |n| if (other == .string) n.eql(other.string) else false,
             else => unreachable,
         };
     }
@@ -270,6 +267,7 @@ pub const Expression = union(enum) {
         return switch (self) {
             .number => |n| if (n == .integer) Number.init(alloc, i64, n.integer) else Number.init(alloc, f64, n.float),
             .identifier => |id| Identifier.init(alloc, id.name),
+            .string => |s| String.init(alloc, s.value),
             .array => |a| b: {
                 const tmp = try alloc.alloc(Expression, a.elements.len);
                 for (a.elements, tmp) |elem, *out| {
@@ -279,8 +277,16 @@ pub const Expression = union(enum) {
                 }
                 break :b Array.init(alloc, tmp);
             },
+            .dictionary => |d| b: {
+                const new_entries = try alloc.alloc(DictionaryEntry, d.entries.len);
+                for (d.entries, new_entries) |e, *new| {
+                    new.key = try e.key.clone(alloc);
+                    new.value = try e.value.clone(alloc);
+                }
+                break :b Dictionary.init(alloc, new_entries);
+            },
             else => |v| {
-                std.debug.print("TODO: {}\n", .{v});
+                std.debug.print("TODO: clone of {s}\n", .{@tagName(v)});
                 return error.NotImplemented;
             },
         };
@@ -292,6 +298,8 @@ pub fn identifier(chars: []const u8) Identifier {
 }
 
 pub fn mapOp(chars: []const u8) Operator {
+    // std.debug.print("INFO: mapOp {s}\n", .{chars});
+
     if (std.mem.eql(u8, chars, "+")) return .{ .arithmetic = .Add };
     if (std.mem.eql(u8, chars, "-")) return .{ .arithmetic = .Sub };
     if (std.mem.eql(u8, chars, "*")) return .{ .arithmetic = .Mul };
@@ -349,8 +357,8 @@ pub fn printExpression(out: std.io.AnyWriter, expr: Expression, indent: u8) !voi
     }
 }
 
-pub fn free(allocator: std.mem.Allocator, expr: *const Expression) void {
-    switch (expr.*) {
+pub fn free_local(allocator: std.mem.Allocator, expr: Expression) void {
+    switch (expr) {
         .wrapped => |e| {
             free(allocator, e);
         },
@@ -388,5 +396,9 @@ pub fn free(allocator: std.mem.Allocator, expr: *const Expression) void {
         },
         else => {},
     }
+}
+
+pub fn free(allocator: std.mem.Allocator, expr: *const Expression) void {
+    free_local(allocator, expr.*);
     allocator.destroy(expr);
 }

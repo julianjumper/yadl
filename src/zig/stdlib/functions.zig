@@ -45,7 +45,7 @@ pub fn map(args: []const Expression, scope: *Scope) Error!void {
                     try interpreter.evalStatement(st, &tmpScope);
                 }
                 if (tmpScope.result()) |r| {
-                    t.* = r.*;
+                    t.* = r;
                 } else {
                     return Error.ValueNotFound;
                 }
@@ -79,7 +79,7 @@ pub fn reduce(args: []const Expression, scope: *Scope) Error!void {
                     try interpreter.evalStatement(st, &tmpScope);
                 }
                 if (tmpScope.result()) |r| {
-                    acc = r.*;
+                    acc = r;
                 } else {
                     return Error.ValueNotFound;
                 }
@@ -162,9 +162,9 @@ fn check(context: Context, args: []const Expression, scope: *Scope) Error!void {
                     try interpreter.evalStatement(st, &tmpScope);
                 }
                 if (tmpScope.result()) |r| {
-                    if (r.* == .boolean) {
+                    if (r == .boolean) {
                         acc = context.operation(acc, r.boolean.value);
-                    } else if (r.* != .boolean) {
+                    } else if (r != .boolean) {
                         std.debug.print("ERROR: returned value of function is not a boolean\n", .{});
                         return Error.InvalidExpressoinType;
                     }
@@ -219,7 +219,7 @@ pub fn filter(args: []const Expression, scope: *Scope) Error!void {
                     try interpreter.evalStatement(st, &tmpScope);
                 }
                 if (tmpScope.result()) |r| {
-                    if (r.* == .boolean and r.boolean.value) {
+                    if (r == .boolean and r.boolean.value) {
                         tmp[current_index] = e;
                         current_index += 1;
                     }
@@ -274,7 +274,7 @@ pub fn last(args: []const Expression, scope: *Scope) Error!void {
                     try interpreter.evalStatement(st, &tmpScope);
                 }
                 if (tmpScope.result()) |r| {
-                    if (r.* == .boolean and r.boolean.value) {
+                    if (r == .boolean and r.boolean.value) {
                         scope.return_result = try e.clone(scope.allocator);
                         return;
                     }
@@ -306,7 +306,7 @@ pub fn first(args: []const Expression, scope: *Scope) Error!void {
                     try interpreter.evalStatement(st, &tmpScope);
                 }
                 if (tmpScope.result()) |r| {
-                    if (r.* == .boolean and r.boolean.value) {
+                    if (r == .boolean and r.boolean.value) {
                         scope.return_result = try e.clone(scope.allocator);
                         return;
                     }

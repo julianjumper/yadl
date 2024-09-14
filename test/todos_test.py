@@ -99,7 +99,7 @@ def to_dir(config):
 
 @pytest.mark.parametrize("config", configurations, ids = map(to_dir, configurations))
 @pytest.mark.xfail(strict = True) # only allow failing tests to pass
-def test_config(config):
+def test_failing_config(config):
     run_test(config)
 
 def pytest_collection_modifyitems(items):

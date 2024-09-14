@@ -24,7 +24,7 @@ const Token = Lexer.Token;
 const Self = @This();
 
 pub fn init(input: []const u8, allocator: std.mem.Allocator) Self {
-    // Self.parser_diagnostic = true;
+    Self.parser_diagnostic = std.process.hasEnvVar(allocator, "DIAG") catch false;
     return Self{
         .lexer = Lexer.init(input),
         .allocator = allocator,
@@ -220,7 +220,6 @@ fn presedenceOf(op: expr.Operator) usize {
 // Expression parsing
 fn parseExpression(self: *Self, presedence: usize) Error!*expr.Expression {
     var value = try self.parseValue();
-    var pos = self.lexer.current_position;
     while (self.expect(.Operator, null)) |op_token| {
         const op = expr.mapOp(op_token.chars);
         const op_pres = presedenceOf(op);
@@ -229,14 +228,13 @@ fn parseExpression(self: *Self, presedence: usize) Error!*expr.Expression {
             const ex = try self.parseExpression(op_pres);
             value = try expr.BinaryOp.init(self.allocator, op, value, ex);
         } else {
-            self.reset(pos);
+            self.reset(op_token.index);
             return value;
         }
-        pos = self.lexer.current_position;
     } else |err| {
-        if (err == Error.UnexpectedToken or err == Error.EndOfFile)
-            return value;
-        return err;
+        if (err != Error.UnexpectedToken and err != Error.EndOfFile)
+            return err;
+        return value;
     }
 }
 
@@ -284,10 +282,6 @@ fn parseValue(self: *Self) Error!*expr.Expression {
                 self.last_expected = .Unknown;
                 self.last_expected_chars = "'number', 'boolean', 'string' or 'open paren'";
                 return Error.UnexpectedToken;
-
-                // std.debug.print("token type: {}\n", .{k});
-                // std.debug.print("token value: '{s}'\n", .{token.chars});
-                // return todo(*expr.Expression, "parsing of expressions");
             },
         }
     } else return Error.EndOfFile;
@@ -295,7 +289,7 @@ fn parseValue(self: *Self) Error!*expr.Expression {
 
 fn parseArrayLiteral(self: *Self) Error!*expr.Expression {
     _ = try self.expect(.OpenParen, "[");
-    const elems = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| b: {
+    const elems: []expr.Expression = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| b: {
         if (err != Error.RepeatedParsingNoElements)
             return err;
         break :b &[_]expr.Expression{};
@@ -319,7 +313,7 @@ fn parseDictionaryLiteral(self: *Self) Error!*expr.Expression {
     while (self.expect(.Newline, null)) |_| {} else |err| {
         if (err != Error.UnexpectedToken) return err;
     }
-    const elems = self.parseRepeated(expr.DictionaryEntry, Self.parseEntry) catch |err| b: {
+    const elems: []expr.DictionaryEntry = self.parseRepeated(expr.DictionaryEntry, Self.parseEntry) catch |err| b: {
         if (err != Error.RepeatedParsingNoElements)
             return err;
         break :b &[_]expr.DictionaryEntry{};
@@ -615,9 +609,14 @@ fn parseAssignment(self: *Self) Error!stmt.Statement {
 }
 
 fn parseStructAssignment(self: *Self) Error!stmt.Statement {
-    _ = self;
+    const strct = try self.parseStructAccess();
+    _ = try self.expect(.Operator, "=");
+    const ex = try self.parseExpression(0);
 
-    return todo(stmt.Statement, "parsing of struct assignment");
+    return .{ .struct_assignment = .{
+        .access = strct,
+        .value = ex,
+    } };
 }
 
 fn parseStatement(self: *Self) Error!stmt.Statement {
@@ -898,12 +897,9 @@ test "function call" {
 test "dictionary" {
     const input = "aoeu = { 1 : 1 }";
     var exp: expr.Expression = .{ .number = .{ .integer = 1 } };
-    var dict: expr.Expression = .{ .dictionary = .{ .entries = &[_]expr.DictionaryEntry{
-        .{
-            .key = &exp,
-            .value = &exp,
-        },
-    } } };
+    var entries: [1]expr.DictionaryEntry = undefined;
+    entries[0] = .{ .key = &exp, .value = &exp };
+    var dict: expr.Expression = .{ .dictionary = .{ .entries = &entries } };
     const expected_: stmt.Statement = .{ .assignment = .{
         .varName = .{ .name = "aoeu" },
         .value = &dict,
@@ -934,11 +930,11 @@ test "dictionary 3 entries" {
     var exp1: expr.Expression = .{ .number = .{ .integer = 1 } };
     var exp2: expr.Expression = .{ .number = .{ .integer = 2 } };
     var exp3: expr.Expression = .{ .number = .{ .integer = 3 } };
-    var dict: expr.Expression = .{ .dictionary = .{ .entries = &[_]expr.DictionaryEntry{
-        .{ .key = &exp1, .value = &exp1 },
-        .{ .key = &exp2, .value = &exp2 },
-        .{ .key = &exp3, .value = &exp3 },
-    } } };
+    var entries: [3]expr.DictionaryEntry = undefined;
+    entries[0] = .{ .key = &exp1, .value = &exp1 };
+    entries[1] = .{ .key = &exp2, .value = &exp2 };
+    entries[2] = .{ .key = &exp3, .value = &exp3 };
+    var dict: expr.Expression = .{ .dictionary = .{ .entries = &entries } };
     const expected_: stmt.Statement = .{ .assignment = .{
         .varName = .{ .name = "aoeu" },
         .value = &dict,
@@ -966,7 +962,8 @@ test "dictionary 3 entries" {
 
 test "dictionary empty" {
     const input = "aoeu = { }";
-    var dict: expr.Expression = .{ .dictionary = .{ .entries = &[_]expr.DictionaryEntry{} } };
+    const entries: []expr.DictionaryEntry = &[_]expr.DictionaryEntry{};
+    var dict: expr.Expression = .{ .dictionary = .{ .entries = entries } };
     const expected_: stmt.Statement = .{ .assignment = .{
         .varName = .{ .name = "aoeu" },
         .value = &dict,
@@ -995,12 +992,16 @@ test "assign after array" {
         \\aoeu = [ 1, 2 ]
     ;
     // NOTE: we assume that the assignment parsing is working correctly
-    const arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{
-        .{ .number = .{ .integer = 1 } },
-        .{ .number = .{ .integer = 2 } },
-        .{ .number = .{ .integer = 3 } },
-        .{ .number = .{ .integer = 4 } },
-    } } };
+    var tmp = expr.Expression{ .number = .{ .integer = 1 } };
+    var elements: [4]expr.Expression = undefined;
+    elements[0] = tmp;
+    tmp.number.integer = 2;
+    elements[1] = tmp;
+    tmp.number.integer = 3;
+    elements[2] = tmp;
+    tmp.number.integer = 4;
+    elements[3] = tmp;
+    const arr: expr.Expression = .{ .array = .{ .elements = &elements } };
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
@@ -1029,12 +1030,16 @@ test "comment" {
         \\aoeu = [ 1, 2,   3 ,4 ]
     ;
     // NOTE: we assume that the assignment parsing is working correctly
-    const arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{
-        .{ .number = .{ .integer = 1 } },
-        .{ .number = .{ .integer = 2 } },
-        .{ .number = .{ .integer = 3 } },
-        .{ .number = .{ .integer = 4 } },
-    } } };
+    var tmp = expr.Expression{ .number = .{ .integer = 1 } };
+    var elements: [4]expr.Expression = undefined;
+    elements[0] = tmp;
+    tmp.number.integer = 2;
+    elements[1] = tmp;
+    tmp.number.integer = 3;
+    elements[2] = tmp;
+    tmp.number.integer = 4;
+    elements[3] = tmp;
+    const arr: expr.Expression = .{ .array = .{ .elements = &elements } };
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
@@ -1063,10 +1068,12 @@ test "newline + assign after array" {
         \\aoeu = [ 1, 2 ]
     ;
     // NOTE: we assume that the assignment parsing is working correctly
-    const arr: expr.Expression = .{ .array = .{ .elements = &[_]expr.Expression{
-        .{ .number = .{ .integer = 1 } },
-        .{ .number = .{ .integer = 2 } },
-    } } };
+    var tmp = expr.Expression{ .number = .{ .integer = 1 } };
+    var elements: [2]expr.Expression = undefined;
+    elements[0] = tmp;
+    tmp.number.integer = 2;
+    elements[1] = tmp;
+    const arr: expr.Expression = .{ .array = .{ .elements = &elements } };
 
     var parser = Self.init(input, std.testing.allocator);
     const result = parser.parse() catch unreachable;
