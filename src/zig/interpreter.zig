@@ -33,7 +33,7 @@ pub fn evalStatement(statement: Statement, scope: *Scope) Error!void {
             try evalFunctionCall(&tmp, scope);
             scope.return_result = null;
         },
-        .ret => |r| {
+        .@"return" => |r| {
             try evalExpression(r.value, scope);
             const result = scope.result_ref() orelse unreachable;
             scope.return_result = result;
