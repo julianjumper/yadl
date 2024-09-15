@@ -1,13 +1,19 @@
 # yadl
+## Table of Contents
+1. [Build Instructions](#build)
+1.1 [Prerequisites](#pre)
+1.2 [Building in Terminal/Shell](#build_sh)
 
-## Build Instructions
+### Build Instructions <a name="build"></a>
 
-### Prerequisites
+#### Prerequisites <a name="pre"></a>
 
 - [Scala 3.X](https://www.scala-lang.org/download/)
 - Recent Java SDK (openjdk 22 for example)
 
-### Building in Terminal/Shell
+#### Building in Terminal/Shell <a name="build_sh"></a>
+
+##### Scala
 
 Run the following commands in the project root.
 
@@ -28,14 +34,33 @@ sbt "run args..."
 
 The quotes are neccessary here because otherwise they would be interpreted as a new command from sbt.
 
-### Building in intellij IDEA
+##### Zig
 
-#### Installing Plugins
+Run the following commands in the project root.
+
+Just building:
+```sh
+zig build
+```
+
+Running:
+```sh
+zig build run
+```
+
+Running with Program arguments:
+```sh
+zig build run -- args...
+```
+
+##### Building in intellij IDEA
+
+###### Installing Plugins
 
 install the [Scala Plugin](https://plugins.jetbrains.com/plugin/1347-scala/) from the
 jetbrains marketplace.
 
-#### Setting up build tasks
+###### Setting up build tasks
 
 When you are in a project go to the top-right where you select your current task and chose 'Edit Configurations...' in the drop-down menu.
 
