@@ -3,8 +3,6 @@
 1. [Build Instructions](#build)
     1. [Prerequisites](#pre)
     2. [Building in Terminal/Shell](#build_sh)
-        1. [Scala](#scala)
-        2. [Zig](#zig)
     3. [Building in intellij IDEA](#build_idea)
 2. [Testing of Code](#testing)
     1. [Unit testing](#unit)
@@ -19,7 +17,7 @@
 
 #### Building in Terminal/Shell <a name="build_sh"></a>
 
-##### Scala <a name="scala"></a>
+##### Scala
 
 Run the following commands in the project root.
 
@@ -40,7 +38,7 @@ sbt "run args..."
 
 The quotes are neccessary here because otherwise they would be interpreted as a new command from sbt.
 
-##### Zig <a name="zig"></a>
+##### Zig
 
 Run the following commands in the project root.
 
