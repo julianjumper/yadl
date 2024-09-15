@@ -1,8 +1,8 @@
 # yadl
 ## Table of Contents
 1. [Build Instructions](#build)
-1.1 [Prerequisites](#pre)
-1.2 [Building in Terminal/Shell](#build_sh)
+  1. [Prerequisites](#pre)
+  2. [Building in Terminal/Shell](#build_sh)
 
 ### Build Instructions <a name="build"></a>
 
