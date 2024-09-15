@@ -404,7 +404,7 @@ fn parseFunctionCallExpr(self: *Self) Error!*expr.Expression {
         _ = try self.expect(.CloseParen, ")");
         func_name = try expr.FunctionCall.init(self.allocator, func_name, args);
     } else |err| {
-        if (err != Error.UnexpectedToken)
+        if (err != Error.UnexpectedToken and err != Error.EndOfFile)
             return err;
     }
 
@@ -620,7 +620,7 @@ fn parseFunctionCall(self: *Self) Error!stmt.Statement {
         _ = try self.expect(.CloseParen, ")");
         func_name = try expr.FunctionCall.init(self.allocator, func_name, args);
     } else |err| {
-        if (err != Error.UnexpectedToken)
+        if (err != Error.UnexpectedToken and err != Error.EndOfFile)
             return err;
 
         if (func_name.* != .functioncall)
@@ -781,7 +781,7 @@ test "function" {
     var fun = .{ .function = .{
         .args = &[_]expr.Identifier{.{ .name = "x" }},
         .body = &[_]stmt.Statement{
-            .{ .ret = ret_value },
+            .{ .@"return" = ret_value },
         },
     } };
     const expected: stmt.Statement = .{ .assignment = .{
@@ -818,7 +818,7 @@ test "function - no args" {
     var fun = .{ .function = .{
         .args = &[_]expr.Identifier{},
         .body = &[_]stmt.Statement{
-            .{ .ret = ret_value },
+            .{ .@"return" = ret_value },
         },
     } };
     const expected: stmt.Statement = .{ .assignment = .{
