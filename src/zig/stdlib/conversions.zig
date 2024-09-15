@@ -33,19 +33,16 @@ pub fn toString(args: []const Expression, scope: *Scope) Error!void {
     const expr = args[0];
     switch (args[0]) {
         .boolean => |b| {
-            const buffer = try scope.allocator.alloc(u8, 16);
-            const out = std.fmt.bufPrint(buffer, "{}", .{b.value}) catch return Error.IOWrite;
+            const out = std.fmt.allocPrint(scope.allocator, "{}", .{b.value}) catch return Error.IOWrite;
             scope.return_result = try expression.String.init(scope.allocator, out);
         },
         .number => |n| switch (n) {
             .integer => |i| {
-                const buffer = try scope.allocator.alloc(u8, 16);
-                const out = std.fmt.bufPrint(buffer, "{}", .{i}) catch return Error.IOWrite;
+                const out = std.fmt.allocPrint(scope.allocator, "{}", .{i}) catch return Error.IOWrite;
                 scope.return_result = try expression.String.init(scope.allocator, out);
             },
             .float => |f| {
-                const buffer = try scope.allocator.alloc(u8, 16);
-                const out = std.fmt.bufPrint(buffer, "{}", .{f}) catch return Error.IOWrite;
+                const out = std.fmt.allocPrint(scope.allocator, "{}", .{f}) catch return Error.IOWrite;
                 scope.return_result = try expression.String.init(scope.allocator, out);
             },
         },
