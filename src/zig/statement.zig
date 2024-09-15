@@ -26,7 +26,7 @@ pub const Statement = union(enum) {
     if_statement: If,
     whileloop: WhileLoop,
     functioncall: expr.FunctionCall,
-    ret: Return,
+    @"return": Return,
 };
 
 pub fn assignment(id: []const u8, expression: *expr.Expression) Statement {
@@ -115,7 +115,7 @@ pub fn printStatement(out: std.io.AnyWriter, st: Statement, indent: u8) !void {
 
 pub fn free(allocator: std.mem.Allocator, st: Statement) void {
     switch (st) {
-        .ret => |r| {
+        .@"return" => |r| {
             expr.free(allocator, r.value);
         },
         .whileloop => |w| {

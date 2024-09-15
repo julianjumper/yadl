@@ -392,24 +392,23 @@ fn parseString(self: *Self) Error!*expr.Expression {
 }
 
 fn parseFunctionCallExpr(self: *Self) Error!*expr.Expression {
-    const func_name = self.parseIdentifier() catch try self.parseWrappedExpression();
-    _ = self.expect(.OpenParen, "(") catch |err| {
-        if (err != Error.UnexpectedToken)
-            return err;
-        return func_name;
-    };
+    var func_name = self.parseIdentifier() catch try self.parseWrappedExpression();
+    while (self.expect(.OpenParen, "(")) |_| {
+        const args: []expr.Expression = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| b: {
+            if (err != Error.RepeatedParsingNoElements)
+                return err;
 
-    const args = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| {
-        if (err != Error.RepeatedParsingNoElements)
-            return err;
+            break :b &[_]expr.Expression{};
+        };
 
         _ = try self.expect(.CloseParen, ")");
-        return expr.FunctionCall.init(self.allocator, func_name, &[_]expr.Expression{});
-    };
+        func_name = try expr.FunctionCall.init(self.allocator, func_name, args);
+    } else |err| {
+        if (err != Error.UnexpectedToken)
+            return err;
+    }
 
-    _ = try self.expect(.CloseParen, ")");
-
-    return expr.FunctionCall.init(self.allocator, func_name, args);
+    return func_name;
 }
 
 fn parseIdent(self: *Self) Error!expr.Identifier {
@@ -440,7 +439,7 @@ fn parseFunction(self: *Self) Error!*expr.Expression {
         const ex = try self.parseExpression(0);
         const ret: stmt.Return = .{ .value = ex };
         var statemants = try self.allocator.alloc(stmt.Statement, 1);
-        statemants[0] = .{ .ret = ret };
+        statemants[0] = .{ .@"return" = ret };
         return expr.Function.init(self.allocator, args, statemants);
     }
 }
@@ -574,7 +573,7 @@ fn parseWhileloop(self: *Self) Error!stmt.Statement {
 fn parseReturn(self: *Self) Error!stmt.Statement {
     _ = try self.expect(.Keyword, "return");
     const ex = try self.parseExpression(0);
-    return .{ .ret = .{ .value = ex } };
+    return .{ .@"return" = .{ .value = ex } };
 }
 
 fn parseRepeated(self: *Self, comptime T: type, f: fn (*Self) Error!T) Error![]T {
@@ -605,26 +604,32 @@ fn parseExpr(self: *Self) Error!expr.Expression {
 }
 
 fn parseFunctionCall(self: *Self) Error!stmt.Statement {
-    const func_name = try self.parseIdentifier();
-    _ = try self.expect(.OpenParen, "(");
+    var func_name = try self.parseIdentifier();
+    while (self.expect(.OpenParen, "(")) |_| {
+        const args = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| {
+            if (err == Error.RepeatedParsingNoElements) {
+                _ = try self.expect(.CloseParen, ")");
+                return .{ .functioncall = .{
+                    .func = func_name,
+                    .args = &[_]expr.Expression{},
+                } };
+            }
+            return err;
+        };
 
-    const args = self.parseRepeated(expr.Expression, Self.parseExpr) catch |err| {
-        if (err == Error.RepeatedParsingNoElements) {
-            _ = try self.expect(.CloseParen, ")");
-            return .{ .functioncall = .{
-                .func = func_name,
-                .args = &[_]expr.Expression{},
-            } };
-        }
-        return err;
-    };
+        _ = try self.expect(.CloseParen, ")");
+        func_name = try expr.FunctionCall.init(self.allocator, func_name, args);
+    } else |err| {
+        if (err != Error.UnexpectedToken)
+            return err;
 
-    _ = try self.expect(.CloseParen, ")");
+        if (func_name.* != .functioncall)
+            return Error.UnexpectedToken;
+    }
 
-    return .{ .functioncall = .{
-        .func = func_name,
-        .args = args,
-    } };
+    const tmp = func_name.*;
+    self.allocator.destroy(func_name);
+    return stmt.Statement{ .functioncall = tmp.functioncall };
 }
 
 fn parseAssignment(self: *Self) Error!stmt.Statement {
