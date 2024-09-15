@@ -124,7 +124,7 @@ def test_config(config):
 
 
 @pytest.mark.parametrize("config", failing_configurations, ids=map(to_todo_dir, failing_configurations))
-# @pytest.mark.xfail(strict = True) # only allow failing tests to pass
+@pytest.mark.xfail(strict=True)  # only allow failing tests to pass
 def test_failing_config(config):
     run_test(config)
 
