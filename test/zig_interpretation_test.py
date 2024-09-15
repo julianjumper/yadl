@@ -13,6 +13,7 @@ elif (sys.platform.startswith('win32')):
 elif (sys.platform.startswith('darwin')):
     DEFAULT_RUN_COMMAND = f"{os.getenv('YADL_MAC')} '%s'"
 
+
 def parse_yadl(filepath):
     test_cfg = {
         "filepath": filepath,
@@ -48,7 +49,8 @@ def parse_yadl(filepath):
                 ), f'RUN command found multiple times in file "{filepath}"'
 
                 if tokens[2] == "DEFAULT":
-                    test_cfg["run"] = DEFAULT_RUN_COMMAND.replace("%s", filepath)
+                    test_cfg["run"] = DEFAULT_RUN_COMMAND.replace(
+                        "%s", filepath)
                 else:
                     test_cfg["run"] = " ".join(tokens[2:])
             # check output
@@ -75,7 +77,8 @@ def parse_yadl(filepath):
 
 def run_test(test_cfg):
     print("trying to execute file:", test_cfg["filepath"])
-    result = subprocess.run(test_cfg["run"], capture_output=True, shell=True, text=True)
+    result = subprocess.run(
+        test_cfg["run"], capture_output=True, shell=True, text=True)
 
     # check output
     output = result.stdout.strip().split("\n")
@@ -106,20 +109,25 @@ for posix_path in Path(TODO_DIR).rglob("*.yadl"):
     full_path = os.path.join(os.path.dirname(TEST_DIR), posix_path)
     failing_configurations.append(parse_yadl(str(full_path)))
 
+
 def to_dir(config):
     return str(Path(config["filepath"]).relative_to(TEST_DIR))
+
 
 def to_todo_dir(config):
     return str(Path(config["filepath"]).relative_to(TODO_DIR))
 
-@pytest.mark.parametrize("config", configurations, ids = map(to_dir, configurations))
+
+@pytest.mark.parametrize("config", configurations, ids=map(to_dir, configurations))
 def test_config(config):
     run_test(config)
 
-@pytest.mark.parametrize("config", failing_configurations, ids = map(to_todo_dir, failing_configurations))
-@pytest.mark.xfail(strict = True) # only allow failing tests to pass
+
+@pytest.mark.parametrize("config", failing_configurations, ids=map(to_todo_dir, failing_configurations))
+# @pytest.mark.xfail(strict = True) # only allow failing tests to pass
 def test_failing_config(config):
     run_test(config)
+
 
 def pytest_collection_modifyitems(items):
     for item in items:
