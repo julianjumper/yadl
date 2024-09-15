@@ -169,29 +169,53 @@ fn nextNextToken(self: *Self) ?Token {
     return self.tokens.peekNextNext();
 }
 
-fn unexpectedToken(lexer: Lexer, actual: Token, expected: []const Kind, expected_chars: ?[]const u8) Error!void {
+fn unexpectedToken(self: Self, actual: Token, expected: []const Kind, expected_chars: ?[]const u8) Error!void {
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const out = bw.writer();
 
-    if (expected_chars) |chars| {
-        out.print("ERROR: expected token of {any} with value '{s}'\n", .{ expected, chars }) catch return Error.UnknownError;
-        out.print("       but got {} with '{s}' at {}:{}\n", .{
-            actual.kind,
-            actual.chars,
-            actual.line,
-            actual.column,
-        }) catch return Error.UnknownError;
-    } else {
-        out.print("ERROR: expected token of the kinds {any}\n", .{expected}) catch return Error.UnknownError;
-        out.print("       but got {} '{s}' at {}:{}\n", .{
-            actual.kind,
-            actual.chars,
-            actual.line,
-            actual.column,
-        }) catch return Error.UnknownError;
+    var tmp = std.ArrayList([]const u8).init(self.allocator);
+    defer tmp.deinit();
+    for (expected) |kind| {
+        try tmp.append(@tagName(kind));
     }
-    try lexer.printContext(out.any(), actual);
+    const expected_out = try std.mem.join(self.allocator, ", ", tmp.items);
+    defer self.allocator.free(expected_out);
+
+    if (expected_chars) |chars| {
+        out.print("ERROR: expected token of {s} with value '{s}'\n", .{ expected_out, chars }) catch return Error.UnknownError;
+        if (actual.kind != .Newline) {
+            out.print("       but got {s} with '{s}' at {}:{}\n", .{
+                @tagName(actual.kind),
+                actual.chars,
+                actual.line,
+                actual.column,
+            }) catch return Error.UnknownError;
+        } else {
+            out.print("       but got {s} at {}:{}\n", .{
+                @tagName(actual.kind),
+                actual.line,
+                actual.column,
+            }) catch return Error.UnknownError;
+        }
+    } else {
+        out.print("ERROR: expected token of the kinds {s}\n", .{expected_out}) catch return Error.UnknownError;
+        if (actual.kind != .Newline) {
+            out.print("       but got {s} with '{s}' at {}:{}\n", .{
+                @tagName(actual.kind),
+                actual.chars,
+                actual.line,
+                actual.column,
+            }) catch return Error.UnknownError;
+        } else {
+            out.print("       but got {s} at {}:{}\n", .{
+                @tagName(actual.kind),
+                actual.line,
+                actual.column,
+            }) catch return Error.UnknownError;
+        }
+    }
+    try self.lexer.printContext(out.any(), actual);
     bw.flush() catch return Error.UnknownError;
 
     return Error.UnexpectedToken;
@@ -690,14 +714,14 @@ fn parseStatements(self: *Self, should_ignore_paran: bool) Error![]stmt.Statemen
 
             if (self.last_expected) |kind| {
                 try unexpectedToken(
-                    self.lexer,
+                    self.*,
                     token,
                     &[_]Lexer.TokenKind{kind},
                     self.last_expected_chars,
                 );
             } else {
                 try unexpectedToken(
-                    self.lexer,
+                    self.*,
                     token,
                     &[_]Lexer.TokenKind{ .Identifier, .Keyword },
                     null,
