@@ -2,6 +2,7 @@ const std = @import("std");
 const Parser = @import("parser.zig");
 const stmt = @import("statement.zig");
 const interpreter = @import("interpreter.zig");
+const stdlib = @import("stdlib.zig");
 
 const Scope = @import("scope.zig");
 
@@ -25,6 +26,8 @@ pub fn main() !void {
 
     var args = try std.process.argsWithAllocator(allocator);
     _ = args.next() orelse unreachable; // program name
+    try stdlib.initBuiltins(allocator);
+
     while (args.next()) |filepath| {
         const input = readFile(allocator, filepath) catch |err| {
             try stdout.print("ERROR: reading file '{s}' failed: {}\n", .{ filepath, err });

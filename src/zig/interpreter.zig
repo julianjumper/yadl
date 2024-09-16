@@ -321,8 +321,14 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
         .dictionary => {
             scope.return_result = value;
         },
-        .function => {
-            scope.return_result = value;
+        .function => |f| {
+            const new_body = try scope.captureExternals(&[_]expr.Identifier{}, f.body);
+            const out = try scope.allocator.create(Expression);
+            out.* = .{ .function = .{
+                .args = f.args,
+                .body = new_body,
+            } };
+            scope.return_result = out;
         },
         .number => {
             scope.return_result = value;

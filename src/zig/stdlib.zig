@@ -61,8 +61,16 @@ pub fn initBuiltins(allocator: std.mem.Allocator) Error!void {
 }
 
 pub fn deinitBuiltins() void {
-    if (builtins) |b| {
+    if (builtins) |*b| {
         b.deinit();
+    }
+}
+
+pub fn builtinKeys() Error!BuiltinsHashMap.KeyIterator {
+    if (builtins) |b| {
+        return b.keyIterator();
+    } else {
+        return Error.BuiltinsNotInitialized;
     }
 }
 
