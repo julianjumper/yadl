@@ -285,6 +285,39 @@ pub const Expression = union(enum) {
                 }
                 break :b Dictionary.init(alloc, new_entries);
             },
+            .binary_op => |b| s: {
+                const tmp = try alloc.create(Expression);
+                tmp.* = .{ .binary_op = .{
+                    .left = try b.left.clone(alloc),
+                    .right = try b.right.clone(alloc),
+                    .op = b.op,
+                } };
+                break :s tmp;
+            },
+            .unary_op => |u| b: {
+                const tmp = try alloc.create(Expression);
+                tmp.* = .{ .unary_op = .{
+                    .operant = try u.operant.clone(alloc),
+                    .op = u.op,
+                } };
+                break :b tmp;
+            },
+            .function => |f| b: {
+                const tmp = try alloc.create(Expression);
+                const args = try alloc.alloc(Identifier, f.args.len);
+                const body = try alloc.alloc(@TypeOf(f.body[0]), f.body.len);
+                for (f.args, args) |old, *new| {
+                    new.* = .{ .name = old.name };
+                }
+                for (f.body, body) |old, *new| {
+                    new.* = old;
+                }
+                tmp.* = .{ .function = .{
+                    .args = args,
+                    .body = body,
+                } };
+                break :b tmp;
+            },
             else => |v| {
                 std.debug.print("TODO: clone of {s}\n", .{@tagName(v)});
                 return error.NotImplemented;
