@@ -210,8 +210,8 @@ pub fn printValue(value: Expression, scope: *Scope) Error!void {
     switch (value) {
         .number => |n| {
             if (n == .float) {
-                scope.out.print("{}", .{n.float}) catch return Error.IOWrite;
-            } else scope.out.print("{}", .{n.integer}) catch return Error.IOWrite;
+                scope.out.print("{d}", .{n.float}) catch return Error.IOWrite;
+            } else scope.out.print("{d}", .{n.integer}) catch return Error.IOWrite;
         },
         .boolean => |v| {
             scope.out.print("{}", .{v.value}) catch return Error.IOWrite;
