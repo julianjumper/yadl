@@ -47,6 +47,7 @@ pub fn initBuiltins(allocator: std.mem.Allocator) Error!void {
 
         // iterable operations
         try b.put("map", .{ .function = &functions.map, .arity = 2 });
+        try b.put("do", .{ .function = &functions.map, .arity = 2 });
         try b.put("zip", .{ .function = &functions.zip, .arity = 2 });
         try b.put("reduce", .{ .function = &functions.reduce, .arity = 2 });
         try b.put("count", .{ .function = &functions.count, .arity = 2 });
