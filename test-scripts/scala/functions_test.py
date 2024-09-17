@@ -1,4 +1,5 @@
 import os
+import sys
 
 import pytest
 import subprocess
@@ -92,7 +93,7 @@ def run_test(test_cfg):
 
 
 configurations = []
-TEST_DIR = os.path.abspath("test")
+TEST_DIR = os.path.abspath("test/functions")
 for posix_path in Path(TEST_DIR).rglob("*.yadl"):
     full_path = os.path.join(os.path.dirname(TEST_DIR), posix_path)
     configurations.append(parse_yadl(str(full_path)))
