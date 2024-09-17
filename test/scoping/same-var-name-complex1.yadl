@@ -1,0 +1,12 @@
+// RUN: DEFAULT
+x = 3
+x = (x) => {
+    x = (x) => x + 1
+    x = x(x == 1)
+
+    print((() => x)())
+}
+
+x(0)
+
+// CHECK-OUT: 1

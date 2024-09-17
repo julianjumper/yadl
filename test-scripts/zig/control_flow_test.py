@@ -98,34 +98,18 @@ def run_test(test_cfg):
 
 
 configurations = []
-TEST_DIR = os.path.abspath("test/tests")
+TEST_DIR = os.path.abspath("test/control_flow")
 for posix_path in Path(TEST_DIR).rglob("*.yadl"):
     full_path = os.path.join(os.path.dirname(TEST_DIR), posix_path)
     configurations.append(parse_yadl(str(full_path)))
-
-failing_configurations = []
-TODO_DIR = os.path.abspath("test/tests_todo")
-for posix_path in Path(TODO_DIR).rglob("*.yadl"):
-    full_path = os.path.join(os.path.dirname(TEST_DIR), posix_path)
-    failing_configurations.append(parse_yadl(str(full_path)))
 
 
 def to_dir(config):
     return str(Path(config["filepath"]).relative_to(TEST_DIR))
 
 
-def to_todo_dir(config):
-    return str(Path(config["filepath"]).relative_to(TODO_DIR))
-
-
 @pytest.mark.parametrize("config", configurations, ids=map(to_dir, configurations))
 def test_config(config):
-    run_test(config)
-
-
-@pytest.mark.parametrize("config", failing_configurations, ids=map(to_todo_dir, failing_configurations))
-@pytest.mark.xfail(strict=True)  # only allow failing tests to pass
-def test_failing_config(config):
     run_test(config)
 
 

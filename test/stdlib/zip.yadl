@@ -1,0 +1,11 @@
+// RUN: DEFAULT
+
+lst1 = [1,2,3]
+lst2 = [11,22,33]
+lst3 = [1,2]
+
+print(zip(lst1,lst2))
+print(zip(lst1,lst3))
+
+// CHECK-OUT: [[1, 11], [2, 22], [3, 33]]
+// CHECK-OUT: [[1, 1], [2, 2]]

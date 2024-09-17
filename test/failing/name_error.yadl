@@ -1,0 +1,4 @@
+// RUN: DEFAULT
+y = x
+print(1)
+

@@ -1,0 +1,10 @@
+// RUN: DEFAULT
+test = (x) => x + 5
+f = (x, y) => {
+    v = test(x)
+    v2 = test(v + y)
+    return v2
+}
+
+print(f(15, 2))
+// CHECK-OUT: 27

@@ -1,0 +1,13 @@
+// RUN: DEFAULT
+
+x = {'a': 3, 'b': 5}
+
+print(x['a'])
+
+// CHECK-OUT: 3
+
+x['a'] = 10
+
+print(x['a'] + x['b'])
+
+// CHECK-OUT: 15
