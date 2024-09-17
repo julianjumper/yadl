@@ -40,7 +40,7 @@ unit-tests-scala:
   rules: *default_rules
   timeout: 5 min
 
-python-test-script-scala:
+pytest-scripts-scala:
   <<: *config
   stage: interpretation-testing
   needs:
@@ -74,7 +74,7 @@ unit-tests-zig:
   rules: *default_rules
   timeout: 5 min
 
-python-test-script-zig:
+pytest-scripts-zig:
   <<: *config
   stage: interpretation-testing
   needs:
@@ -111,7 +111,7 @@ build-main-zig:
     - zig build -Dtarget=aarch64-macos
   timeout: 3 min
 
-python-script-main-scala:
+pytest-scala-main:
   <<: *config
   stage: interpretation-testing
   rules:
@@ -125,7 +125,7 @@ python-script-main-scala:
       - *jar
   timeout: 5 min
 
-python-script-main-zig:
+pytest-zig-main:
   <<: *config
   stage: interpretation-testing
   rules:

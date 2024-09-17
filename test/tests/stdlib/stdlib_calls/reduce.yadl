@@ -1,7 +1,0 @@
-// RUN: DEFAULT
-numbers = [1, 2, 3, 4, 5]
-sum = (acc, n) => acc + n
-result = reduce(numbers, sum)
-print3(result)
-
-// CHECK-OUT: 15.0

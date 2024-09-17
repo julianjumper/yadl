@@ -10,3 +10,5 @@ project/project
 project/target
 .zig-cache
 zig-out/bin
+test-scripts/zig/__pycache__
+test-scripts/scala/__pycache__
