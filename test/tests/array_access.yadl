@@ -1,9 +1,0 @@
-// RUN: DEFAULT
-y = [1, 2, 3, 4]
-x = [1, 2, y, 4]
-print(y[0])
-// CHECK-OUT: 1
-print(x[0])
-// CHECK-OUT: 1
-print(x[2][2])
-// CHECK-OUT: 3

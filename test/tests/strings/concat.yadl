@@ -1,6 +1,0 @@
-// RUN: DEFAULT
-
-
-print("hel" + 'lo')
-
-// CHECK-OUT: hello

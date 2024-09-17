@@ -1,6 +1,0 @@
-// RUN: DEFAULT
-
-x = not true and false
-print(x)
-
-// CHECK-OUT: false

@@ -1,7 +1,0 @@
-// RUN: DEFAULT
-
-x = [1, 2, 3, 4]
-
-print(x[3])
-
-// CHECK-OUT: 4

@@ -1,5 +1,0 @@
-// RUN: DEFAULT
-y = x
-print(1)
-
-// CHECK-OUT: Error (line: 1, column: 5): Variable 'x' not found.

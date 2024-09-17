@@ -92,7 +92,7 @@ def run_test(test_cfg):
 
 
 configurations = []
-TEST_DIR = os.path.abspath("test/tests")
+TEST_DIR = os.path.abspath("test")
 for posix_path in Path(TEST_DIR).rglob("*.yadl"):
     full_path = os.path.join(os.path.dirname(TEST_DIR), posix_path)
     configurations.append(parse_yadl(str(full_path)))
