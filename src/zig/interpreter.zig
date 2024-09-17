@@ -208,6 +208,10 @@ pub fn evalFunctionCall(fc: *expr.FunctionCall, scope: *Scope) Error!void {
 
 pub fn printValue(value: Expression, scope: *Scope) Error!void {
     switch (value) {
+        .identifier => |id| {
+            const tmp = try scope.lookup(id) orelse return Error.ValueNotFound;
+            try printValue(tmp.*, scope);
+        },
         .number => |n| {
             if (n == .float) {
                 scope.out.print("{d}", .{n.float}) catch return Error.IOWrite;
@@ -217,7 +221,7 @@ pub fn printValue(value: Expression, scope: *Scope) Error!void {
             scope.out.print("{}", .{v.value}) catch return Error.IOWrite;
         },
         .string => |v| {
-            scope.out.print("{s}", .{v.value}) catch return Error.IOWrite;
+            scope.out.print("'{s}'", .{v.value}) catch return Error.IOWrite;
         },
         .array => |v| {
             scope.out.print("[", .{}) catch return Error.IOWrite;
