@@ -46,7 +46,7 @@ python-test-script-scala:
   needs:
     - unit-tests-scala
   script:
-    - pytest test/interpretation_test.py test/todos_test.py
+    - pytest test-scripts/scala/*.py
   artifacts:
     paths:
       - *jar
@@ -80,7 +80,7 @@ python-test-script-zig:
   needs:
     - unit-tests-zig
   script:
-    - pytest test/zig_interpretation_test.py
+    - pytest test-scripts/zig/*.py
   artifacts:
     paths:
       - *win
@@ -119,7 +119,7 @@ python-script-main-scala:
   needs:
     - build-main-scala
   script:
-    - pytest test/interpretation_test.py test/todos_test.py
+    - pytest test-scripts/scala/*.py
   artifacts:
     paths:
       - *jar
@@ -133,7 +133,7 @@ python-script-main-zig:
   needs:
     - build-main-zig
   script:
-    - pytest test/zig_interpretation_test.py
+    - pytest test-scripts/zig/*.py
   artifacts:
     paths:
       - *win
