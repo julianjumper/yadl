@@ -4,4 +4,4 @@ concat = (acc, str) => acc + str
 result = reduce(words, concat)
 print3(result)
 
-// CHECK-OUT: Hello World!
+// CHECK-OUT: 'Hello World!'

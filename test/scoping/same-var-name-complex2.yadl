@@ -13,4 +13,4 @@ y = (x) => ((x) => x(x(x)))(x)
 
 print(y(x))
 
-// CHECK-OUT: technisch unmöglich unmöglich
+// CHECK-OUT: 'technisch unmöglich unmöglich'

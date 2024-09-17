@@ -3,4 +3,4 @@
 world = ' world'
 print(f'{"hello" + world}!!!')
 
-// CHECK-OUT: hello world!!!
+// CHECK-OUT: 'hello world!!!'
