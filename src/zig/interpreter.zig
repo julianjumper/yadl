@@ -153,16 +153,7 @@ pub fn evalFunctionCall(fc: *expr.FunctionCall, scope: *Scope) Error!void {
                 scope.out.print("\n", .{}) catch return Error.IOWrite;
             } else if (stdlib.getBuiltin(id.name)) |fn_ctxt| {
                 try evalStdlibCall(fn_ctxt, tmpArgs, scope);
-            } else |err| {
-                if (err == stdlib.Error.BuiltinsNotInitialized) {
-                    stdlib.initBuiltins(scope.allocator) catch return Error.OutOfMemory;
-                }
-
-                if (stdlib.getBuiltin(id.name)) |fn_ctxt| {
-                    try evalStdlibCall(fn_ctxt, tmpArgs, scope);
-                    return;
-                } else |e| if (e != stdlib.Error.FunctionNotFound) return Error.OutOfMemory;
-
+            } else {
                 if (scope.lookupFunction(id)) |f| {
                     var localScope = try Scope.init(scope.allocator, scope.out, scope, f.args, tmpArgs);
                     for (f.body) |st| {

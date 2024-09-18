@@ -26,7 +26,6 @@ pub fn main() !void {
 
     var args = try std.process.argsWithAllocator(allocator);
     _ = args.next() orelse unreachable; // program name
-    try stdlib.initBuiltins(allocator);
 
     while (args.next()) |filepath| {
         const input = readFile(allocator, filepath) catch |err| {

@@ -23,62 +23,37 @@ pub const FunctionContext = struct {
     const Type = *const fn ([]const Expression, *Scope) EvalError!void;
 };
 
-// TODO: we may want to prefer a comptime hashmap since
-//  all builtin functions are known at compile time
-//      (see scala implementation)
-//      (see `std.static_string_map.StaticStringMap` in docs)
-const BuiltinsHashMap = std.StringHashMap(FunctionContext);
+const mappings = .{
+    .{ "len", .{ .function = &functions.length, .arity = 1 } },
+    .{ "last", .{ .function = &functions.last, .arity = 3 } },
+    .{ "first", .{ .function = &functions.first, .arity = 3 } },
+    .{ "type", .{ .function = &functions._type, .arity = 1 } },
+    // conversions
+    .{ "bool", .{ .function = &conversions.toBoolean, .arity = 1 } },
+    .{ "number", .{ .function = &conversions.toNumber, .arity = 1 } },
+    .{ "string", .{ .function = &conversions.toString, .arity = 1 } },
+    // data stream functions
+    .{ "map", .{ .function = &functions.map, .arity = 2 } },
+    .{ "do", .{ .function = &functions.map, .arity = 2 } }, // NOTE: uses map. This might not be intended
+    .{ "zip", .{ .function = &functions.zip, .arity = 2 } },
+    .{ "reduce", .{ .function = &functions.reduce, .arity = 2 } },
+    .{ "count", .{ .function = &functions.count, .arity = 2 } },
+    .{ "check_all", .{ .function = &functions.check_all, .arity = 2 } },
+    .{ "check_any", .{ .function = &functions.check_any, .arity = 2 } },
+    .{ "check_none", .{ .function = &functions.check_none, .arity = 2 } },
+    .{ "filter", .{ .function = &functions.filter, .arity = 2 } },
 
-var builtins: ?BuiltinsHashMap = null;
+    // TODO: We may want to remove this one
+    .{ "print3", .{ .function = &functions.print3, .arity = 1 } },
+};
+const builtins = std.StaticStringMap(FunctionContext).initComptime(mappings);
 
-pub fn initBuiltins(allocator: std.mem.Allocator) Error!void {
-    builtins = BuiltinsHashMap.init(allocator);
-
-    if (builtins) |*b| {
-        try b.put("len", .{ .function = &functions.length, .arity = 1 });
-        try b.put("last", .{ .function = &functions.last, .arity = 3 });
-        try b.put("first", .{ .function = &functions.first, .arity = 3 });
-        try b.put("type", .{ .function = &functions._type, .arity = 1 });
-
-        // conversions
-        try b.put("bool", .{ .function = &conversions.toBoolean, .arity = 1 });
-        try b.put("number", .{ .function = &conversions.toNumber, .arity = 1 });
-        try b.put("string", .{ .function = &conversions.toString, .arity = 1 });
-
-        // iterable operations
-        try b.put("map", .{ .function = &functions.map, .arity = 2 });
-        try b.put("do", .{ .function = &functions.map, .arity = 2 });
-        try b.put("zip", .{ .function = &functions.zip, .arity = 2 });
-        try b.put("reduce", .{ .function = &functions.reduce, .arity = 2 });
-        try b.put("count", .{ .function = &functions.count, .arity = 2 });
-        try b.put("check_all", .{ .function = &functions.check_all, .arity = 2 });
-        try b.put("check_any", .{ .function = &functions.check_any, .arity = 2 });
-        try b.put("check_none", .{ .function = &functions.check_none, .arity = 2 });
-        try b.put("filter", .{ .function = &functions.filter, .arity = 2 });
-
-        // TODO: we may want to remove this one
-        try b.put("print3", .{ .function = &functions.print3, .arity = 1 });
-    } else unreachable;
+pub fn builtinKeys() []const []const u8 {
+    return builtins.keys();
 }
 
-pub fn deinitBuiltins() void {
-    if (builtins) |*b| {
-        b.deinit();
-    }
-}
-
-pub fn builtinKeys() Error!BuiltinsHashMap.KeyIterator {
-    if (builtins) |b| {
-        return b.keyIterator();
-    } else {
-        return Error.BuiltinsNotInitialized;
-    }
-}
-
-pub fn getBuiltin(name: []const u8) Error!FunctionContext {
-    if (builtins) |b| {
-        if (b.get(name)) |fn_ctxt| {
-            return fn_ctxt;
-        } else return Error.FunctionNotFound;
-    } else return Error.BuiltinsNotInitialized;
+pub fn getBuiltin(name: []const u8) ?FunctionContext {
+    if (builtins.get(name)) |fn_ctxt| {
+        return fn_ctxt;
+    } else return null;
 }

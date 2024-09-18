@@ -134,9 +134,9 @@ pub fn captureExternals(scope: *Scope, fn_args: []const expr.Identifier, fn_body
         try bound.append(arg.name);
     }
     try bound.append("print");
-    var iter_keys = stdlib.builtinKeys() catch return Error.NotImplemented;
-    while (iter_keys.next()) |key| {
-        try bound.append(key.*);
+    const keys = stdlib.builtinKeys();
+    for (keys) |key| {
+        try bound.append(key);
     }
 
     for (fn_body, new_body) |st, *new_st| {
