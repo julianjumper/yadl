@@ -57,6 +57,7 @@ pytest-scripts-scala:
 build-zig:
   stage: build
   script:
+    - zig version
     - rm -rf zig-out
     - rm -rf zig-cache
     - zig build -Dtarget=x86_64-linux
@@ -104,6 +105,7 @@ build-main-zig:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
+    - zig version
     - rm -rf zig-out
     - rm -rf zig-cache
     - zig build -Dtarget=x86_64-linux
