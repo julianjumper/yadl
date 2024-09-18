@@ -9,7 +9,7 @@ print(x)
 print(y)
 print(z)
 
-// CHECK-OUT: 'It is 42'
-// CHECK-OUT: '42 it is'
-// CHECK-OUT: 'hihi'
+// CHECK-OUT: It is 42
+// CHECK-OUT: 42 it is
+// CHECK-OUT: hihi
 

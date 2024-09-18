@@ -3,4 +3,4 @@
 
 print("hel" + 'lo')
 
-// CHECK-OUT: 'hello'
+// CHECK-OUT: hello

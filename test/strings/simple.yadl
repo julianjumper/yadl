@@ -10,4 +10,4 @@ print(x == y)
 
 print(x)
 
-// CHECK-OUT: 'hello'
+// CHECK-OUT: hello

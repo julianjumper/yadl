@@ -212,7 +212,7 @@ pub fn printValue(value: Expression, scope: *Scope) Error!void {
             scope.out.print("{}", .{v.value}) catch return Error.IOWrite;
         },
         .string => |v| {
-            scope.out.print("'{s}'", .{v.value}) catch return Error.IOWrite;
+            scope.out.print("{s}", .{v.value}) catch return Error.IOWrite;
         },
         .array => |v| {
             scope.out.print("[", .{}) catch return Error.IOWrite;
