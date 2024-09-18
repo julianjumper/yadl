@@ -46,7 +46,7 @@ const mappings = .{
     // TODO: We may want to remove this one
     .{ "print3", .{ .function = &functions.print3, .arity = 1 } },
 };
-const builtins = std.StaticStringMap(FunctionContext).initComptime(mappings);
+const builtins = std.static_string_map.StaticStringMap(FunctionContext).initComptime(mappings);
 
 pub fn builtinKeys() []const []const u8 {
     return builtins.keys();
