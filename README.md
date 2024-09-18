@@ -14,6 +14,7 @@
 
 For the zig build:
 - [Zig 0.13.0](https://ziglang.org/download/)
+
 For the scala build:
 - [Scala 3.X](https://www.scala-lang.org/download/)
 - Recent Java SDK (openjdk 22 for example)
