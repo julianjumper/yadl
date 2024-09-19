@@ -53,7 +53,5 @@ pub fn builtinKeys() []const []const u8 {
 }
 
 pub fn getBuiltin(name: []const u8) ?FunctionContext {
-    if (builtins.get(name)) |fn_ctxt| {
-        return fn_ctxt;
-    } else return null;
+    return builtins.get(name);
 }
