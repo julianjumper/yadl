@@ -239,6 +239,17 @@ pub const Dictionary = struct {
         } };
         return out;
     }
+
+    fn eql(self: Dictionary, other: Dictionary) bool {
+        for (self.entries) |left| {
+            for (other.entries) |right| {
+                if (left.key.eql(right.key.*) and !left.value.eql(right.value.*)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 };
 
 pub const Expression = union(enum) {
@@ -249,6 +260,7 @@ pub const Expression = union(enum) {
     number: Number,
     string: String,
     wrapped: *Expression,
+    none: ?*Expression,
     struct_access: StructureAccess,
     functioncall: FunctionCall,
     function: Function,
@@ -259,7 +271,19 @@ pub const Expression = union(enum) {
         return switch (self) {
             .number => |n| if (other == .number) n.eql(other.number) else false,
             .string => |n| if (other == .string) n.eql(other.string) else false,
-            else => unreachable,
+            .dictionary => |n| if (other == .dictionary) n.eql(other.dictionary) else if (other == .none) n.entries.len == 0 else false,
+            .none => b: {
+                std.debug.assert(if (self.none) |_| false else true);
+                if (other == .dictionary) {
+                    break :b other.dictionary.entries.len == 0;
+                } else if (other == .none) {
+                    break :b true;
+                } else break :b false;
+            },
+            else => {
+                std.debug.print("INFO: expr eql for '{s}' and '{s}'\n", .{ @tagName(self), @tagName(other) });
+                unreachable;
+            },
         };
     }
 
@@ -316,6 +340,11 @@ pub const Expression = union(enum) {
                     .args = args,
                     .body = body,
                 } };
+                break :b tmp;
+            },
+            .none => b: {
+                const tmp = try alloc.create(Expression);
+                tmp.* = .{ .none = null };
                 break :b tmp;
             },
             else => |v| {

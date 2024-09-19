@@ -213,6 +213,7 @@ const keywords = [_][]const u8{
     "else",
     "while",
     "return",
+    "none",
 };
 
 fn lexKeyword(self: *Self) Error!Token {
@@ -426,8 +427,10 @@ pub fn nextToken(self: *Self) Error!Token {
         return self.newToken(self.data[pos..self.current_position], .CloseParen);
     } else if (anyOf(char, "iewr")) {
         return self.lexKeyword() catch self.lexIdentifier();
-    } else if (anyOf(char, "aon")) {
+    } else if (anyOf(char, "ao")) {
         return self.lexBooleanOperator() catch self.lexIdentifier();
+    } else if (char == 'n') {
+        return self.lexBooleanOperator() catch self.lexKeyword() catch self.lexIdentifier();
     } else if (isInitialIdentifierChar(char)) {
         return self.lexIdentifier();
     } else if (isDecimalDigit(char)) {

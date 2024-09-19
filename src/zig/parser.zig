@@ -302,6 +302,12 @@ fn parseValue(self: *Self) Error!*expr.Expression {
                 } else unreachable;
             },
             .Operator => return self.parseUnaryOp(),
+            .Keyword => {
+                _ = try self.expect(.Keyword, "none");
+                const out = try self.allocator.create(expr.Expression);
+                out.* = .{ .none = null };
+                return out;
+            },
             else => {
                 self.last_expected = .Unknown;
                 self.last_expected_chars = "'number', 'boolean', 'string' or 'open paren'";
