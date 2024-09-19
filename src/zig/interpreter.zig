@@ -334,6 +334,9 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
         .boolean => {
             scope.return_result = value;
         },
+        .none => {
+            scope.return_result = value;
+        },
     }
 }
 
