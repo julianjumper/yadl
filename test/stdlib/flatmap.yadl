@@ -1,0 +1,17 @@
+// RUN: DEFAULT
+x = [1, 2, 3, 4, 5]
+
+mapper = (x) => {
+    if (x % 2 == 0) {
+         return [ 1, 2 ]
+    } else {
+         return [ 3 ]
+    }
+}
+
+print3(x)
+// CHECK-OUT: [1, 2, 3, 4, 5]
+result = flatmap(x, mapper)
+print3(result)
+
+// CHECK-OUT: [3, 1, 2, 3, 1, 2, 3]

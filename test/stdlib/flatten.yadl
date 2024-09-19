@@ -1,0 +1,10 @@
+// RUN: DEFAULT
+x = [[1, 2], [3, 4], [5]]
+
+
+print3(x)
+// CHECK-OUT: [[1, 2], [3, 4], [5]]
+result = flatten(x)
+print3(result)
+
+// CHECK-OUT: [1, 2, 3, 4, 5]

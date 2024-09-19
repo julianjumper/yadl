@@ -62,6 +62,66 @@ pub fn map(args: []const Expression, scope: *Scope) Error!void {
     }
 }
 
+pub fn flatten(args: []const Expression, scope: *Scope) Error!void {
+    const lists = args[0];
+    switch (lists) {
+        .array => |a| {
+            const slices = a.elements;
+            if (slices.len == 0) {
+                const out = try scope.allocator.create(Expression);
+                out.* = .{ .array = .{
+                    .elements = &[0]Expression{},
+                } };
+                scope.return_result = out;
+            }
+
+            const total_len = blk: {
+                var sum: usize = 0;
+                for (slices) |slice| sum += if (slice == .array) slice.array.elements.len else 1;
+                break :blk sum;
+            };
+
+            const buf = try scope.allocator.alloc(Expression, total_len);
+            errdefer scope.allocator.free(buf);
+
+            var buffer_index: usize = 0;
+            for (slices) |elem| {
+                if (elem == .array) {
+                    for (elem.array.elements) |e| {
+                        buf[buffer_index] = e;
+                        buffer_index += 1;
+                    }
+                } else {
+                    buf[buffer_index] = elem;
+                    buffer_index += 1;
+                }
+            }
+
+            // No need for shrink since buf is exactly the correct size.
+            const out = try scope.allocator.create(Expression);
+            out.* = .{ .array = .{
+                .elements = buf,
+            } };
+            scope.return_result = out;
+        },
+        else => scope.return_result = try lists.clone(scope.allocator),
+    }
+}
+
+pub fn flatmap(args: []const Expression, scope: *Scope) Error!void {
+    const elements = args[0];
+    const callable = args[1];
+    std.debug.assert(callable == .function);
+    switch (elements) {
+        .array => {
+            try map(args, scope);
+            const map_result = scope.result() orelse unreachable;
+            try flatten(&[_]Expression{map_result}, scope);
+        },
+        else => return Error.NotImplemented,
+    }
+}
+
 pub fn reduce(args: []const Expression, scope: *Scope) Error!void {
     const elements = args[0];
     const callable = args[1];

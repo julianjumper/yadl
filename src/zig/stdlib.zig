@@ -35,7 +35,9 @@ const mappings = .{
     // data stream functions
     .{ "map", .{ .function = &functions.map, .arity = 2 } },
     .{ "do", .{ .function = &functions.map, .arity = 2 } }, // NOTE: uses map. This might not be intended
+    .{ "flatmap", .{ .function = &functions.flatmap, .arity = 2 } },
     .{ "zip", .{ .function = &functions.zip, .arity = 2 } },
+    .{ "flatten", .{ .function = &functions.flatten, .arity = 1 } },
     .{ "reduce", .{ .function = &functions.reduce, .arity = 2 } },
     .{ "count", .{ .function = &functions.count, .arity = 2 } },
     .{ "check_all", .{ .function = &functions.check_all, .arity = 2 } },
