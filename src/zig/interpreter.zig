@@ -151,7 +151,7 @@ pub fn evalFunctionCall(fc: *expr.FunctionCall, scope: *Scope) Error!void {
                     try printValue(value.*, scope);
                 }
                 scope.out.print("\n", .{}) catch return Error.IOWrite;
-            } else if (stdlib.getBuiltin(id.name)) |fn_ctxt| {
+            } else if (stdlib.builtins.get(id.name)) |fn_ctxt| {
                 try evalStdlibCall(fn_ctxt, tmpArgs, scope);
             } else {
                 if (scope.lookupFunction(id)) |f| {
