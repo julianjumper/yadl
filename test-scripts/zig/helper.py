@@ -84,7 +84,7 @@ def run_test(test_cfg):
     for line in output:
         print(" ", line)
     assert result.returncode == 0, f"subprocess failed: {result.stderr}"
-    assert output == test_cfg["out"]
+    assert test_cfg["out"] == output
 
     # check file equalities
     for files in test_cfg["file-eq"]:
@@ -97,3 +97,16 @@ def run_test(test_cfg):
 
 def to_dir(config, path):
     return str(Path(config["filepath"]).relative_to(path))
+
+
+def load_configs(path):
+    configurations = []
+    file_names = []
+    TEST_DIR = os.path.abspath(path)
+
+    for posix_path in Path(TEST_DIR).rglob("*.yadl"):
+        full_path = os.path.join(os.path.dirname(TEST_DIR), posix_path)
+        configurations.append(parse_yadl(str(full_path)))
+        file_names.append(str(Path(full_path).relative_to(TEST_DIR)))
+
+    return (configurations, file_names)
