@@ -33,6 +33,15 @@ pub fn _type(args: []const Expression, scope: *Scope) Error!void {
     scope.return_result = out;
 }
 
+pub fn load_data(args: []const Expression, scope: *Scope) Error!void {
+    _ = scope;
+    const file_path = args[0];
+    const data_format = args[1];
+    std.debug.assert(file_path == .string);
+    std.debug.assert(data_format == .string);
+    return Error.NotImplemented;
+}
+
 pub fn map(args: []const Expression, scope: *Scope) Error!void {
     const elements = args[0];
     const callable = args[1];
