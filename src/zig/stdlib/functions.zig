@@ -52,6 +52,11 @@ pub fn load_data(args: []const Expression, scope: *Scope) Error!void {
         const tmp = try scope.allocator.create(Expression);
         tmp.* = .{ .array = .{ .elements = out } };
         scope.return_result = tmp;
+    } else if (std.mem.eql(u8, data_format.string.value, "json")) {
+        scope.return_result = data.load_json(file_path.string.value, scope.allocator) catch |err| {
+            std.debug.print("ERROR: loading file failed: {}\n", .{err});
+            return Error.NotImplemented;
+        };
     } else return Error.NotImplemented;
 }
 
