@@ -5,7 +5,7 @@ pub fn load_lines(path: []const u8, allocator: std.mem.Allocator) ![][]const u8 
     const file = try cwd.openFile(path, .{ .mode = .read_only });
     const stat = try file.stat();
     const content = try file.readToEndAlloc(allocator, stat.size);
-    defer allocator.free(content);
+    // defer allocator.free(content);
 
     var splitter = std.mem.split(u8, content, "\n");
     var out = std.ArrayList([]const u8).init(allocator);
