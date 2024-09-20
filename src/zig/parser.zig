@@ -183,9 +183,9 @@ fn unexpectedToken(self: Self, actual: Token, expected: []const Kind, expected_c
     defer self.allocator.free(expected_out);
 
     if (expected_chars) |chars| {
-        out.print("ERROR: expected token of {s} with value '{s}'\n", .{ expected_out, chars }) catch return Error.UnknownError;
+        out.print("ERROR: expected {s} '{s}'\n", .{ expected_out, chars }) catch return Error.UnknownError;
         if (actual.kind != .Newline) {
-            out.print("       but got {s} with '{s}' at {}:{}\n", .{
+            out.print("       but got {s} '{s}' at {}:{}\n", .{
                 @tagName(actual.kind),
                 actual.chars,
                 actual.line,
@@ -199,9 +199,9 @@ fn unexpectedToken(self: Self, actual: Token, expected: []const Kind, expected_c
             }) catch return Error.UnknownError;
         }
     } else {
-        out.print("ERROR: expected token of the kinds {s}\n", .{expected_out}) catch return Error.UnknownError;
+        out.print("ERROR: expected {s}\n", .{expected_out}) catch return Error.UnknownError;
         if (actual.kind != .Newline) {
-            out.print("       but got {s} with '{s}' at {}:{}\n", .{
+            out.print("       but got {s} '{s}' at {}:{}\n", .{
                 @tagName(actual.kind),
                 actual.chars,
                 actual.line,
