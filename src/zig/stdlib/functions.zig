@@ -2,6 +2,7 @@ const std = @import("std");
 
 const expression = @import("../expression.zig");
 const interpreter = @import("../interpreter.zig");
+const data = @import("data.zig");
 const Scope = @import("../scope.zig");
 const Expression = expression.Expression;
 
@@ -34,12 +35,24 @@ pub fn _type(args: []const Expression, scope: *Scope) Error!void {
 }
 
 pub fn load_data(args: []const Expression, scope: *Scope) Error!void {
-    _ = scope;
     const file_path = args[0];
     const data_format = args[1];
     std.debug.assert(file_path == .string);
     std.debug.assert(data_format == .string);
-    return Error.NotImplemented;
+    if (std.mem.eql(u8, data_format.string.value, "lines")) {
+        const lines = data.load_lines(file_path.string.value, scope.allocator) catch |err| {
+            std.debug.print("ERROR: loading file failed: {}\n", .{err});
+            return Error.NotImplemented;
+        };
+        defer scope.allocator.free(lines);
+        const out = try scope.allocator.alloc(Expression, lines.len);
+        for (lines, out) |line, *elem| {
+            elem.* = .{ .string = .{ .value = line } };
+        }
+        const tmp = try scope.allocator.create(Expression);
+        tmp.* = .{ .array = .{ .elements = out } };
+        scope.return_result = tmp;
+    } else return Error.NotImplemented;
 }
 
 pub fn map(args: []const Expression, scope: *Scope) Error!void {
