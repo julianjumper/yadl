@@ -7,4 +7,4 @@ x = ("Hello"
 
 print(x)
 
-// CHECK OUT: Hello World
+// CHECK-OUT: Hello World
