@@ -387,10 +387,41 @@ fn parseUnaryOp(self: *Self) Error!*expr.Expression {
 
 fn parseWrappedExpression(self: *Self) Error!*expr.Expression {
     _ = try self.expect(.OpenParen, "(");
-    const ex = try self.parseExpression(0);
+    // const ex = try self.parseExpression(0);
+    var value = try self.parseValue();
+    const presedence = 0;
+    while (self.expect(.Newline, null)) |_| {} else |err| {
+        if (err != Error.UnexpectedToken) return err;
+    }
+    while (self.expect(.Operator, null)) |op_token| {
+        const op = expr.mapOp(op_token.chars);
+        const op_pres = presedenceOf(op);
+        if (op_pres > presedence) {
+            while (self.expect(.Newline, null)) |_| {} else |err| {
+                if (err != Error.UnexpectedToken) return err;
+            }
+            const ex = try self.parseExpression(op_pres);
+            value = try expr.BinaryOp.init(self.allocator, op, value, ex);
+        } else if (op_pres == presedence and op_pres == presedenceOf(.{ .arithmetic = .Expo })) {
+            while (self.expect(.Newline, null)) |_| {} else |err| {
+                if (err != Error.UnexpectedToken) return err;
+            }
+            const ex = try self.parseExpression(op_pres);
+            value = try expr.BinaryOp.init(self.allocator, op, value, ex);
+        } else {
+            self.reset(op_token.index);
+            break;
+        }
+        while (self.expect(.Newline, null)) |_| {} else |err| {
+            if (err != Error.UnexpectedToken) return err;
+        }
+    } else |err| {
+        if (err != Error.UnexpectedToken and err != Error.EndOfFile)
+            return err;
+    }
     _ = try self.expect(.CloseParen, ")");
     const out = try self.allocator.create(expr.Expression);
-    out.* = .{ .wrapped = ex };
+    out.* = .{ .wrapped = value };
     return out;
 }
 
