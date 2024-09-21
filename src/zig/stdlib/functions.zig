@@ -2,6 +2,7 @@ const std = @import("std");
 
 const expression = @import("../expression.zig");
 const interpreter = @import("../interpreter.zig");
+const data = @import("data.zig");
 const Scope = @import("../scope.zig");
 const Expression = expression.Expression;
 
@@ -31,6 +32,37 @@ pub fn _type(args: []const Expression, scope: *Scope) Error!void {
     const out = try scope.allocator.create(Expression);
     out.* = .{ .string = .{ .value = @tagName(args[0]) } };
     scope.return_result = out;
+}
+
+pub fn load_data(args: []const Expression, scope: *Scope) Error!void {
+    const file_path = args[0];
+    const data_format = args[1];
+    std.debug.assert(file_path == .string);
+    std.debug.assert(data_format == .string);
+    if (std.mem.eql(u8, data_format.string.value, "lines")) {
+        const lines = data.load_lines(file_path.string.value, scope.allocator) catch |err| {
+            std.debug.print("ERROR: loading file failed: {}\n", .{err});
+            return Error.NotImplemented;
+        };
+        defer scope.allocator.free(lines);
+        const out = try scope.allocator.alloc(Expression, lines.len);
+        for (lines, out) |line, *elem| {
+            elem.* = .{ .string = .{ .value = line } };
+        }
+        const tmp = try scope.allocator.create(Expression);
+        tmp.* = .{ .array = .{ .elements = out } };
+        scope.return_result = tmp;
+    } else if (std.mem.eql(u8, data_format.string.value, "json")) {
+        scope.return_result = data.load_json(file_path.string.value, scope.allocator) catch |err| {
+            std.debug.print("ERROR: loading file failed: {}\n", .{err});
+            return Error.NotImplemented;
+        };
+    } else if (std.mem.eql(u8, data_format.string.value, "csv")) {
+        scope.return_result = data.load_csv(file_path.string.value, scope.allocator) catch |err| {
+            std.debug.print("ERROR: loading file failed: {}\n", .{err});
+            return Error.NotImplemented;
+        };
+    } else return Error.NotImplemented;
 }
 
 pub fn map(args: []const Expression, scope: *Scope) Error!void {

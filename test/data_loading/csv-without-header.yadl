@@ -1,0 +1,9 @@
+// RUN: DEFAULT
+
+odd = (n) => n % 2 == 0
+
+values = load("test-data/headerless.csv", "csv")
+
+print(values)
+
+// CHECK-OUT: [[15, aoeu, true], [69, snth, false]]
