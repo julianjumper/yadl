@@ -247,8 +247,10 @@ fn parseExpression(self: *Self, presedence: usize) Error!*expr.Expression {
     while (self.expect(.Operator, null)) |op_token| {
         const op = expr.mapOp(op_token.chars);
         const op_pres = presedenceOf(op);
-        // TODO: .Expo is right assosiative. the current implementation does not reflect that.
         if (op_pres > presedence) {
+            const ex = try self.parseExpression(op_pres);
+            value = try expr.BinaryOp.init(self.allocator, op, value, ex);
+        } else if (op_pres == presedence and op_pres == presedenceOf(.{ .arithmetic = .Expo })) {
             const ex = try self.parseExpression(op_pres);
             value = try expr.BinaryOp.init(self.allocator, op, value, ex);
         } else {
@@ -492,7 +494,11 @@ fn parseNumber(self: *Self) Error!*expr.Expression {
 
         const int = std.fmt.parseInt(i64, int_part, base) catch return Error.NumberParsingFailure;
         const fraction = std.fmt.parseInt(i64, fraction_part, base) catch return Error.NumberParsingFailure;
-        const frac: f64 = @as(f64, @floatFromInt(fraction)) / std.math.pow(f64, @floatFromInt(base), @floatFromInt(fraction_part.len));
+        const frac: f64 = @as(f64, @floatFromInt(fraction)) / std.math.pow(
+            f64,
+            @floatFromInt(base),
+            @floatFromInt(fraction_part.len),
+        );
         const composite = @as(f64, @floatFromInt(int)) + frac;
         return expr.Number.init(self.allocator, f64, composite);
     } else {
