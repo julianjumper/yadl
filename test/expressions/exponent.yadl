@@ -1,0 +1,5 @@
+// RUN: DEFAULT
+
+print(4^3^2)
+
+// CHECK-OUT: 262144
