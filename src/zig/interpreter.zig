@@ -1,6 +1,7 @@
 const std = @import("std");
 const stmt = @import("statement.zig");
 const expr = @import("expression.zig");
+const Parser = @import("parser.zig");
 
 const Scope = @import("scope.zig");
 const stdlib = @import("stdlib.zig");
@@ -15,6 +16,7 @@ pub const Error = error{
     NoEntryForKey,
     IOWrite,
     InvalidExpressoinType,
+    MalformedFormattedString,
     ArityMismatch,
 } || Scope.Error;
 
@@ -238,11 +240,65 @@ pub fn printValue(value: Expression, scope: *Scope) Error!void {
             }
             _ = scope.out.write("}") catch return Error.IOWrite;
         },
+        .formatted_string => |f| {
+            try evalFormattedString(f, scope);
+            const string = scope.result() orelse unreachable;
+            std.debug.assert(string == .string);
+            scope.out.print("{s}", .{string.string.value}) catch return Error.IOWrite;
+        },
         else => |v| {
             std.debug.print("TODO: printing of value: {s}\n", .{@tagName(v)});
             return Error.NotImplemented;
         },
     }
+}
+
+fn checkCurlyParenBalance(string: expr.String) Error!void {
+    var depth: usize = 0;
+    var was_open_last = false;
+    for (string.value) |char| {
+        if (char == '{' and !was_open_last) {
+            depth += 1;
+            was_open_last = true;
+        }
+
+        if (char == '}' and depth > 0 and was_open_last) {
+            depth -= 1;
+            was_open_last = false;
+        } else if (char == '}' and depth == 0) {
+            return Error.MalformedFormattedString;
+        }
+    }
+    if (depth != 0) {
+        return Error.MalformedFormattedString;
+    }
+}
+
+fn evalFormattedString(string: expr.String, scope: *Scope) Error!void {
+    try checkCurlyParenBalance(string);
+    var splitter = std.mem.splitAny(u8, string.value, "{}");
+    var is_inner_expr = false;
+    var acc = std.ArrayList([]const u8).init(scope.allocator);
+    defer acc.deinit();
+    while (splitter.next()) |part| {
+        if (is_inner_expr) {
+            var parser = Parser.init(part, scope.allocator);
+            const value = parser.parseExpression(0) catch
+                return Error.MalformedFormattedString;
+
+            try evalExpression(value, scope);
+            const result = scope.result() orelse unreachable;
+            try stdlib.conversions.toString(&[_]Expression{result}, scope);
+            const str = scope.result() orelse unreachable;
+            std.debug.assert(str == .string);
+            try acc.append(str.string.value);
+        } else {
+            try acc.append(part);
+        }
+        is_inner_expr = !is_inner_expr;
+    }
+    const tmp = try std.mem.join(scope.allocator, "", acc.items);
+    scope.return_result = try expr.String.init(scope.allocator, tmp);
 }
 
 fn evalStructAccess(strct: *Expression, key: *Expression, scope: *Scope) Error!void {
@@ -329,6 +385,9 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
             scope.return_result = value;
         },
         .string => {
+            scope.return_result = value;
+        },
+        .formatted_string => {
             scope.return_result = value;
         },
         .boolean => {

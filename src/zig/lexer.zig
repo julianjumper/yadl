@@ -12,6 +12,7 @@ pub const TokenKind = enum {
     Number,
     Boolean,
     String,
+    FormattedString,
 
     Operator,
     ArgSep,
@@ -258,53 +259,119 @@ const StringBorder = enum {
     DoubleQuote,
 };
 
-fn expectStringBorder(self: *Self, borderType: ?StringBorder) Error!StringBorder {
-    const quote = try self.peekChar();
-    if (borderType) |b| {
-        if (checkStringBorder(quote, b)) {
-            _ = self.readChar() catch unreachable;
-            return b;
+const StringKind = enum {
+    Simple,
+    Multiline,
+    Formatted,
+};
+
+const StringContext = struct {
+    border: StringBorder,
+    kind: StringKind,
+
+    fn eql(self: StringContext, other: StringContext) bool {
+        return self.border == other.border and (self.kind == other.kind and self.kind == .Multiline or self.kind == .Simple or other.kind == .Simple);
+    }
+};
+
+fn isStringBegin(chars: []const u8) bool {
+    if (chars.len > 2 and (std.mem.eql(u8, chars[0..3], "'''") or std.mem.eql(u8, chars[0..3], "\"\"\""))) {
+        return true;
+    } else if (chars.len > 1 and (std.mem.eql(u8, chars[0..2], "f'") or std.mem.eql(u8, chars[0..2], "f\""))) {
+        return true;
+    } else if (chars.len > 0 and (std.mem.eql(u8, chars[0..1], "'") or std.mem.eql(u8, chars[0..1], "\""))) {
+        return true;
+    }
+    return false;
+}
+
+fn stringKind(chars: []const u8, border: StringBorder) Error!StringKind {
+    if (border == .SingleQuote) {
+        if (chars.len > 2 and std.mem.eql(u8, chars[0..3], "'''")) {
+            return .Multiline;
+        } else if (chars.len > 1 and std.mem.eql(u8, chars[0..2], "f'")) {
+            return .Formatted;
+        } else if (chars.len > 0 and std.mem.eql(u8, chars[0..1], "'")) {
+            return .Simple;
+        }
+        std.debug.print("INFO: reading string failed. chars: {s}\n", .{chars[0..10]});
+    } else {
+        if (chars.len > 2 and std.mem.eql(u8, chars[0..3], "\"\"\"")) {
+            return .Multiline;
+        } else if (chars.len > 1 and std.mem.eql(u8, chars[0..2], "f\"")) {
+            return .Formatted;
+        } else if (chars.len > 0 and std.mem.eql(u8, chars[0..1], "\"")) {
+            return .Simple;
+        }
+        std.debug.print("INFO: reading string failed. chars: {s}\n", .{chars[0..10]});
+    }
+    return Error.UnexpectedCharacter;
+}
+
+fn isStringEnd(chars: []const u8, context: StringContext) bool {
+    return switch (context.kind) {
+        .Multiline => if (context.border == .SingleQuote) chars.len > 2 and std.mem.eql(u8, chars[0..3], "'''") else chars.len > 2 and std.mem.eql(u8, chars[0..3], "\"\"\""),
+        else => if (context.border == .SingleQuote) chars.len > 0 and chars[0] == '\'' else chars.len > 0 and chars[0] == '"',
+    };
+}
+
+fn readStringContext(self: *Self, context: StringContext, is_end: bool) Error!void {
+    if (context.kind == .Multiline) {
+        _ = try self.readChar();
+        _ = try self.readChar();
+    } else if (context.kind == .Formatted and !is_end) {
+        _ = try self.readChar();
+    }
+    _ = try self.readChar();
+}
+
+fn expectStringContext(self: *Self, context: ?StringContext) Error!StringContext {
+    const border = try stringBorder(self.data[self.current_position..]);
+    const kind = try stringKind(self.data[self.current_position..], border);
+    if (context) |ctxt| {
+        if (ctxt.eql(.{ .kind = kind, .border = border })) {
+            try self.readStringContext(ctxt, true);
+            return ctxt;
         } else {
             return Error.UnexpectedCharacter;
         }
     } else {
-        if (quote == '\'') {
-            _ = self.readChar() catch unreachable;
-            return .SingleQuote;
-        } else if (quote == '"') {
-            _ = self.readChar() catch unreachable;
-            return .DoubleQuote;
-        } else {
-            return Error.UnexpectedCharacter;
-        }
+        try self.readStringContext(.{ .kind = kind, .border = border }, false);
+        return .{ .kind = kind, .border = border };
     }
 }
 
-fn checkStringBorder(char: u8, borderType: StringBorder) bool {
-    return char == '\'' and borderType == .SingleQuote or char == '\"' and borderType == .DoubleQuote;
+fn stringBorder(chars: []const u8) Error!StringBorder {
+    if (chars.len == 0) return Error.EndOfFile;
+    return switch (chars[0]) {
+        '\'' => .SingleQuote,
+        '"' => .DoubleQuote,
+        'f' => stringBorder(chars[1..]),
+        else => Error.UnexpectedCharacter,
+    };
 }
 
-// String
 fn lexString(self: *Self) Error!Token {
     const pos = self.current_position;
-    const leftQuote = try self.expectStringBorder(null);
-    while (self.peekChar()) |char| {
-        if (checkStringBorder(char, leftQuote))
-            break;
-
-        if (char == '\n')
+    const context = try self.expectStringContext(null);
+    while (!isStringEnd(self.data[self.current_position..], context)) {
+        if (self.data[self.current_position] == '\n' and (context.kind == .Simple or context.kind == .Formatted))
             return Error.UnexpectedCharacter;
 
-        _ = self.readChar() catch unreachable;
-    } else |err| {
-        return err;
+        _ = try self.readChar();
     }
-
-    _ = self.expectStringBorder(leftQuote) catch |err| {
+    _ = self.expectStringContext(context) catch |err| {
         self.current_position = pos;
         return err;
     };
-    return self.newToken(self.data[pos + 1 .. self.current_position - 1], .String);
+
+    if (context.kind == .Formatted) {
+        return self.newToken(self.data[pos + 2 .. self.current_position - 1], .FormattedString);
+    } else if (context.kind == .Multiline) {
+        return self.newToken(self.data[pos + 3 .. self.current_position - 3], .String);
+    } else {
+        return self.newToken(self.data[pos + 1 .. self.current_position - 1], .String);
+    }
 }
 
 // Operator
@@ -425,6 +492,8 @@ pub fn nextToken(self: *Self) Error!Token {
     if (char == ',') {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .ArgSep);
+    } else if (isStringBegin(self.data[self.current_position..])) {
+        return self.lexString();
     } else if (anyOf(char, "ft")) {
         return self.lexBoolean() catch self.lexIdentifier();
     } else if (char == '\n') {
@@ -435,8 +504,6 @@ pub fn nextToken(self: *Self) Error!Token {
         return self.newToken(self.data[pos..self.current_position], .KeyValueSep);
     } else if (isCommentBegin(self.data[self.current_position..])) {
         return self.lexComment();
-    } else if (char == '\'' or char == '"') {
-        return self.lexString();
     } else if (anyOf(char, "({[")) {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .OpenParen);
