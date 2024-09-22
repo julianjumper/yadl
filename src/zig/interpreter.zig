@@ -482,6 +482,14 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                         scope.return_result = tmp;
                     }
                 },
+                .string => |str| {
+                    try stdlib.conversions.toString(&[_]Expression{leftEval}, scope);
+                    const r = scope.result() orelse unreachable;
+                    const out = try scope.allocator.create(Expression);
+                    const inner = try std.mem.join(scope.allocator, "", &[_][]const u8{ r.string.value, str.value });
+                    out.* = .{ .string = .{ .value = inner } };
+                    scope.return_result = out;
+                },
                 else => return Error.NotImplemented,
             },
             else => |e| {
@@ -510,6 +518,22 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                         const tmp = try expr.Number.init(scope.allocator, i64, n.integer);
                         scope.return_result = tmp;
                     }
+                },
+                else => |v| {
+                    std.debug.print("ERROR: unhandled case in arith. Mul - number: {}\n", .{v});
+                    return Error.NotImplemented;
+                },
+            },
+            .string => |l| switch (rightEval) {
+                .number => |r| {
+                    std.debug.assert(r == .integer and r.integer >= 0);
+                    const count = r.integer;
+                    const tmp = try scope.allocator.alloc(u8, l.value.len * @as(usize, @intCast(count)));
+                    for (0..@as(usize, @intCast(count))) |current| {
+                        const index = current * l.value.len;
+                        @memcpy(tmp[index .. index + l.value.len], l.value);
+                    }
+                    scope.return_result = try expr.String.init(scope.allocator, tmp);
                 },
                 else => |v| {
                     std.debug.print("ERROR: unhandled case in arith. Mul - number: {}\n", .{v});

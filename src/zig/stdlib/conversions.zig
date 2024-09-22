@@ -25,7 +25,19 @@ pub fn toNumber(args: []const Expression, scope: *Scope) Error!void {
     switch (expr) {
         .boolean => |b| scope.return_result = try expression.Number.init(scope.allocator, i64, @intFromBool(b.value)),
         .number => scope.return_result = try expr.clone(scope.allocator),
-        else => return Error.NotImplemented,
+        .string => |str| {
+            if (std.fmt.parseFloat(f64, str.value)) |f| {
+                scope.return_result = try expression.Number.init(scope.allocator, f64, f);
+            } else |_| {
+                const tmp = std.fmt.parseInt(i64, str.value, 10) catch return Error.InvalidExpressoinType;
+                scope.return_result = try expression.Number.init(scope.allocator, i64, tmp);
+            }
+            return Error.NotImplemented;
+        },
+        else => |e| {
+            std.debug.print("ERROR: unhandled type in 'toNumber': {s}\n", .{@tagName(e)});
+            return Error.NotImplemented;
+        },
     }
 }
 
