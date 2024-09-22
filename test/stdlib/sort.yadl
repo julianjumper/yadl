@@ -3,7 +3,8 @@ xs = [ 0, 9, 6, 1, 2, 3, 4, 6, 9 ]
 print(xs)
 // CHECK-OUT: [0, 9, 6, 1, 2, 3, 4, 6, 9]
 
-sorted = sort(xs)
+less = (x, y) => x < y
+sorted = sort(xs, less)
 
 print(sorted)
 // CHECK-OUT: [0, 1, 2, 3, 4, 6, 6, 9, 9]
