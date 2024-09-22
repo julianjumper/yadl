@@ -48,7 +48,7 @@ pub fn printLexerContext(self: Self, out: std.io.AnyWriter) !void {
         .kind = .Unknown,
         .index = self.lexer.current_position,
         .line = self.lexer.countNewlines(),
-        .column = self.lexer.currentColumn(),
+        .column = self.lexer.currentColumn(0),
         .chars = "",
     };
     const l = self.lexer;

@@ -435,15 +435,15 @@ pub fn countNewlines(self: Self) u64 {
     return std.mem.count(u8, self.data[0..self.current_position], "\n") + 1;
 }
 
-pub fn currentColumn(self: Self) u64 {
-    var pos = self.current_position - 1;
+pub fn currentColumn(self: Self, token_size: usize) u64 {
+    var pos = self.current_position - token_size;
     while (self.data[pos] != '\n' and pos > 0) : (pos -= 1) {}
     return self.current_position - pos;
 }
 
 fn newToken(self: Self, chars: []const u8, kind: TokenKind) Token {
     const line = self.countNewlines();
-    const column = self.currentColumn() - chars.len;
+    const column = self.currentColumn(chars.len);
     return .{
         .chars = chars,
         .index = self.current_position - chars.len,
