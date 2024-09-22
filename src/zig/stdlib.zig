@@ -45,6 +45,7 @@ const mappings = .{
     .{ "check_none", .{ .function = &functions.check_none, .arity = 2 } },
     .{ "filter", .{ .function = &functions.filter, .arity = 2 } },
     .{ "load", .{ .function = &functions.load_data, .arity = 2 } },
+    .{ "sort", .{ .function = &functions.sort, .arity = 2 } },
 
     // TODO: We may want to remove this one
     .{ "print3", .{ .function = &functions.print3, .arity = 1 } },

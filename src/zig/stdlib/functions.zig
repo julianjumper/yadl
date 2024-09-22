@@ -353,6 +353,69 @@ pub fn zip(args: []const Expression, scope: *Scope) Error!void {
     return Error.NotImplemented;
 }
 
+fn swap(left: *Expression, right: *Expression) void {
+    const tmp = left.*;
+    left.* = right.*;
+    right.* = tmp;
+}
+
+fn partition(elements: []Expression, binary_op: expression.Function, scope: *Scope) Error!usize {
+    var pivot = elements.len - 1;
+    var left: usize = 0;
+    while (left < pivot) {
+        var tmp = try scope.allocator.alloc(Expression, 2);
+        defer scope.allocator.free(tmp);
+        tmp[0] = elements[left];
+        tmp[1] = elements[pivot];
+        var local = try Scope.init(scope.allocator, scope.out, scope, binary_op.args, tmp);
+        for (binary_op.body) |st| {
+            // std.debug.print("INFO: in partition current statement type: {s}\n", .{@tagName(st)});
+            try interpreter.evalStatement(st, &local);
+        }
+        const result = local.result() orelse return Error.ValueNotFound;
+        if (result == .number and result.number.asFloat() == -1) {
+            left += 1;
+        } else if (result == .boolean and result.boolean.value) {
+            left += 1;
+        } else if (result != .number and result != .boolean) {
+            return Error.InvalidExpressoinType;
+        } else {
+            swap(&elements[left], &elements[pivot]);
+            if (left != pivot - 1)
+                swap(&elements[pivot - 1], &elements[left]);
+            pivot -= 1;
+        }
+    }
+    return pivot;
+}
+
+fn sort_impl(elements: []Expression, binary_op: expression.Function, scope: *Scope) Error!void {
+    if (elements.len < 2) return;
+    const partition_point = try partition(elements, binary_op, scope);
+    const left: []Expression = elements[0..partition_point];
+    const right: []Expression = elements[partition_point + 1 .. elements.len];
+    try sort_impl(left, binary_op, scope);
+    try sort_impl(right, binary_op, scope);
+}
+
+pub fn sort(args: []const Expression, scope: *Scope) Error!void {
+    const elements = args[0];
+    const callable = args[1];
+    std.debug.assert(callable == .function);
+    std.debug.assert(callable.function.args.len == 2);
+
+    switch (elements) {
+        .array => |a| {
+            try sort_impl(a.elements, callable.function, scope);
+            scope.return_result = try expression.Array.init(scope.allocator, a.elements);
+        },
+        else => |e| {
+            std.debug.print("ERROR: `sort` is not defined for '{s}'\n", .{@tagName(e)});
+            return Error.InvalidExpressoinType;
+        },
+    }
+}
+
 pub fn last(args: []const Expression, scope: *Scope) Error!void {
     const elements = args[0];
     const callback = args[1];
