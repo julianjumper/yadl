@@ -23,6 +23,7 @@ pub const TokenKind = enum {
 
     Keyword,
 
+    EndOfFile,
     Unknown,
 };
 
@@ -82,22 +83,45 @@ fn isIdentifierChar(c: u8) bool {
     return isInitialIdentifierChar(c) or isDecimalDigit(c) or c == '_';
 }
 
-fn lexLineComment(self: *Self) Error!Token {
+const CommentKind = enum {
+    Singleline,
+    Multiline,
+};
+
+fn isCommentBegin(chars: []const u8) bool {
+    if (chars.len < 2) return false;
+    return std.mem.eql(u8, chars[0..2], "//") or std.mem.eql(u8, chars[0..2], "/*");
+}
+
+fn commentKind(chars: []const u8) Error!CommentKind {
+    std.debug.assert(chars.len > 1);
+    return if (chars[1] == '/') .Singleline else if (chars[1] == '*') .Multiline else Error.UnexpectedCharacter;
+}
+
+fn isCommentEnd(chars: []const u8, kind: CommentKind) bool {
+    if (kind == .Singleline and chars.len < 1) return false;
+    if (kind == .Multiline and chars.len < 2) return false;
+
+    return switch (kind) {
+        .Singleline => chars[0] == '\n',
+        .Multiline => chars[0] == '*' and chars[1] == '/',
+    };
+}
+
+fn lexComment(self: *Self) Error!Token {
+    const kind = try commentKind(self.data[self.current_position..]);
     _ = self.readChar() catch unreachable; // ignore '/'
-    const char = try self.readChar();
-    if (char == '/') {
-        while (self.peekChar()) |c| {
-            if (c == '\n') {
-                return self.nextToken();
-            }
-            _ = self.readChar() catch unreachable;
-        } else |err| {
-            if (err != Error.EndOfFile)
-                return err;
-        }
+    _ = try self.readChar();
+    while (!isCommentEnd(self.data[self.current_position..], kind)) {
+        _ = try self.readChar();
     }
 
-    return Error.EndOfFile;
+    if (kind == .Multiline) {
+        _ = try self.readChar();
+        _ = try self.readChar();
+    }
+
+    return self.nextToken();
 }
 
 fn lexIdentifier(self: *Self) Error!Token {
@@ -394,11 +418,6 @@ fn peekChar(self: *Self) Error!u8 {
     }
 }
 
-fn isCommentBegin(chars: []const u8) bool {
-    if (chars.len < 2) return false;
-    return std.mem.eql(u8, chars[0..2], "//") or std.mem.eql(u8, chars[0..2], "/*");
-}
-
 pub fn nextToken(self: *Self) Error!Token {
     try self.skipWhitespce();
     const char = try self.peekChar();
@@ -408,7 +427,8 @@ pub fn nextToken(self: *Self) Error!Token {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .ArgSep);
     } else if (anyOf(char, "ft")) {
-        return self.lexBoolean() catch self.lexIdentifier();
+        return self.lexBoolean() catch self.lexIdentifier() catch |err|
+            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
     } else if (char == '\n') {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .Newline);
@@ -416,9 +436,11 @@ pub fn nextToken(self: *Self) Error!Token {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .KeyValueSep);
     } else if (isCommentBegin(self.data[self.current_position..])) {
-        return self.lexLineComment();
+        return self.lexComment() catch |err|
+            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
     } else if (char == '\'' or char == '"') {
-        return self.lexString();
+        return self.lexString() catch |err|
+            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
     } else if (anyOf(char, "({[")) {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .OpenParen);
@@ -426,17 +448,23 @@ pub fn nextToken(self: *Self) Error!Token {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .CloseParen);
     } else if (anyOf(char, "iewr")) {
-        return self.lexKeyword() catch self.lexIdentifier();
+        return self.lexKeyword() catch self.lexIdentifier() catch |err|
+            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
     } else if (anyOf(char, "ao")) {
-        return self.lexBooleanOperator() catch self.lexIdentifier();
+        return self.lexBooleanOperator() catch self.lexIdentifier() catch |err|
+            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
     } else if (char == 'n') {
-        return self.lexBooleanOperator() catch self.lexKeyword() catch self.lexIdentifier();
+        return self.lexBooleanOperator() catch self.lexKeyword() catch self.lexIdentifier() catch |err|
+            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
     } else if (isInitialIdentifierChar(char)) {
-        return self.lexIdentifier();
+        return self.lexIdentifier() catch |err|
+            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
     } else if (isDecimalDigit(char)) {
-        return self.lexNumber();
+        return self.lexNumber() catch |err|
+            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
     } else {
-        return self.lexLambdaArrow() catch self.lexOperator();
+        return self.lexLambdaArrow() catch self.lexOperator() catch |err|
+            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
     }
 }
 
@@ -526,8 +554,8 @@ fn previousLine(self: Self, token: Token) ?[]const u8 {
 }
 
 pub fn printContext(self: Self, out: std.io.AnyWriter, token: Token) Error!void {
-    // if (token.kind == .Newline)
-    //     return;
+    if (token.kind == .EndOfFile)
+        return;
     const tty_config = std.io.tty.detectConfig(std.io.getStdOut());
 
     if (previousLine(self, token)) |previous| {

@@ -722,6 +722,7 @@ fn parseStatement(self: *Self) Error!stmt.Statement {
                 }
                 return self.parseStatement();
             },
+            .EndOfFile => Error.EndOfFile,
             else => Error.UnexpectedToken,
         };
         _ = self.expect(.Newline, null) catch |err| {
