@@ -23,7 +23,6 @@ pub const TokenKind = enum {
 
     Keyword,
 
-    EndOfFile,
     Unknown,
 };
 
@@ -427,8 +426,7 @@ pub fn nextToken(self: *Self) Error!Token {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .ArgSep);
     } else if (anyOf(char, "ft")) {
-        return self.lexBoolean() catch self.lexIdentifier() catch |err|
-            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
+        return self.lexBoolean() catch self.lexIdentifier();
     } else if (char == '\n') {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .Newline);
@@ -436,11 +434,9 @@ pub fn nextToken(self: *Self) Error!Token {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .KeyValueSep);
     } else if (isCommentBegin(self.data[self.current_position..])) {
-        return self.lexComment() catch |err|
-            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
+        return self.lexComment();
     } else if (char == '\'' or char == '"') {
-        return self.lexString() catch |err|
-            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
+        return self.lexString();
     } else if (anyOf(char, "({[")) {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .OpenParen);
@@ -448,23 +444,17 @@ pub fn nextToken(self: *Self) Error!Token {
         self.skipOne() catch unreachable;
         return self.newToken(self.data[pos..self.current_position], .CloseParen);
     } else if (anyOf(char, "iewr")) {
-        return self.lexKeyword() catch self.lexIdentifier() catch |err|
-            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
+        return self.lexKeyword() catch self.lexIdentifier();
     } else if (anyOf(char, "ao")) {
-        return self.lexBooleanOperator() catch self.lexIdentifier() catch |err|
-            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
+        return self.lexBooleanOperator() catch self.lexIdentifier();
     } else if (char == 'n') {
-        return self.lexBooleanOperator() catch self.lexKeyword() catch self.lexIdentifier() catch |err|
-            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
+        return self.lexBooleanOperator() catch self.lexKeyword() catch self.lexIdentifier();
     } else if (isInitialIdentifierChar(char)) {
-        return self.lexIdentifier() catch |err|
-            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
+        return self.lexIdentifier();
     } else if (isDecimalDigit(char)) {
-        return self.lexNumber() catch |err|
-            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
+        return self.lexNumber();
     } else {
-        return self.lexLambdaArrow() catch self.lexOperator() catch |err|
-            if (err == Error.EndOfFile) self.newToken("", .EndOfFile) else err;
+        return self.lexLambdaArrow() catch self.lexOperator();
     }
 }
 
@@ -554,8 +544,6 @@ fn previousLine(self: Self, token: Token) ?[]const u8 {
 }
 
 pub fn printContext(self: Self, out: std.io.AnyWriter, token: Token) Error!void {
-    if (token.kind == .EndOfFile)
-        return;
     const tty_config = std.io.tty.detectConfig(std.io.getStdOut());
 
     if (previousLine(self, token)) |previous| {
