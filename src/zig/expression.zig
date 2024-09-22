@@ -137,6 +137,14 @@ pub const String = struct {
         return out;
     }
 
+    pub fn initFormatted(alloc: std.mem.Allocator, value: []const u8) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .formatted_string = String{
+            .value = value,
+        } };
+        return out;
+    }
+
     pub fn eql(self: String, other: String) bool {
         return std.mem.eql(u8, self.value, other.value);
     }
@@ -259,6 +267,7 @@ pub const Expression = union(enum) {
     identifier: Identifier,
     number: Number,
     string: String,
+    formatted_string: String,
     wrapped: *Expression,
     none: ?*Expression,
     struct_access: StructureAccess,

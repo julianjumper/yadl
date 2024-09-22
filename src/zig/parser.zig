@@ -48,7 +48,7 @@ pub fn printLexerContext(self: Self, out: std.io.AnyWriter) !void {
         .kind = .Unknown,
         .index = self.lexer.current_position,
         .line = self.lexer.countNewlines(),
-        .column = self.lexer.currentColumn(),
+        .column = self.lexer.currentColumn(0),
         .chars = "",
     };
     const l = self.lexer;
@@ -242,7 +242,7 @@ fn presedenceOf(op: expr.Operator) usize {
 }
 
 // Expression parsing
-fn parseExpression(self: *Self, presedence: usize) Error!*expr.Expression {
+pub fn parseExpression(self: *Self, presedence: usize) Error!*expr.Expression {
     var value = try self.parseValue();
     while (self.expect(.Operator, null)) |op_token| {
         const op = expr.mapOp(op_token.chars);
@@ -291,6 +291,7 @@ fn parseValue(self: *Self) Error!*expr.Expression {
             },
             .Boolean => return self.parseBoolean(),
             .String => return self.parseString(),
+            .FormattedString => return self.parseFormattedString(),
             .OpenParen => {
                 if (std.mem.eql(u8, token.chars, "(")) {
                     return self.parseFunction() catch {
@@ -428,6 +429,11 @@ fn parseWrappedExpression(self: *Self) Error!*expr.Expression {
 fn parseString(self: *Self) Error!*expr.Expression {
     const str = self.expect(.String, null) catch unreachable;
     return expr.String.init(self.allocator, str.chars);
+}
+
+fn parseFormattedString(self: *Self) Error!*expr.Expression {
+    const str = self.expect(.FormattedString, null) catch unreachable;
+    return expr.String.initFormatted(self.allocator, str.chars);
 }
 
 fn parseFunctionCallExpr(self: *Self) Error!*expr.Expression {
