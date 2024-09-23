@@ -191,6 +191,60 @@ pub fn reduce(args: []const Expression, scope: *Scope) Error!void {
     }
 }
 
+pub fn group_by(args: []const Expression, scope: *Scope) Error!void {
+    const elements = args[0];
+    const callable = args[1];
+    std.debug.assert(callable == .function);
+    switch (elements) {
+        .array => |a| {
+            var out_map = std.StringHashMap(std.ArrayList(Expression)).init(scope.allocator);
+            // TODO: hard coded slice size. May overfilled by 'callable' if it returns large arrays/dictionaries
+            var buffer: [2048]u8 = undefined;
+            var fixedStream = std.io.fixedBufferStream(&buffer);
+            const writer = fixedStream.writer().any();
+            for (a.elements) |elem| {
+                fixedStream.reset();
+                const tmp: []Expression = try scope.allocator.alloc(Expression, 1);
+                tmp[0] = elem;
+                var local = try Scope.init(scope.allocator, scope.out, scope, callable.function.args, tmp);
+                for (callable.function.body) |st| {
+                    try interpreter.evalStatement(st, &local);
+                }
+                const result = local.result() orelse return Error.ValueNotFound;
+                var out_scope = Scope.empty(scope.allocator, writer);
+                // NOTE: praying that only simple values are printed
+                try interpreter.printValue(result, &out_scope);
+                const written: []const u8 = fixedStream.getWritten();
+                if (out_map.getPtr(written)) |value| {
+                    try value.append(elem);
+                } else {
+                    var value = std.ArrayList(Expression).init(scope.allocator);
+                    try value.append(elem);
+                    const key = try scope.allocator.dupe(u8, written);
+                    defer scope.allocator.free(written);
+                    try out_map.put(key, value);
+                }
+            }
+
+            var entries = std.ArrayList(expression.DictionaryEntry).init(scope.allocator);
+            var iter = out_map.iterator();
+            while (iter.next()) |entry| {
+                // TODO: We may want to prefer the original value over it's string representation
+                const key_str = try scope.allocator.dupe(u8, entry.key_ptr.*);
+                const key = try expression.String.init(scope.allocator, key_str);
+                const value_entries = try entry.value_ptr.toOwnedSlice();
+                const value = try expression.Array.init(scope.allocator, value_entries);
+                try entries.append(.{ .key = key, .value = value });
+            }
+            scope.return_result = try expression.Dictionary.init(scope.allocator, try entries.toOwnedSlice());
+        },
+        else => |e| {
+            std.debug.print("ERROR: unable to elements: '{s}' has no elements or is a single value\n", .{@tagName(e)});
+            return Error.InvalidExpressoinType;
+        },
+    }
+}
+
 const Context = struct {
     operation: *const fn (OutType, bool) OutType,
     initial: OutType,

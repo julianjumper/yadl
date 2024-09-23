@@ -39,6 +39,7 @@ const mappings = .{
     .{ "zip", .{ .function = &functions.zip, .arity = 2 } },
     .{ "flatten", .{ .function = &functions.flatten, .arity = 1 } },
     .{ "reduce", .{ .function = &functions.reduce, .arity = 2 } },
+    .{ "groupBy", .{ .function = &functions.group_by, .arity = 2 } },
     .{ "count", .{ .function = &functions.count, .arity = 2 } },
     .{ "check_all", .{ .function = &functions.check_all, .arity = 2 } },
     .{ "check_any", .{ .function = &functions.check_any, .arity = 2 } },
