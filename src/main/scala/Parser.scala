@@ -523,18 +523,19 @@ def dictionaryEntries[$: P]: P[Dictionary] =
 def dictionaryP[$: P]: P[Dictionary] =
   P("{" ~ ws ~ newline.? ~ dictionaryEntries ~ ws ~ "}")
 
-def structureAccess[$: P]: P[Value] =
-  def openIndex[$: P]: P[Unit] =
-    P(CharPred(_ == '[')).opaque("<open index>")
-  def closeIndex[$: P]: P[Unit] =
-    P(CharPred(_ == ']')).opaque("<close index>")
+def openIndex[$: P]: P[Unit] =
+  P(CharPred(_ == '[')).opaque("<open index>")
+def closeIndex[$: P]: P[Unit] =
+  P(CharPred(_ == ']')).opaque("<close index>")
 
-  def internalIdentifier[$: P]: P[Value] =
-    P(!(closeIndex | openIndex | CharIn("^")) ~ CharIn("a-zA-z0-9_"))
-      .rep(min = 1)
-      .!
-      .filter(s => !(s(0) == '_' || s(0).isDigit))
-      .map(Identifier(_))
+def internalIdentifier[$: P]: P[Value] =
+  P(!(closeIndex | openIndex | CharIn("^")) ~ CharIn("a-zA-z0-9_"))
+    .rep(min = 1)
+    .!
+    .filter(s => !(s(0) == '_' || s(0).isDigit))
+    .map(Identifier(_))
+
+def structureAccess[$: P]: P[Value] =
 
   def access[$: P]: P[Value] =
     P(openIndex ~ ws ~ expression(internalIdentifier, 0) ~ ws ~ closeIndex)
@@ -544,5 +545,9 @@ def structureAccess[$: P]: P[Value] =
 
 //Parser Array (we use structureAccess for accessing arrays)
 def arrayLiteralP[$: P]: P[ArrayLiteral] =
-  P("[" ~ ws ~ expression(identifierP, 0).rep(sep = ws ~ "," ~ ws) ~ ws ~ "]")
+  P(
+    "[" ~ ws ~ expression(internalIdentifier, 0).rep(sep =
+      ws ~ "," ~ ws
+    ) ~ ws ~ "]"
+  )
     .map(ArrayLiteral.apply)
