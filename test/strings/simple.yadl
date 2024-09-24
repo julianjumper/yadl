@@ -1,0 +1,13 @@
+// RUN: DEFAULT
+
+
+x = "hello"
+y = 'hello'
+
+print(x == y)
+
+// CHECK-OUT: true
+
+print(x)
+
+// CHECK-OUT: hello

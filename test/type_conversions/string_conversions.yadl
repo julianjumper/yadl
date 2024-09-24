@@ -1,0 +1,15 @@
+// RUN: DEFAULT
+
+x = "It is " + 42
+y = 42 + " it is"
+
+z = "hi" * 2
+
+print(x)
+print(y)
+print(z)
+
+// CHECK-OUT: It is 42
+// CHECK-OUT: 42 it is
+// CHECK-OUT: hihi
+

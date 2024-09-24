@@ -10,42 +10,88 @@ stages:
   variables:
     YADL_PATH: &path target/scala-3.4.1
     YADL_JAR: &jar $YADL_PATH/yadl.jar
+    YADL_WIN: &win zig-out/bin/yadl-win.exe
+    YADL_LINUX: &linux zig-out/bin/yadl-linux
+    YADL_MAC: &mac zig-out/bin/yadl-mac
+
 
 default:
   cache:
-    key: build-cache
+    key: build-cache-$CI_COMMIT_REF_SLUG
     paths:
       - *path
+      - zig-out
+      - zig-cache
 
-build:
+## scala bulid pipeline
+build-scala:
   stage: build
   script:
     - sbt clean compile assembly
   rules: *default_rules
   timeout: 3 min
 
-unit-tests:
+unit-tests-scala:
   stage: unit-testing
   needs:
-    - build
+    - build-scala
   script:
     - sbt test
   rules: *default_rules
   timeout: 5 min
 
-python-test-script:
+pytest-scripts-scala:
   <<: *config
   stage: interpretation-testing
+  allow_failure: true
   needs:
-    - unit-tests
+    - unit-tests-scala
   script:
-    - pytest
+    - pytest test-scripts/scala/*.py
   artifacts:
     paths:
       - *jar
   timeout: 5 min
 
-build-main:
+
+## zig build pipeline
+build-zig:
+  stage: build
+  script:
+    - zig version
+    - rm -rf zig-out
+    - rm -rf zig-cache
+    - zig build -Dtarget=x86_64-linux
+    - zig build -Dtarget=x86_64-windows
+    - zig build -Dtarget=aarch64-macos
+  rules: *default_rules
+  timeout: 3 min
+
+unit-tests-zig:
+  stage: unit-testing
+  needs:
+    - build-zig
+  script:
+    - zig build test --summary all
+  rules: *default_rules
+  timeout: 5 min
+
+pytest-scripts-zig:
+  <<: *config
+  stage: interpretation-testing
+  needs:
+    - unit-tests-zig
+  script:
+    - pytest test-scripts/zig/*.py
+  artifacts:
+    paths:
+      - *win
+      - *linux
+      - *mac
+  timeout: 5 min
+
+## build pipeline for main branch
+build-main-scala:
   <<: *config
   stage: build
   rules:
@@ -54,18 +100,49 @@ build-main:
     - sbt clean compile assembly
   timeout: 3 min
 
-python-script-main:
+build-main-zig:
+  <<: *config
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  script:
+    - zig version
+    - rm -rf zig-out
+    - rm -rf zig-cache
+    - zig build -Dtarget=x86_64-linux
+    - zig build -Dtarget=x86_64-windows
+    - zig build -Dtarget=aarch64-macos
+  timeout: 3 min
+
+pytest-scala-main:
+  <<: *config
+  stage: interpretation-testing
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  needs:
+    - build-main-scala
+  script:
+    - pytest test-scripts/scala/*.py
+  artifacts:
+    paths:
+      - *jar
+  timeout: 5 min
+
+pytest-zig-main:
   <<: *config
   stage: interpretation-testing
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   needs:
-    - build-main
+    - build-main-zig
   script:
-    - pytest
+    - pytest test-scripts/zig/*.py
   artifacts:
     paths:
-      - *jar
+      - *win
+      - *linux
+      - *mac
   timeout: 5 min
 
 

@@ -1,0 +1,7 @@
+// RUN: DEFAULT
+x = [1,2,3,4]
+odd = (n) => n % 2 == 1
+result = filter(x, odd)
+print3(result)
+
+// CHECK-OUT: [1, 3]

@@ -1,0 +1,12 @@
+// RUN: DEFAULT
+
+
+x = '''hello
+aoeu
+snth'''
+
+print(x)
+
+// CHECK-OUT: hello
+// CHECK-OUT: aoeu
+// CHECK-OUT: snth
