@@ -16,7 +16,7 @@ import parser.{unaryOpExpression, expression, identifierP}
 def unary[$: P] =
   unaryOpExpression(identifierP)
 def expr[$: P] =
-  expression(identifierP)
+  expression(identifierP, 0)
 
 class UnaryOperator extends munit.FunSuite {
   test("case '-5'") {

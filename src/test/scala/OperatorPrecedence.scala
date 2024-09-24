@@ -5,7 +5,7 @@ import fastparse.Parsed.Failure
 import parser.{binaryOpExpression, identifierP, Number}
 
 def binary[$: P] =
-  binaryOpExpression(identifierP)
+  binaryOpExpression(identifierP, 0)
 
 class OperatorPrecedence extends munit.FunSuite {
 
