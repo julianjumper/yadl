@@ -1,0 +1,7 @@
+// RUN: DEFAULT
+
+x = []
+
+print(x)
+
+// CHECK-OUT: []
