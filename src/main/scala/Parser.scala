@@ -305,9 +305,12 @@ def expression[$: P](idParser: => P[Value], prec: Int): P[Value] = (
   loadP | functionDefP | binaryOpExpression(idParser, prec)
 )
 
-def identifierP[$: P]: P[Identifier] = P(
-  (CharIn("a-zA-Z") ~ CharIn("a-zA-z0-9_").rep).!.map(Identifier(_))
-).opaque("<identifier>")
+def identifierP[$: P]: P[Identifier] = P(!(CharIn("^")) ~ CharIn("a-zA-z0-9_"))
+  .rep(min = 1)
+  .!
+  .filter(s => !(s(0) == '_' || s(0).isDigit))
+  .map(Identifier(_))
+  .opaque("<identifier>")
 
 def assignmentP[$: P]: P[Statement] =
   (identifierP.! ~/ ws ~ "=" ~ ws ~ expression(identifierP, 0)).map((n, v) =>
@@ -527,7 +530,7 @@ def structureAccess[$: P]: P[Value] =
     P(CharPred(_ == ']')).opaque("<close index>")
 
   def internalIdentifier[$: P]: P[Value] =
-    P(!(closeIndex | openIndex) ~ CharIn("a-zA-z0-9_"))
+    P(!(closeIndex | openIndex | CharIn("^")) ~ CharIn("a-zA-z0-9_"))
       .rep(min = 1)
       .!
       .filter(s => !(s(0) == '_' || s(0).isDigit))
