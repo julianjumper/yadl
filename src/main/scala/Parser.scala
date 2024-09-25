@@ -542,7 +542,7 @@ def structureAccess[$: P]: P[Value] =
 def arrayLiteralP[$: P]: P[ArrayLiteral] =
   P(
     "[" ~ ws ~ expression(internalIdentifier, 0).rep(sep =
-      ws ~ "," ~ ws
-    ) ~ ws ~ "]"
+      ws ~ "," ~ ws ~ newline.?
+    ) ~ ws ~ newline.? ~ "]"
   )
     .map(ArrayLiteral.apply)
