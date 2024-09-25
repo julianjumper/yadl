@@ -501,9 +501,6 @@ def formatStringP[$: P]: P[FormatString] = P(
 
 def stringP[$: P]: P[Value] = formatStringP | stdMultiStringP | stdStringP
 
-// @language-team because you are indecisive of where to put the comma
-// could be simpler
-
 def dictionaryEntries[$: P]: P[Dictionary] =
   def dictionaryEntry[$: P]: P[DictionaryEntry] =
     (valueP(identifierP) ~ ws ~ ":" ~ ws ~ valueP(identifierP))
