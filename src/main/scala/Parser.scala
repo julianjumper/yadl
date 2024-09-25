@@ -331,16 +331,14 @@ def commentP[$: P] = P(inlineCommentP | multilineCommentP)
 
 // Root rule
 def yadlParser[$: P]: P[Seq[Statement]] =
-  ((statementP.? ~ ws ~ (commentP | newline))).rep.map(l =>
-    l.map(_.toList).flatten
-  )
+  ((statementP.? ~ ws ~ (commentP | newline))).rep.map(l => l.flatMap(_.toList))
   // fastparse (the parsing library that we use) syntax:
   // This code means that we call a parser for a statement, then a parser for whitespaces, then for newlines.
   // This can be repeated any number of times (signaled by .rep). As regex: (statement whitespace* newline)*
 
 //Hilfsparser Number
 def digitsP[$: P](digitParser: => P[Char]): P[String] =
-  (digitParser ~ (("_" ~ digitParser) | digitParser).rep)
+  (digitParser ~ (P("_").? ~ digitParser).rep)
     .map((f, r) => r.foldLeft(StringBuffer().append(f))(_.append(_)).toString)
 
 def dezimalP[$: P] = P(CharIn("0-9").!).map(_.head)
