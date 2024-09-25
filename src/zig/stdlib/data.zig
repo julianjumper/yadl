@@ -12,6 +12,8 @@ pub fn load_lines(path: []const u8, allocator: std.mem.Allocator) ![][]const u8 
     var splitter = std.mem.split(u8, content, "\n");
     var out = std.ArrayList([]const u8).init(allocator);
     while (splitter.next()) |line| {
+        if (line.len == 0 and splitter.peek() == null)
+            break;
         try out.append(line);
     }
     return try out.toOwnedSlice();

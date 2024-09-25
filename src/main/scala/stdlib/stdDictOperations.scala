@@ -23,6 +23,13 @@ private def loadFunction(params: Seq[DataObject]): DataObject = {
     case "json" =>
       val jsonIterator = new JsonIterator(source)
       processJsonIterator(jsonIterator)
+    case "lines" =>
+      val iter =
+        source
+          .LineIterator()
+          .asInstanceOf[Iterator[String]]
+          .map(StringObj(_).asInstanceOf[DataObject])
+      ListObj(mutable.ArrayBuffer(iter.toArray*))
     case _ => throw IllegalArgumentException(s"Unsupported format: $format")
   }
 }
