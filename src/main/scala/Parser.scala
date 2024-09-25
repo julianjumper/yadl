@@ -5,6 +5,9 @@ import fastparse._, NoWhitespace._
 def wsSingle[$: P] = P(" " | "\t")
 def ws[$: P] = P((multilineCommentP | wsSingle).rep).opaque("<whitespace>")
 def newline[$: P] = P("\n\r" | "\r" | "\n").opaque("<newline>")
+def wsAndNewline[$: P] =
+  P((multilineCommentP | wsSingle | newline).rep)
+    .opaque("<whitespace or newline>")
 
 enum DataFormats:
   case characters, commas, lines, csv, json
@@ -275,9 +278,9 @@ def binaryOpExpression[$: P](idParser: => P[Value], prec: Int): P[Value] =
     op_prec > prec || op_prec == prec && op == ArithmaticOp(ArithmaticOps.Expo)
 
   def expr(op: Operator): P[(Operator, Value)] =
-    (ws ~ expression(idParser, precedenceOf(op))).map((e) => (op, e))
+    (wsAndNewline ~ expression(idParser, precedenceOf(op))).map((e) => (op, e))
 
-  (valueP(idParser) ~/ (ws ~ binaryOperator
+  (valueP(idParser) ~/ (wsAndNewline ~ binaryOperator
     .filter(precedenceFilter)
     .flatMap(expr)).rep).map((l, rest) =>
     rest.foldLeft(l)((acc, v: (Operator, Value)) => BinaryOp(acc, v._1, v._2))
@@ -299,7 +302,9 @@ def loadP[$: P]: P[Value] =
   ) ~ ws ~ dataFormatsP).map((file, format) => Load(file, format))
 
 def wrappedExpression[$: P](idParser: => P[Value]): P[Value] =
-  P("(" ~ ws ~ expression(idParser, 0) ~ ws ~ ")").map(Wrapped(_))
+  P(
+    "(" ~ wsAndNewline ~ expression(idParser, 0) ~ wsAndNewline ~ ")"
+  ).map(Wrapped(_))
 
 def expression[$: P](idParser: => P[Value], prec: Int): P[Value] = (
   loadP | functionDefP | binaryOpExpression(idParser, prec)
