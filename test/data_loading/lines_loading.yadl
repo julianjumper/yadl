@@ -7,4 +7,4 @@ lines = load("test-data/lines-loading.txt", "lines")
 print(lines)
 
 // NOTE: 'test-data/lines-loading.txt' ends in a newline which results in an empty string
-// CHECK-OUT: [hello, world, this, is, a, test, ]
+// CHECK-OUT: [hello, world, this, is, a, test]

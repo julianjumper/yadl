@@ -21,7 +21,7 @@ default:
     paths:
       - *path
       - zig-out
-      - zig-cache
+      - .zig-cache
 
 ## scala bulid pipeline
 build-scala:
@@ -60,7 +60,7 @@ build-zig:
   script:
     - zig version
     - rm -rf zig-out
-    - rm -rf zig-cache
+    - rm -rf .zig-cache
     - zig build -Dtarget=x86_64-linux
     - zig build -Dtarget=x86_64-windows
     - zig build -Dtarget=aarch64-macos
@@ -108,7 +108,7 @@ build-main-zig:
   script:
     - zig version
     - rm -rf zig-out
-    - rm -rf zig-cache
+    - rm -rf .zig-cache
     - zig build -Dtarget=x86_64-linux
     - zig build -Dtarget=x86_64-windows
     - zig build -Dtarget=aarch64-macos
