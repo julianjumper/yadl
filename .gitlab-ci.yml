@@ -21,7 +21,7 @@ default:
     paths:
       - *path
       - zig-out
-      - zig-cache
+      - .zig-cache
 
 ## scala bulid pipeline
 build-scala:
