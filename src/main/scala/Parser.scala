@@ -9,15 +9,6 @@ def wsAndNewline[$: P] =
   P((multilineCommentP | wsSingle | newline).rep)
     .opaque("<whitespace or newline>")
 
-enum BooleanOps:
-  case And, Or, Not
-
-enum CompareOps:
-  case Less, LessEq, Greater, GreaterEq, Eq, NotEq
-
-enum ArithmaticOps:
-  case Add, Sub, Mul, Div, Expo, Mod
-
 def arihmeticOperatorP[$: P] = P((CharIn("*/+^%") | "-").!).map {
   case "*" => ArithmaticOps.Mul
   case "+" => ArithmaticOps.Add
@@ -45,65 +36,7 @@ def compareOperatorP[$: P] = P(("==" | "!=" | "<=" | ">=" | "<" | ">").!).map {
   case _    => assert(false, "comparision operator not defined")
 }
 
-trait Operator
-trait Value
-trait Statement
-
-case class ArithmaticOp(op: ArithmaticOps) extends Operator
-case class CompareOp(op: CompareOps) extends Operator
-case class BooleanOp(op: BooleanOps) extends Operator
-
-case class NoneValue() extends Value:
-  override def toString(): String =
-    "none"
-case class Identifier(name: String) extends Value
-case class Number(value: Double) extends Value:
-  override def toString(): String =
-    if (value - value.toInt == 0) value.toInt.toString
-    else value.toString
-
-case class Bool(b: Boolean) extends Value:
-  override def toString(): String = b.toString
-
-case class BinaryOp(left: Value, op: Operator, right: Value) extends Value
-case class UnaryOp(op: Operator, operant: Value) extends Value
-case class Function(args: Seq[String], body: Seq[Statement]) extends Value
-case class Wrapped(value: Value) extends Value
-case class StdString(value: String) extends Value:
-  override def toString(): String = value.toString
-
-case class FormatString(value: List[Value]) extends Value
-class DictionaryEntry(var key: Value, var value: Value):
-  override def toString(): String = key.toString + ": " + value.toString
-
-case class Dictionary(val entries: Seq[DictionaryEntry]) extends Value:
-  override def toString(): String =
-    "{" + entries.mkString(", ") + "}"
-
-case class ArrayLiteral(val elements: Seq[Value]) extends Value:
-  override def toString(): String =
-    "[" + elements.mkString(", ") + "]"
-
-case class StructureAccess(identifier: Value, key: Value) extends Value
-
-case class Assignment(varName: String, value: Value) extends Statement
-case class StructuredAssignment(struct: StructureAccess, value: Value)
-    extends Statement
-case class Branch(condition: Value, body: Seq[Statement])
-case class If(
-    ifBranch: Branch,
-    elifBranches: Seq[Branch],
-    elseBranch: Option[Seq[Statement]]
-) extends Statement
-case class WhileLoop(loop: Branch) extends Statement
-case class Expression(expr: Value) extends Statement
-case class Return(value: Value) extends Statement
-
-case class FunctionCall(functionExpr: Value, args: Seq[Value])
-    extends Value,
-      Statement
-
-def condition[$: P]: P[Value] =
+def condition[$: P]: P[Expression] =
   P("(" ~ ws ~ expression(identifierP, 0) ~ ws ~ ")").opaque("<condition>")
 
 def initialBranch[$: P]: P[Branch] =
@@ -139,7 +72,7 @@ def codeBlock[$: P]: P[Seq[Statement]] =
   )
 
 def functionDefBodyP[$: P]: P[Seq[Statement]] =
-  codeBlock | expression(identifierP, 0).map((v) => Seq(Expression(v)))
+  codeBlock | expression(identifierP, 0).map((v) => Seq(Return(v)))
 
 def functionDefArgsP[$: P]: P[Seq[String]] = (
   identifierP ~ (ws ~ "," ~ ws ~ functionDefArgsP).?
@@ -150,7 +83,7 @@ def functionDefArgsP[$: P]: P[Seq[String]] = (
   }
 )
 
-def functionDefP[$: P]: P[Value] = (
+def functionDefP[$: P]: P[Expression] = (
   "(" ~ ws ~ functionDefArgsP.? ~ ws ~ ")" ~ ws ~ "=>" ~ ws ~ functionDefBodyP
 ).map((bs, b) =>
   bs match {
@@ -159,16 +92,16 @@ def functionDefP[$: P]: P[Value] = (
   }
 )
 
-def noneP[$: P]: P[Value] = P("none").!.map(_ => NoneValue())
+def noneP[$: P]: P[Expression] = P("none").!.map(_ => NoneValue())
 
-def valueP[$: P](idParser: => P[Value]): P[Value] =
+def valueP[$: P](idParser: => P[Expression]): P[Expression] =
   noneP | booleanP | stringP | unaryOpExpression(
     idParser
-  ) | dictionaryP | arrayLiteralP | structureAccess | functionCallValue(
+  ) | dictionaryP | arrayLiteralP | structureAccess | functionCallExpression(
     idParser
   ) | numberP
 
-def booleanP[$: P]: P[Value] = P(
+def booleanP[$: P]: P[Expression] = P(
   ("true" | "false").!
 ).opaque("<boolean value>").map {
   case "true"  => Bool(true)
@@ -176,7 +109,7 @@ def booleanP[$: P]: P[Value] = P(
   case _       => assert(false, "unreachable")
 }
 
-def functionCallArgsP[$: P]: P[Seq[Value]] = (
+def functionCallArgsP[$: P]: P[Seq[Expression]] = (
   expression(identifierP, 0) ~ (ws ~ "," ~ ws ~ functionCallArgsP).?
 ).map((v, vs) =>
   vs match {
@@ -185,15 +118,15 @@ def functionCallArgsP[$: P]: P[Seq[Value]] = (
   }
 )
 
-def functionName[$: P](idParser: => P[Value]): P[Value] =
+def functionName[$: P](idParser: => P[Expression]): P[Expression] =
   idParser | wrappedExpression(idParser)
 
-def functionCallManyArgs[$: P]: P[Seq[Seq[Value]]] =
+def functionCallManyArgs[$: P]: P[Seq[Seq[Expression]]] =
   P(ws ~ "(" ~ ws ~ functionCallArgsP.? ~ ws ~ ")")
     .map(_.getOrElse(Seq()))
     .rep
 
-def functionCallValue[$: P](idParser: => P[Value]): P[Value] = P(
+def functionCallExpression[$: P](idParser: => P[Expression]): P[Expression] = P(
   functionName(idParser) ~ functionCallManyArgs
 ) // .opaque("<function call>")
   .map((n, bs) =>
@@ -263,31 +196,36 @@ def precedenceOf(oper: Operator): Int = oper match {
   case _ => 4
 }
 
-def unaryOpExpression[$: P](idParser: => P[Value]): P[Value] =
+def unaryOpExpression[$: P](idParser: => P[Expression]): P[Expression] =
   (unaryOperator ~ ws ~ expression(idParser, 7))
     .opaque("<unary operator>")
     .map((op, value) => UnaryOp(op, value))
 
-def binaryOpExpression[$: P](idParser: => P[Value], prec: Int): P[Value] =
+def binaryOpExpression[$: P](
+    idParser: => P[Expression],
+    prec: Int
+): P[Expression] =
   def precedenceFilter(op: Operator): Boolean =
     val op_prec = precedenceOf(op)
     op_prec > prec || op_prec == prec && op == ArithmaticOp(ArithmaticOps.Expo)
 
-  def expr(op: Operator): P[(Operator, Value)] =
+  def expr(op: Operator): P[(Operator, Expression)] =
     (wsAndNewline ~ expression(idParser, precedenceOf(op))).map((e) => (op, e))
 
   (valueP(idParser) ~/ (wsAndNewline ~ binaryOperator
     .filter(precedenceFilter)
     .flatMap(expr)).rep).map((l, rest) =>
-    rest.foldLeft(l)((acc, v: (Operator, Value)) => BinaryOp(acc, v._1, v._2))
+    rest.foldLeft(l)((acc, v: (Operator, Expression)) =>
+      BinaryOp(acc, v._1, v._2)
+    )
   )
 
-def wrappedExpression[$: P](idParser: => P[Value]): P[Value] =
+def wrappedExpression[$: P](idParser: => P[Expression]): P[Expression] =
   P(
     "(" ~ wsAndNewline ~ expression(idParser, 0) ~ wsAndNewline ~ ")"
   ).map(Wrapped(_))
 
-def expression[$: P](idParser: => P[Value], prec: Int): P[Value] = (
+def expression[$: P](idParser: => P[Expression], prec: Int): P[Expression] = (
   functionDefP | binaryOpExpression(idParser, prec)
 )
 
@@ -422,7 +360,7 @@ def formatStringMap(input: String): FormatString = {
   // Replace all occurrences of "\\{" with newline "\n"
   val replacedInput = input.replace("\\{", "\n").replace("\\}", "\r")
 
-  var result: List[Value] = List()
+  var result: List[Expression] = List()
 
   var next_input = ""
   var braces_open = false
@@ -485,7 +423,7 @@ def formatStringP[$: P]: P[FormatString] = P(
   ).map(formatStringMap)
 )
 
-def stringP[$: P]: P[Value] = formatStringP | stdMultiStringP | stdStringP
+def stringP[$: P]: P[Expression] = formatStringP | stdMultiStringP | stdStringP
 
 def dictionaryEntries[$: P]: P[Dictionary] =
   def dictionaryEntry[$: P]: P[DictionaryEntry] =
@@ -509,16 +447,16 @@ def openIndex[$: P]: P[Unit] =
 def closeIndex[$: P]: P[Unit] =
   P(CharPred(_ == ']')).opaque("<close index>")
 
-def internalIdentifier[$: P]: P[Value] =
+def internalIdentifier[$: P]: P[Expression] =
   P(!(closeIndex | openIndex | CharIn("^")) ~ CharIn("a-zA-z0-9_"))
     .rep(min = 1)
     .!
     .filter(s => !(s(0) == '_' || s(0).isDigit))
     .map(Identifier(_))
 
-def structureAccess[$: P]: P[Value] =
+def structureAccess[$: P]: P[Expression] =
 
-  def access[$: P]: P[Value] =
+  def access[$: P]: P[Expression] =
     P(openIndex ~ ws ~ expression(internalIdentifier, 0) ~ ws ~ closeIndex)
 
   P(internalIdentifier ~ (ws ~ access).rep(min = 1))

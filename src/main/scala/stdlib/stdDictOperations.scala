@@ -11,7 +11,7 @@ import fastparse._, NoWhitespace._
 import parser.{
   identifierP,
   Identifier,
-  Value,
+  Expression,
   valueP,
   DictionaryEntry,
   Dictionary,
@@ -53,13 +53,13 @@ private def loadFunction(params: Seq[DataObject]): DataObject = {
   }
 }
 
-def valueParser[$: P]: P[Value] = P(valueP(identifierP))
+def valueParser[$: P]: P[Expression] = P(valueP(identifierP))
 
 private def parseCSV(lineIter: Iterator[String]): DataObject = {
   val (local, header) = lineIter.duplicate // Thanks Java
   parseHeader(header) match
     case Some(value) => {
-      val entry_iter: Iterator[Seq[(Value, Value)]] = local
+      val entry_iter: Iterator[Seq[(Expression, Expression)]] = local
         .drop(1)
         .map(line =>
           value.zip(
@@ -110,7 +110,7 @@ private def parseCSV(lineIter: Iterator[String]): DataObject = {
     }
 }
 
-private def parseHeader(lineIter: Iterator[String]): Option[Seq[Value]] = {
+private def parseHeader(lineIter: Iterator[String]): Option[Seq[Expression]] = {
   val iter = lineIter.filter(line =>
     line
       .split(",")
@@ -147,7 +147,7 @@ private def processJsonIterator(iterator: JsonIterator): DataObject = {
   while (iterator.hasNext) {
     iterator.next() match {
       case Right((key, value)) =>
-        val valueObj = convertJsonValue(value)
+        val valueObj = convertJsonExpression(value)
         result(key) = valueObj
       case Left(error) =>
         throw IllegalArgumentException(s"Error reading from iterator: $error")
@@ -172,7 +172,7 @@ private def convertToProperStructure(
   }
 }
 
-private def convertJsonValue(value: Any): DataObject = {
+private def convertJsonExpression(value: Any): DataObject = {
   value match {
     case null | None      => NoneObj()
     case b: Boolean       => BooleanObj(b)
@@ -185,4 +185,3 @@ private def convertJsonValue(value: Any): DataObject = {
       )
   }
 }
-

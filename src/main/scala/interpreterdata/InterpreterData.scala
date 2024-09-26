@@ -3,7 +3,16 @@ package interpreterdata
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.mutable.HashMap
 
-import parser.{ArrayLiteral, Bool, Function, Number, StdString, Value, Dictionary, DictionaryEntry}
+import parser.{
+  ArrayLiteral,
+  Bool,
+  Function,
+  Number,
+  StdString,
+  Expression,
+  Dictionary,
+  DictionaryEntry
+}
 
 /** Base Trait of all Interpreter objects.
   */
@@ -117,12 +126,13 @@ object IteratorObj {
 }
 // TODO consider renaming it from Obj to something more expressive.
 
-def toDataObject(value: Value): DataObject =
+def toDataObject(value: Expression): DataObject =
   value match {
     case Bool(b)          => BooleanObj(b)
     case Number(value)    => NumberObj(value)
     case StdString(value) => StringObj(value)
-    case x: ArrayLiteral => ListObj(x.elements.map(toDataObject).to(ArrayBuffer))
+    case x: ArrayLiteral =>
+      ListObj(x.elements.map(toDataObject).to(ArrayBuffer))
     case x: parser.Dictionary => {
       val m = HashMap[DataObject, DataObject]()
       for (e <- x.entries) {
@@ -142,7 +152,7 @@ def toDataObject(value: Value): DataObject =
             x,
             params.map(x => toAstNode(x)),
             scope,
-            _root_.`<empty>`.CallContext.Value
+            _root_.`<empty>`.CallContext.Expression
           )
           newScope.result match {
             case None    => NONE // TODO
@@ -154,7 +164,7 @@ def toDataObject(value: Value): DataObject =
     case v => assert(false, s"Value can not be converted to DataObject: $v")
   }
 
-def toAstNode(data: DataObject): Value =
+def toAstNode(data: DataObject): Expression =
   data match
     case NumberObj(value) =>
       Number(value)
@@ -163,7 +173,9 @@ def toAstNode(data: DataObject): Value =
     case StringObj(value) =>
       StdString(value)
     case DictionaryObj(value) =>
-      Dictionary(value.map { case (k, v) => DictionaryEntry(toAstNode(k), toAstNode(v)) }.toSeq)
+      Dictionary(value.map { case (k, v) =>
+        DictionaryEntry(toAstNode(k), toAstNode(v))
+      }.toSeq)
     case ListObj(value) =>
       parser.ArrayLiteral(value.map(toAstNode).toSeq)
     case NoneObj() =>
