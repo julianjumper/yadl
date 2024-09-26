@@ -177,7 +177,7 @@ private def serializeJSONCompact(obj: DataObject, references: Seq[Any]): String 
         throw IllegalArgumentException("cannot serialize self referencing data structures")
       }
       
-      dict.map((k, v) => serializeJSONCompact(k, references :+ dict) + ": " + serializeJSONCompact(v, references :+ dict)) mkString ", "
+      "{" + (dict.map((k, v) => serializeJSONCompact(k, references :+ dict) + ": " + serializeJSONCompact(v, references :+ dict)) mkString ", ") + "}"
     }
     case _ => throw UnsupportedOperationException()
   }
