@@ -14,7 +14,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = 23.0
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -28,7 +28,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = 35.0
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -42,7 +42,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = scala.math.pow(5, 6) * 4 + 3
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -56,7 +56,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = scala.math.pow(20, 6) + 3
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -70,7 +70,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = scala.math.pow(5, 6) * 7
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -84,7 +84,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = scala.math.pow(23, 6)
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -98,7 +98,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = scala.math.pow(35, 6)
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -112,7 +112,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = 1 - 2.0 / 3.0 + 4 * scala.math.pow(5, 6)
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -126,7 +126,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = (-1 / 3.0) + 4 * scala.math.pow(5, 6)
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -140,7 +140,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = 1 - 2.0 / (3.0 + 4) * scala.math.pow(5, 6)
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -154,7 +154,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = (1 - 2.0) / (3.0 + 4) * scala.math.pow(5, 6)
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -168,7 +168,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = 1 - (2.0 / 3.0 + 4) * scala.math.pow(5, 6)
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -182,7 +182,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = 1 - 2.0 / 3.0 + 4 * scala.math.pow(5, 6) + 7
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -196,7 +196,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = 1 - 2.0 / (3.0 + 4) * scala.math.pow(5, 6 + 7)
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")
@@ -210,7 +210,7 @@ class OperatorPrecedence extends munit.FunSuite {
     val expected = 1 - 2.0 / 3.0 + 4 * scala.math.pow(5, 6) + 7 * 8
     parse(input, binary(using _)) match {
       case Success(result, index) =>
-        val resultScope = evalValue(result, new Scope)
+        val resultScope = evalExpression(result, new Scope)
         val Some(Number(value)) = resultScope.result: @unchecked
         assertEquals(value, expected)
         assertEquals(index, input.length, "input has not been parsed fully")

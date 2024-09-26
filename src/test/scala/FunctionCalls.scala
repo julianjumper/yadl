@@ -3,18 +3,18 @@ import fastparse.Parsed.Success
 import fastparse.Parsed.Failure
 
 import parser.{
-  functionCallValue,
+  functionCallExpression,
   identifierP,
   expression,
   FunctionCall,
   Function,
   Identifier,
   Wrapped,
-  Expression
+  Return
 }
 
 def funCall[$: P] =
-  functionCallValue(identifierP)
+  functionCallExpression(identifierP)
 
 // def expr[$: P] =
 //   expression(identifierP)
@@ -28,7 +28,7 @@ class FunctionCalls extends munit.FunSuite {
         Identifier("print"),
         Seq(
           FunctionCall(
-            Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
+            Wrapped(Function(Seq(), Seq(Return(Identifier("x"))))),
             Seq()
           )
         )
@@ -98,7 +98,7 @@ class FunctionCalls extends munit.FunSuite {
     val input = "(() => x)()"
     val expected =
       FunctionCall(
-        Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
+        Wrapped(Function(Seq(), Seq(Return(Identifier("x"))))),
         Seq()
       )
     parse(input, funCall(using _)) match {
@@ -119,7 +119,7 @@ class FunctionCalls extends munit.FunSuite {
     val expected =
       Wrapped(
         FunctionCall(
-          Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
+          Wrapped(Function(Seq(), Seq(Return(Identifier("x"))))),
           Seq()
         )
       )
@@ -140,7 +140,7 @@ class FunctionCalls extends munit.FunSuite {
     val input = "(() => x)(y)"
     val expected =
       FunctionCall(
-        Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
+        Wrapped(Function(Seq(), Seq(Return(Identifier("x"))))),
         Seq(Identifier("y"))
       )
     parse(input, expr(using _)) match {
@@ -160,7 +160,7 @@ class FunctionCalls extends munit.FunSuite {
     val input = "(() => x)(y)"
     val expected =
       FunctionCall(
-        Wrapped(Function(Seq(), Seq(Expression(Identifier("x"))))),
+        Wrapped(Function(Seq(), Seq(Return(Identifier("x"))))),
         Seq(Identifier("y"))
       )
     parse(input, funCall(using _)) match {
