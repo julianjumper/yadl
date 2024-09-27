@@ -12,6 +12,18 @@ enum ArithmaticOps:
 trait Operator
 trait Expression
 trait Statement
+trait Number extends Expression:
+  def `+`(other: Number): Number
+  def `*`(other: Number): Number
+  def `/`(other: Number): Number
+  def `-`(other: Number): Number
+  def `^`(other: Number): Number
+  def `%`(other: Number): Number
+
+  def `==`(other: Number): Boolean
+  def `<`(other: Number): Boolean
+
+  def asFloat: Double
 
 case class ArithmaticOp(op: ArithmaticOps) extends Operator
 case class CompareOp(op: CompareOps) extends Operator
@@ -21,10 +33,52 @@ case class NoneValue() extends Expression:
   override def toString(): String =
     "none"
 case class Identifier(name: String) extends Expression
-case class Number(value: Double) extends Expression:
-  override def toString(): String =
-    if (value - value.toInt == 0) value.toInt.toString
-    else value.toString
+case class YadlFloat(value: Double) extends Number:
+  override def toString(): String = value.toString
+  override def `+`(other: Number): Number = YadlFloat(value + other.asFloat)
+  override def `*`(other: Number): Number = YadlFloat(value * other.asFloat)
+  override def `/`(other: Number): Number = YadlFloat(value / other.asFloat)
+  override def `-`(other: Number): Number = YadlFloat(value - other.asFloat)
+  override def `%`(other: Number): Number = YadlFloat(value % other.asFloat)
+  override def `^`(other: Number): Number = YadlFloat(
+    scala.math.pow(value, other.asFloat)
+  )
+  def `==`(other: Number): Boolean = value == other.asFloat
+  def `<`(other: Number): Boolean = value < other.asFloat
+  override def asFloat: Double = value
+
+case class YadlInt(value: Long) extends Number:
+  override def toString(): String = value.toString
+  override def `+`(other: Number): Number = other match
+    case YadlInt(v)   => YadlInt(value + v)
+    case YadlFloat(v) => YadlFloat(value.toDouble + v)
+
+  override def `*`(other: Number): Number = other match
+    case YadlInt(v)   => YadlInt(value * v)
+    case YadlFloat(v) => YadlFloat(value.toDouble * v)
+
+  override def `/`(other: Number): Number = YadlFloat(
+    value.toDouble / other.asFloat
+  )
+
+  override def `-`(other: Number): Number = other match
+    case YadlInt(v)   => YadlInt(value - v)
+    case YadlFloat(v) => YadlFloat(value.toDouble - v)
+
+  override def `%`(other: Number): Number = other match
+    case YadlInt(v)   => YadlInt(value % v)
+    case YadlFloat(v) => YadlFloat(value.toDouble % v)
+
+  override def `^`(other: Number): Number =
+    if (other.isInstanceOf[YadlInt] && other.asInstanceOf[YadlInt].value >= 0)
+      YadlInt(scala.math.pow(value.toDouble, other.asFloat).toLong)
+    else
+      YadlFloat(scala.math.pow(value.toDouble, other.asFloat))
+
+  def `==`(other: Number): Boolean = value == other.asFloat
+  def `<`(other: Number): Boolean = value < other.asFloat
+
+  override def asFloat: Double = value.toDouble
 
 case class Bool(b: Boolean) extends Expression:
   override def toString(): String = b.toString

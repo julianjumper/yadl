@@ -8,6 +8,8 @@ import parser.{
   Bool,
   Function,
   Number,
+  YadlFloat,
+  YadlInt,
   StdString,
   Expression,
   Dictionary,
@@ -129,7 +131,7 @@ object IteratorObj {
 def toDataObject(value: Expression): DataObject =
   value match {
     case Bool(b)          => BooleanObj(b)
-    case Number(value)    => NumberObj(value)
+    case value: Number    => NumberObj(value.asFloat)
     case StdString(value) => StringObj(value)
     case x: ArrayLiteral =>
       ListObj(x.elements.map(toDataObject).to(ArrayBuffer))
@@ -167,7 +169,10 @@ def toDataObject(value: Expression): DataObject =
 def toAstNode(data: DataObject): Expression =
   data match
     case NumberObj(value) =>
-      Number(value)
+      if (value - value.toLong == 0)
+        YadlInt(value.toLong)
+      else
+        YadlFloat(value)
     case BooleanObj(value) =>
       Bool(value)
     case StringObj(value) =>

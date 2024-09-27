@@ -303,28 +303,28 @@ def numberDigits[$: P](baseType: Base) = baseType match {
 def dotDigits[$: P](base: Base): P[Number] =
   ("." ~ numberDigits(base)).map(s =>
     base match
-      case Base.Binary      => Number(basisToDecimal("0", s, 2))
-      case Base.Octal       => Number(basisToDecimal("0", s, 8))
-      case Base.Decimal     => Number(("0." + s).toDouble)
-      case Base.Hexadecimal => Number(basisToDecimal("0", s, 16))
+      case Base.Binary      => YadlFloat(basisToDecimal("0", s, 2))
+      case Base.Octal       => YadlFloat(basisToDecimal("0", s, 8))
+      case Base.Decimal     => YadlFloat(("0." + s).toDouble)
+      case Base.Hexadecimal => YadlFloat(basisToDecimal("0", s, 16))
   )
 
 def digitsDotDigits[$: P](base: Base): P[Number] =
   (numberDigits(base) ~ "." ~ numberDigits(base)).map((f, r) =>
     base match
-      case Base.Binary      => Number(basisToDecimal(f, r, 2))
-      case Base.Octal       => Number(basisToDecimal(f, r, 8))
-      case Base.Decimal     => Number((f + "." + r).toDouble)
-      case Base.Hexadecimal => Number(basisToDecimal(f, r, 16))
+      case Base.Binary      => YadlFloat(basisToDecimal(f, r, 2))
+      case Base.Octal       => YadlFloat(basisToDecimal(f, r, 8))
+      case Base.Decimal     => YadlFloat((f + "." + r).toDouble)
+      case Base.Hexadecimal => YadlFloat(basisToDecimal(f, r, 16))
   )
 
 def digits[$: P](base: Base): P[Number] =
   (numberDigits(base)).map(s =>
     base match
-      case Base.Binary      => Number(basisToDecimal(s, "0", 2))
-      case Base.Octal       => Number(basisToDecimal(s, "0", 8))
-      case Base.Decimal     => Number(s.toDouble)
-      case Base.Hexadecimal => Number(basisToDecimal(s, "0", 16))
+      case Base.Binary      => YadlInt(java.lang.Long.parseLong(s, 2))
+      case Base.Octal       => YadlInt(java.lang.Long.parseLong(s, 8))
+      case Base.Decimal     => YadlInt(s.toInt)
+      case Base.Hexadecimal => YadlInt(java.lang.Long.parseLong(s, 16))
   )
 
 def numberFull[$: P](base: Base): P[Number] =

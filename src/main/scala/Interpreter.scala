@@ -314,10 +314,12 @@ def modifyStructure(
         Dictionary(entries :+ DictionaryEntry(index, value))
     case ArrayLiteral(elements) =>
       assert(
-        index.isInstanceOf[Number],
+        index.isInstanceOf[Number] && index
+          .asInstanceOf[Number]
+          .isInstanceOf[YadlInt],
         s"arrays may only be indexed by a number. got: $index"
       )
-      val v = index.asInstanceOf[Number]
+      val v = index.asInstanceOf[Number].asInstanceOf[YadlInt]
       assert(v.value == v.value.toInt, "index to array is not an integer")
       var tmp = elements.toArray
       tmp.update(v.value.toInt, value)
@@ -492,8 +494,10 @@ def evalExpression(
         case ArithmaticOp(Add) => scope.returnExpression(result)
         case ArithmaticOp(Sub) =>
           result match {
-            case n: Number =>
-              scope.returnExpression(Number(-n.value))
+            case YadlInt(n) =>
+              scope.returnExpression(YadlInt(-n))
+            case YadlFloat(n) =>
+              scope.returnExpression(YadlFloat(-n))
             case v =>
               assert(false, s"unary op: value case '$v' is not implemented")
           }
@@ -555,13 +559,14 @@ def evalExpression(
         case ArrayLiteral(elements) =>
           val Some(value) = evalExpression(v, scope).result: @unchecked
           value match {
-            case Number(n) => {
-              if (n != n.toInt) {
+            case n: Number => {
+              if (!n.isInstanceOf[YadlInt]) {
                 throw IllegalArgumentException(
                   "expected hole number, but got number with decimal part"
                 )
               }
-              val tmp = elements(n.toInt)
+              val YadlInt(index) = n: @unchecked
+              val tmp = elements(index.toInt)
               scope.returnExpression(tmp)
             }
             case x =>
@@ -578,8 +583,8 @@ def evalExpression(
         case None =>
           assert(false, s"identifier '$name' does not exist")
       }
-    case Number(value) =>
-      scope.returnExpression(Number(value))
+    case value: Number =>
+      scope.returnExpression(value)
     case StdString(value) =>
       scope.returnExpression(StdString(value))
     case Bool(value) =>
@@ -626,10 +631,23 @@ def evalBooleanOps(
     assert(false, "No boolean operators allowed on strings")
   }
 
+  val Some(Bool(valueLeft)) = evalCompareOps(
+    NotEq,
+    extractNumber(leftEval),
+    YadlInt(0),
+    scope
+  ).result: @unchecked
+  val Some(Bool(valueRight)) = evalCompareOps(
+    NotEq,
+    extractNumber(rightEval),
+    YadlInt(0),
+    scope
+  ).result: @unchecked
+
   // otherwise left and right are bools or numbers
   val result = op match {
-    case And => (extractNumber(leftEval) > 0) && (extractNumber(rightEval) > 0)
-    case Or  => (extractNumber(leftEval) > 0) || (extractNumber(rightEval) > 0)
+    case And => valueLeft && valueRight
+    case Or  => valueLeft || valueRight
     case _   => assert(false, "Unexpected comparison operation.")
   }
 
@@ -668,12 +686,13 @@ def evalCompareOps(
       val lhs_num = extractNumber(value1)
       val rhs_num = extractNumber(value2)
       val result = op match {
-        case Less      => lhs_num < rhs_num
-        case LessEq    => lhs_num <= rhs_num
-        case Greater   => lhs_num > rhs_num
-        case GreaterEq => lhs_num >= rhs_num
-        case Eq        => lhs_num == rhs_num
-        case NotEq     => lhs_num != rhs_num
+        case Less => lhs_num < rhs_num
+        case Eq   => lhs_num == rhs_num
+
+        case LessEq    => lhs_num < rhs_num || lhs_num == rhs_num
+        case Greater   => !(lhs_num < rhs_num || lhs_num == rhs_num)
+        case GreaterEq => !(lhs_num < rhs_num)
+        case NotEq     => !(lhs_num == rhs_num)
       }
 
       scope.returnExpression(Bool(result)) // Adding the result to the scope
@@ -725,32 +744,42 @@ def evalArithmeticOps(
         case Mul  => leftNumber * rightNumber
         case Div  => leftNumber / rightNumber
         case Mod  => leftNumber % rightNumber
-        case Expo => scala.math.pow(leftNumber, rightNumber)
+        case Expo => leftNumber ^ rightNumber
         case null => assert(false, "unreachable")
       }
-      scope.returnExpression(Number(result)) // Adding the result to the scope
-    case (v1: (StdString | Number | Bool), v2: (StdString | Number | Bool)) =>
+      scope.returnExpression(result) // Adding the result to the scope
+    case (v1, v2) =>
       val type1 = typeOf(v1)
       val type2 = typeOf(v2)
       val result = op match {
         case Add => v1.toString() + v2.toString()
-        case _   => assert(false, s"Concatenation '$type1' and '$type2'")
+        case Mul =>
+          if (type1 == "number" && v1.isInstanceOf[YadlInt])
+            v2.toString().repeat(v1.asInstanceOf[YadlInt].value.toInt)
+          else if (type2 == "number" && v2.isInstanceOf[YadlInt])
+            v1.toString().repeat(v2.asInstanceOf[YadlInt].value.toInt)
+          else
+            assert(
+              false,
+              s"Operator '$op' is not defined for '$type1' and '$type2'"
+            )
+        case _ =>
+          assert(
+            false,
+            s"Operator '$op' is not defined for '$type1' and '$type2'"
+          )
       }
       scope.returnExpression(
         StdString(result)
       ) // Adding the result to the scope
-    case (v1, v2) =>
-      val type1 = typeOf(v1)
-      val type2 = typeOf(v2)
-      assert(false, s"Operator '$op' is not defined for '$type1' and '$type2'")
   }
 }
 
 // Input: Number or Bool. Output: Double (true == 1, false == 0)
-def extractNumber(value: Expression): Double = value match {
-  case Number(n)   => n
-  case Bool(b)     => if (b) 1.0 else 0.0
-  case NoneValue() => 0.0
+def extractNumber(value: Expression): Number = value match {
+  case n: Number   => n
+  case Bool(b)     => if (b) YadlInt(1) else YadlInt(0)
+  case NoneValue() => YadlInt(0)
   case v => assert(false, s"Expected number or boolean in comparison. Got '$v'")
 }
 
