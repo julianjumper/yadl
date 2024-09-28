@@ -679,8 +679,8 @@ def evalCompareOps(
       }
     }
     case (
-          value1: (Number | Bool | NoneValue),
-          value2: (Number | Bool | NoneValue)
+          value1: (YadlInt | YadlFloat | Bool | NoneValue),
+          value2: (YadlInt | YadlFloat | Bool | NoneValue)
         ) => {
       // otherwise left and right are bools, numbers or none
       val lhs_num = extractNumber(value1)
@@ -698,10 +698,20 @@ def evalCompareOps(
       scope.returnExpression(Bool(result)) // Adding the result to the scope
     }
     case (v1, v2) =>
-      assert(
-        false,
-        s"the values '$v1' and '$v2' are not comparable under '$op'"
-      )
+      // TODO: handling these cases properly
+      op match {
+        case Eq =>
+          scope.returnExpression(Bool(false)) // Adding the result to the scope
+        case NotEq =>
+          scope.returnExpression(Bool(true)) // Adding the result to the scope
+        case op =>
+          val type_v1 = typeOf(v1)
+          val type_v2 = typeOf(v2)
+          assert(
+            false,
+            s"the values '$v1'($type_v1) and '$v2'($type_v2) are not comparable under '$op'"
+          )
+      }
   }
 }
 
