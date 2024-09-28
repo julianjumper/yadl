@@ -4,7 +4,7 @@ import fastparse.Parsed.Failure
 
 import parser.{
   ArrayLiteral,
-  Number,
+  YadlInt,
   arrayLiteralP,
   ArithmaticOp,
   ArithmaticOps,
@@ -28,7 +28,7 @@ class ArrayParsing extends munit.FunSuite {
 
   test("single element array") {
     val input = "[1]"
-    val expected = ArrayLiteral(Seq(Number(1)))
+    val expected = ArrayLiteral(Seq(YadlInt(1)))
     parse(input, arrayLiteralP(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
@@ -40,7 +40,7 @@ class ArrayParsing extends munit.FunSuite {
 
   test("multi-element array") {
     val input = "[1, 2, 3]"
-    val expected = ArrayLiteral(Seq(Number(1), Number(2), Number(3)))
+    val expected = ArrayLiteral(Seq(YadlInt(1), YadlInt(2), YadlInt(3)))
     parse(input, arrayLiteralP(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
@@ -54,8 +54,8 @@ class ArrayParsing extends munit.FunSuite {
     val input = "[[1, 2], [3, 4]]"
     val expected = ArrayLiteral(
       Seq(
-        ArrayLiteral(Seq(Number(1), Number(2))),
-        ArrayLiteral(Seq(Number(3), Number(4)))
+        ArrayLiteral(Seq(YadlInt(1), YadlInt(2))),
+        ArrayLiteral(Seq(YadlInt(3), YadlInt(4)))
       )
     )
     parse(input, arrayLiteralP(using _)) match {

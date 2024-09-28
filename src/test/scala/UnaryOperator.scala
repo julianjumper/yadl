@@ -10,7 +10,7 @@ import parser.{
   BooleanOp,
   BooleanOps
 }
-import parser.{Number, Bool, Identifier, Wrapped}
+import parser.{YadlInt, Bool, Identifier, Wrapped}
 import parser.{unaryOpExpression, expression, identifierP}
 
 def unary[$: P] =
@@ -21,7 +21,7 @@ def expr[$: P] =
 class UnaryOperator extends munit.FunSuite {
   test("case '-5'") {
     val input = "-5"
-    val expected = UnaryOp(ArithmaticOp(ArithmaticOps.Sub), Number(5))
+    val expected = UnaryOp(ArithmaticOp(ArithmaticOps.Sub), YadlInt(5))
     parse(input, unary(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
@@ -37,7 +37,7 @@ class UnaryOperator extends munit.FunSuite {
 
   test("case '+5'") {
     val input = "+5"
-    val expected = UnaryOp(ArithmaticOp(ArithmaticOps.Add), Number(5))
+    val expected = UnaryOp(ArithmaticOp(ArithmaticOps.Add), YadlInt(5))
     parse(input, unary(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
@@ -53,7 +53,7 @@ class UnaryOperator extends munit.FunSuite {
 
   test("case 'not 5'") {
     val input = "not 5"
-    val expected = UnaryOp(BooleanOp(BooleanOps.Not), Number(5))
+    val expected = UnaryOp(BooleanOp(BooleanOps.Not), YadlInt(5))
     parse(input, unary(using _)) match {
       case Success(value, index) =>
         assertEquals(value, expected)
@@ -82,7 +82,7 @@ class UnaryOperator extends munit.FunSuite {
     val input = "not true ^ 5"
     val expected = UnaryOp(
       BooleanOp(BooleanOps.Not),
-      BinaryOp(Bool(true), ArithmaticOp(ArithmaticOps.Expo), Number(5))
+      BinaryOp(Bool(true), ArithmaticOp(ArithmaticOps.Expo), YadlInt(5))
     )
     parse(input, expr(using _)) match {
       case Success(value, index) =>
@@ -101,7 +101,7 @@ class UnaryOperator extends munit.FunSuite {
     val input = "- 2 ^ 5"
     val expected = UnaryOp(
       ArithmaticOp(ArithmaticOps.Sub),
-      BinaryOp(Number(2), ArithmaticOp(ArithmaticOps.Expo), Number(5))
+      BinaryOp(YadlInt(2), ArithmaticOp(ArithmaticOps.Expo), YadlInt(5))
     )
     parse(input, expr(using _)) match {
       case Success(value, index) =>
@@ -122,7 +122,7 @@ class UnaryOperator extends munit.FunSuite {
       BinaryOp(
         UnaryOp(ArithmaticOp(ArithmaticOps.Sub), Bool(true)),
         ArithmaticOp(ArithmaticOps.Add),
-        Number(5)
+        YadlInt(5)
       )
     parse(input, expr(using _)) match {
       case Success(value, index) =>
@@ -141,7 +141,7 @@ class UnaryOperator extends munit.FunSuite {
     val input = "5 + - true"
     val expected =
       BinaryOp(
-        Number(5),
+        YadlInt(5),
         ArithmaticOp(ArithmaticOps.Add),
         UnaryOp(ArithmaticOp(ArithmaticOps.Sub), Bool(true))
       )
@@ -175,16 +175,16 @@ class UnaryOperator extends munit.FunSuite {
         Identifier("y"),
         ArithmaticOp(ArithmaticOps.Mul),
         BinaryOp(
-          Number(2),
+          YadlInt(2),
           ArithmaticOp(ArithmaticOps.Expo),
-          UnaryOp(ArithmaticOp(ArithmaticOps.Sub), Number(4))
+          UnaryOp(ArithmaticOp(ArithmaticOps.Sub), YadlInt(4))
         )
       ),
       ArithmaticOp(ArithmaticOps.Div),
       Identifier("z")
     )
     val third =
-      BinaryOp(Number(0), ArithmaticOp(ArithmaticOps.Expo), Identifier("x"))
+      BinaryOp(YadlInt(0), ArithmaticOp(ArithmaticOps.Expo), Identifier("x"))
     val fourth = BinaryOp(
       BinaryOp(
         Identifier("x"),
@@ -198,7 +198,7 @@ class UnaryOperator extends munit.FunSuite {
         )
       ),
       ArithmaticOp(ArithmaticOps.Mod),
-      Number(3)
+      YadlInt(3)
     )
     val inner = Wrapped(
       BinaryOp(
@@ -219,7 +219,7 @@ class UnaryOperator extends munit.FunSuite {
       BinaryOp(
         inner,
         ArithmaticOp(ArithmaticOps.Div),
-        Number(2)
+        YadlInt(2)
       )
     parse(input, expr(using _)) match {
       case Success(value, index) =>
