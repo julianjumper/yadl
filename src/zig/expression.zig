@@ -260,6 +260,36 @@ pub const Dictionary = struct {
     }
 };
 
+pub const Iterator = struct {
+    next_fn: union(enum) {
+        runtime: Function,
+        builtin: NextFnType,
+    },
+    has_next_fn: union(enum) {
+        runtime: Function,
+        builtin: HasNextFnType,
+    },
+    data: *Expression,
+
+    const NextFnType = *const fn () *Expression;
+    const HasNextFnType = *const fn () Boolean;
+
+    pub fn init(
+        alloc: std.mem.Allocator,
+        next_fn: *const Function,
+        has_next_fn: *const Function,
+        data: *Expression,
+    ) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .iterator = .{
+            .next_fn = next_fn,
+            .has_next_fn = has_next_fn,
+            .data = data,
+        } };
+        return out;
+    }
+};
+
 pub const Expression = union(enum) {
     boolean: Boolean,
     binary_op: BinaryOp,
@@ -275,6 +305,7 @@ pub const Expression = union(enum) {
     function: Function,
     array: Array,
     dictionary: Dictionary,
+    iterator: Iterator,
 
     pub fn eql(self: Expression, other: Expression) bool {
         return switch (self) {

@@ -396,6 +396,9 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
         .none => {
             scope.return_result = value;
         },
+        .iterator => {
+            scope.return_result = value;
+        },
     }
 }
 
