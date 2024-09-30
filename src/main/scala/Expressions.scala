@@ -32,6 +32,7 @@ case class BooleanOp(op: BooleanOps) extends Operator
 case class NoneValue() extends Expression:
   override def toString(): String =
     "none"
+case class YadlIterator() extends Expression
 case class Identifier(name: String) extends Expression
 case class YadlFloat(value: Double) extends Number:
   override def toString(): String = value.toString
