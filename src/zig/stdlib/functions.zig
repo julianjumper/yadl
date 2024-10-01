@@ -539,3 +539,46 @@ pub fn print3(args: []const Expression, scope: *Scope) Error!void {
     try interpreter.printValue(args[0], scope);
     _ = scope.out.write("\n") catch return Error.IOWrite;
 }
+
+pub fn iterator(args: []const Expression, scope: *Scope) Error!void {
+    const next_fn = args[0];
+    const has_next_fn = args[1];
+    const data_local = args[2];
+
+    if (next_fn != .function and has_next_fn != .function) {
+        return Error.InvalidExpressoinType;
+    }
+
+    scope.return_result = try expression.Iterator.init(
+        scope.allocator,
+        next_fn.function,
+        has_next_fn.function,
+        try data_local.clone(scope.allocator),
+    );
+}
+
+pub fn iter_next(args: []const Expression, scope: *Scope) Error!void {
+    _ = scope;
+    const iter = args[0];
+    std.debug.assert(iter == .iterator);
+
+    switch (iter.iterator.next_fn) {
+        else => |f| {
+            std.debug.print("ERROR: not implemented case in iter_next: {s}\n", .{@tagName(f)});
+            return Error.NotImplemented;
+        },
+    }
+}
+
+pub fn iter_has_next(args: []const Expression, scope: *Scope) Error!void {
+    _ = scope;
+    const iter = args[0];
+    std.debug.assert(iter == .iterator);
+
+    switch (iter.iterator.next_fn) {
+        else => |f| {
+            std.debug.print("ERROR: not implemented case in iter_next: {s}\n", .{@tagName(f)});
+            return Error.NotImplemented;
+        },
+    }
+}

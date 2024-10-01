@@ -47,6 +47,10 @@ const mappings = .{
     .{ "filter", .{ .function = &functions.filter, .arity = 2 } },
     .{ "load", .{ .function = &functions.load_data, .arity = 2 } },
     .{ "sort", .{ .function = &functions.sort, .arity = 2 } },
+    // iterator functions
+    .{ "iterator", .{ .function = &functions.iterator, .arity = 3 } },
+    .{ "next", .{ .function = &functions.iter_next, .arity = 1 } },
+    .{ "has_next", .{ .function = &functions.iter_has_next, .arity = 1 } },
 
     // TODO: We may want to remove this one
     .{ "print3", .{ .function = &functions.print3, .arity = 1 } },
