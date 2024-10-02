@@ -24,7 +24,10 @@ pub fn length(args: []const Expression, scope: *Scope) Error!void {
                 @intCast(d.entries.len),
             );
         },
-        else => unreachable,
+        else => |v| {
+            std.debug.print("ERROR: unexpected case: {s}\n", .{@tagName(v)});
+            return Error.InvalidExpressoinType;
+        },
     }
 }
 
@@ -558,11 +561,24 @@ pub fn iterator(args: []const Expression, scope: *Scope) Error!void {
 }
 
 pub fn iter_next(args: []const Expression, scope: *Scope) Error!void {
-    _ = scope;
     const iter = args[0];
     std.debug.assert(iter == .iterator);
 
     switch (iter.iterator.next_fn) {
+        .runtime => |f| {
+            const tmp = try scope.allocator.alloc(Expression, 1);
+            defer scope.allocator.free(tmp);
+            tmp[0] = iter.iterator.data.*;
+            var local = try Scope.init(scope.allocator, scope.out, scope, f.args, tmp);
+            for (f.body) |st| {
+                try interpreter.evalStatement(st, &local);
+            }
+            if (local.result_ref()) |res| {
+                scope.return_result = res;
+            } else {
+                return Error.ValueNotFound;
+            }
+        },
         else => |f| {
             std.debug.print("ERROR: not implemented case in iter_next: {s}\n", .{@tagName(f)});
             return Error.NotImplemented;
@@ -571,11 +587,24 @@ pub fn iter_next(args: []const Expression, scope: *Scope) Error!void {
 }
 
 pub fn iter_has_next(args: []const Expression, scope: *Scope) Error!void {
-    _ = scope;
     const iter = args[0];
     std.debug.assert(iter == .iterator);
 
-    switch (iter.iterator.next_fn) {
+    switch (iter.iterator.has_next_fn) {
+        .runtime => |f| {
+            const tmp = try scope.allocator.alloc(Expression, 1);
+            defer scope.allocator.free(tmp);
+            tmp[0] = iter.iterator.data.*;
+            var local = try Scope.init(scope.allocator, scope.out, scope, f.args, tmp);
+            for (f.body) |st| {
+                try interpreter.evalStatement(st, &local);
+            }
+            if (local.result_ref()) |res| {
+                scope.return_result = res;
+            } else {
+                return Error.ValueNotFound;
+            }
+        },
         else => |f| {
             std.debug.print("ERROR: not implemented case in iter_next: {s}\n", .{@tagName(f)});
             return Error.NotImplemented;
