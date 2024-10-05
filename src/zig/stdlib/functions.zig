@@ -6,7 +6,7 @@ const data = @import("data.zig");
 const Scope = @import("../scope.zig");
 const Expression = expression.Expression;
 
-pub const Error = @import("error.zig").Error;
+pub const Error = @import("type.zig").Error;
 
 pub fn length(args: []const Expression, scope: *Scope) Error!void {
     switch (args[0]) {

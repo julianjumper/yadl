@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const expression = @import("expression.zig");
-const liberror = @import("stdlib/error.zig");
+const libtype = @import("stdlib/type.zig");
 const functions = @import("stdlib/functions.zig");
 pub const conversions = @import("stdlib/conversions.zig");
 const Scope = @import("scope.zig");
@@ -12,15 +12,13 @@ pub const Error = error{
     BuiltinsNotInitialized,
 } || std.mem.Allocator.Error;
 
-const EvalError = liberror.Error;
+const EvalError = libtype.Error;
 
 const Expression = expression.Expression;
 
 pub const FunctionContext = struct {
-    function: Type,
+    function: libtype.StdlibFn,
     arity: u32,
-
-    const Type = *const fn ([]const Expression, *Scope) EvalError!void;
 };
 
 const mappings = .{
