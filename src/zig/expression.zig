@@ -1,5 +1,6 @@
 const std = @import("std");
 const stmt = @import("statement.zig");
+const stdlibType = @import("stdlib/type.zig");
 
 pub const ArithmeticOps = enum { Add, Sub, Mul, Div, Expo, Mod };
 pub const BooleanOps = enum { And, Or, Not };
@@ -263,16 +264,13 @@ pub const Dictionary = struct {
 pub const Iterator = struct {
     next_fn: union(enum) {
         runtime: Function,
-        builtin: NextFnType,
+        builtin: stdlibType.NextFn,
     },
     has_next_fn: union(enum) {
         runtime: Function,
-        builtin: HasNextFnType,
+        builtin: stdlibType.HasNextFn,
     },
     data: *Expression,
-
-    const NextFnType = *const fn () *Expression;
-    const HasNextFnType = *const fn () Boolean;
 
     pub fn init(
         alloc: std.mem.Allocator,
