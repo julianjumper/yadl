@@ -1,0 +1,36 @@
+// RUN: DEFAULT
+
+lst = [0,1,2,3]
+lst2 = [1,3,5,7]
+is_even = (x) => {
+    return x % 2 == 0
+}
+
+next = (data) => {
+    if (data['index'] < len(data['list'])) {
+        data['index'] = data['index'] + 1
+        return data['list'][ data['index'] - 1 ]
+    } else {
+        return none
+    }
+}
+has_next = (data) => data['index'] < len(data['list'])
+d = {
+   'index': 0,
+   'list': lst
+}
+d2 = {
+   'index': 0,
+   'list': lst2
+}
+
+print(first(iterator(next, has_next, d), is_even,10))
+print(last(iterator(next, has_next, d), is_even,10))
+
+print(first(iterator(next, has_next, d2), is_even,10))
+print(last(iterator(next, has_next, d2), is_even,10))
+
+// CHECK-OUT: 0
+// CHECK-OUT: 2
+// CHECK-OUT: 10
+// CHECK-OUT: 10

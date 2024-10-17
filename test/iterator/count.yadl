@@ -1,0 +1,31 @@
+// RUN: DEFAULT
+
+lst = [1,2,3,4]
+is_even = (x) => {
+    return x % 2 == 0
+}
+is1 = (x) => {
+    return x == 1
+}
+
+next = (data) => {
+    if (data['index'] < len(data['list'])) {
+        data['index'] = data['index'] + 1
+        return data['list'][ data['index'] - 1 ]
+    } else {
+        return none
+    }
+}
+has_next = (data) => data['index'] < len(data['list'])
+
+d = {
+   'index': 0,
+   'list': lst
+}
+
+
+print(count(iterator(next, has_next, d), is_even))
+print(count(iterator(next, has_next, d), is1))
+
+// CHECK-OUT: 2
+// CHECK-OUT: 1
