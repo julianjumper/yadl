@@ -242,7 +242,7 @@ pub fn group_by(args: []const Expression, scope: *Scope) Error!void {
             scope.return_result = try expression.Dictionary.init(scope.allocator, try entries.toOwnedSlice());
         },
         else => |e| {
-            std.debug.print("ERROR: unable to elements: '{s}' has no elements or is a single value\n", .{@tagName(e)});
+            std.debug.print("ERROR: unable to group: '{s}' has no elements or is a single value\n", .{@tagName(e)});
             return Error.InvalidExpressoinType;
         },
     }
