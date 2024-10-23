@@ -579,9 +579,8 @@ pub fn iter_next(args: []const Expression, scope: *Scope) Error!void {
                 return Error.ValueNotFound;
             }
         },
-        else => |f| {
-            std.debug.print("ERROR: not implemented case in iter_next: {s}\n", .{@tagName(f)});
-            return Error.NotImplemented;
+        .builtin => |f| {
+            try f(iter.iterator.data, scope);
         },
     }
 }
@@ -605,9 +604,8 @@ pub fn iter_has_next(args: []const Expression, scope: *Scope) Error!void {
                 return Error.ValueNotFound;
             }
         },
-        else => |f| {
-            std.debug.print("ERROR: not implemented case in iter_next: {s}\n", .{@tagName(f)});
-            return Error.NotImplemented;
+        .builtin => |f| {
+            try f(iter.iterator.data, scope);
         },
     }
 }
