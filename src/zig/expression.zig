@@ -286,6 +286,21 @@ pub const Iterator = struct {
         } };
         return out;
     }
+
+    pub fn initBuiltin(
+        alloc: std.mem.Allocator,
+        next_fn: stdlibType.NextFn,
+        has_next_fn: stdlibType.HasNextFn,
+        data: *Expression,
+    ) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .iterator = .{
+            .next_fn = .{ .builtin = next_fn },
+            .has_next_fn = .{ .builtin = has_next_fn },
+            .data = data,
+        } };
+        return out;
+    }
 };
 
 pub const Expression = union(enum) {

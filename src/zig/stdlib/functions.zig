@@ -68,6 +68,40 @@ pub fn load_data(args: []const Expression, scope: *Scope) Error!void {
     } else return Error.NotImplemented;
 }
 
+const MAP_FN_INDEX = 1;
+const MAP_DATA_INDEX = 0;
+fn map_next(data_expr: *expression.Expression, scope: *Scope) Error!void {
+    std.debug.assert(data_expr.* == .array);
+    const local_data = data_expr.array.elements;
+    std.debug.assert(local_data[MAP_DATA_INDEX] == .iterator);
+    std.debug.assert(local_data[MAP_FN_INDEX] == .function);
+    const tmp = try scope.allocator.alloc(Expression, 1);
+    defer scope.allocator.free(tmp);
+    const args = try scope.allocator.alloc(Expression, 1);
+    defer scope.allocator.free(args);
+
+    tmp[0] = local_data[MAP_DATA_INDEX];
+    try iter_next(tmp, scope);
+    args[0] = scope.result() orelse unreachable;
+    const func = local_data[MAP_FN_INDEX].function;
+    var local_scope = try Scope.init(scope.allocator, scope.out, scope, func.args, args);
+    for (func.body) |st| {
+        try interpreter.evalStatement(st, &local_scope);
+    }
+    scope.return_result = try local_scope.result().?.clone(scope.allocator);
+}
+
+fn map_has_next(data_expr: *expression.Expression, scope: *Scope) Error!void {
+    std.debug.assert(data_expr.* == .array);
+    const local_data = data_expr.array.elements;
+    std.debug.assert(local_data[MAP_DATA_INDEX] == .iterator);
+    std.debug.assert(local_data[MAP_FN_INDEX] == .function);
+    const tmp = try scope.allocator.alloc(Expression, 1);
+    defer scope.allocator.free(tmp);
+    tmp[0] = local_data[MAP_DATA_INDEX];
+    try iter_has_next(tmp, scope);
+}
+
 pub fn map(args: []const Expression, scope: *Scope) Error!void {
     const elements = args[0];
     const callable = args[1];
@@ -92,6 +126,13 @@ pub fn map(args: []const Expression, scope: *Scope) Error!void {
                 }
             }
             scope.return_result = try expression.Array.init(scope.allocator, tmp);
+        },
+        .iterator => {
+            const tmp = try scope.allocator.alloc(Expression, 2);
+            tmp[MAP_DATA_INDEX] = elements;
+            tmp[MAP_FN_INDEX] = callable;
+            const data_expr = try expression.Array.init(scope.allocator, tmp);
+            scope.return_result = try expression.Iterator.initBuiltin(scope.allocator, &map_next, &map_has_next, data_expr);
         },
         else => return Error.NotImplemented,
     }
