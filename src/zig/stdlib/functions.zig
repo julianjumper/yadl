@@ -88,7 +88,8 @@ fn map_next(data_expr: *expression.Expression, scope: *Scope) Error!void {
     for (func.body) |st| {
         try interpreter.evalStatement(st, &local_scope);
     }
-    scope.return_result = try local_scope.result().?.clone(scope.allocator);
+    const out = local_scope.result() orelse unreachable;
+    scope.return_result = try out.clone(scope.allocator);
 }
 
 fn map_has_next(data_expr: *expression.Expression, scope: *Scope) Error!void {
