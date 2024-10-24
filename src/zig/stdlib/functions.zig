@@ -232,6 +232,43 @@ pub fn reduce(args: []const Expression, scope: *Scope) Error!void {
             out.* = acc;
             scope.return_result = out;
         },
+        .iterator => {
+            try iter_has_next(args[0..1], scope);
+            var result = scope.result() orelse unreachable;
+            std.debug.assert(result == .boolean);
+            if (!result.boolean.value) {
+                const tmp = try scope.allocator.create(Expression);
+                tmp.* = .{ .none = null };
+                scope.return_result = tmp;
+                return;
+            }
+            try iter_next(args[0..1], scope);
+            var acc = scope.result() orelse unreachable;
+            try iter_has_next(args[0..1], scope);
+            result = scope.result() orelse unreachable;
+            std.debug.assert(result == .boolean);
+            while (result.boolean.value) {
+                try iter_next(args[0..1], scope);
+                const e = scope.result() orelse unreachable;
+                var tmp = try scope.allocator.alloc(Expression, 2);
+                defer scope.allocator.free(tmp);
+                tmp[0] = acc;
+                tmp[1] = e;
+                var tmpScope = try Scope.init(scope.allocator, scope.out, scope, func.args, tmp);
+                for (func.body) |st| {
+                    try interpreter.evalStatement(st, &tmpScope);
+                }
+                if (tmpScope.result()) |r| {
+                    std.debug.print("INFO: reduce result type: {s}\n", .{@tagName(r)});
+                    acc = r;
+                } else {
+                    return Error.ValueNotFound;
+                }
+                try iter_has_next(args[0..1], scope);
+                result = scope.result() orelse unreachable;
+            }
+            scope.return_result = try acc.clone(scope.allocator);
+        },
         else => return Error.NotImplemented,
     }
 }
