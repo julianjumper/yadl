@@ -503,7 +503,10 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                     out.* = .{ .string = .{ .value = inner } };
                     scope.return_result = out;
                 },
-                else => return Error.NotImplemented,
+                else => {
+                    std.debug.print("ERROR: arith. op. add: left = number, right = {s}\n", .{@tagName(rightEval)});
+                    return Error.NotImplemented;
+                },
             },
             else => |e| {
                 try stdlib.conversions.toNumber(&[_]Expression{e}, scope);
