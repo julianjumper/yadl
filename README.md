@@ -38,12 +38,13 @@ print3(continuous_data)
     2. [Anonymous Functions](#anonymous)
     3. [Standard Library/Built-ins](#stdlib)
     4. [Common Bugs](#bugs)
-2. [Quick Start/Installation](#start)
-3. [Build Instructions](#build)
+2. [How does *YADL* work?](#yadl)
+3. [Quick Start/Installation](#start)
+4. [Build Instructions](#build)
     1. [Prerequisites](#pre)
     2. [Building in Terminal/Shell](#build_sh)
     3. [Building in intellij IDEA](#build_idea)
-4. [Testing of Code](#testing)
+5. [Testing of Code](#testing)
     1. [Unit testing](#unit)
     1. [Testing with pytest](#python)
 
@@ -85,6 +86,10 @@ print3("2 + 1:", ((a,b) => a+b)(2,1))
 - In the example, you might have noticed the `index+0` in the if-statement. This is because the parser expects a value of an operation. I will fix it when I have time! <br>
   btw, `index+0` is an easy fix - in our group we made fun of this bug by using an anonymous identity function and passing the wanted value: `((i) => i)(index)`🤪
 - After an if-statement, you have to insert a blank line - also an issue with the parser.
+
+## How does *YADL* work? <a name="yadl" />
+
+*YADL* is an interpreted language. That means we use a parser to read the yadl-file and an interpreter to interpret what the parser has parsed. Scala was due to its functional-first style the language of our choice and to make our lifes easier, we use a framework for the parser called FastParse. This is a combinator parser, meaning every parsing-rule has its own parser and each parser can take another parser - they are higher-order functions. The interpreter has to keep track of all the variables, functions and evaluates operations (like `x = 2+2*3`; notice the precendece of multiplication/addition), loops and conditionals. The data stream functions as well as the interpreter and parser are handled in Scala.
 
 ## Quick Start/Installation <a name="start"></a>
 
