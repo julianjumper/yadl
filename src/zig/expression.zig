@@ -1,5 +1,6 @@
 const std = @import("std");
 const stmt = @import("statement.zig");
+const stdlibType = @import("stdlib/type.zig");
 
 pub const ArithmeticOps = enum { Add, Sub, Mul, Div, Expo, Mod };
 pub const BooleanOps = enum { And, Or, Not };
@@ -263,27 +264,39 @@ pub const Dictionary = struct {
 pub const Iterator = struct {
     next_fn: union(enum) {
         runtime: Function,
-        builtin: NextFnType,
+        builtin: stdlibType.NextFn,
     },
     has_next_fn: union(enum) {
         runtime: Function,
-        builtin: HasNextFnType,
+        builtin: stdlibType.HasNextFn,
     },
     data: *Expression,
 
-    const NextFnType = *const fn () *Expression;
-    const HasNextFnType = *const fn () Boolean;
-
     pub fn init(
         alloc: std.mem.Allocator,
-        next_fn: *const Function,
-        has_next_fn: *const Function,
+        next_fn: Function,
+        has_next_fn: Function,
         data: *Expression,
     ) !*Expression {
         const out = try alloc.create(Expression);
         out.* = .{ .iterator = .{
-            .next_fn = next_fn,
-            .has_next_fn = has_next_fn,
+            .next_fn = .{ .runtime = next_fn },
+            .has_next_fn = .{ .runtime = has_next_fn },
+            .data = data,
+        } };
+        return out;
+    }
+
+    pub fn initBuiltin(
+        alloc: std.mem.Allocator,
+        next_fn: stdlibType.NextFn,
+        has_next_fn: stdlibType.HasNextFn,
+        data: *Expression,
+    ) !*Expression {
+        const out = try alloc.create(Expression);
+        out.* = .{ .iterator = .{
+            .next_fn = .{ .builtin = next_fn },
+            .has_next_fn = .{ .builtin = has_next_fn },
             .data = data,
         } };
         return out;
@@ -386,6 +399,21 @@ pub const Expression = union(enum) {
                 const tmp = try alloc.create(Expression);
                 tmp.* = .{ .none = null };
                 break :b tmp;
+            },
+            .struct_access => |sa| b: {
+                const st = try sa.strct.clone(alloc);
+                const key = try sa.key.clone(alloc);
+                break :b try StructureAccess.init(alloc, st, key);
+            },
+            .functioncall => |fc| b: {
+                const tmp = try fc.func.clone(alloc);
+                const args = try alloc.alloc(Expression, fc.args.len);
+                for (fc.args, args) |fa, *a| {
+                    const t = try fa.clone(alloc);
+                    a.* = t.*;
+                    alloc.destroy(t);
+                }
+                break :b try FunctionCall.init(alloc, tmp, args);
             },
             else => |v| {
                 std.debug.print("TODO: clone of {s}\n", .{@tagName(v)});

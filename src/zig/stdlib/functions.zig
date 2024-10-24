@@ -6,7 +6,7 @@ const data = @import("data.zig");
 const Scope = @import("../scope.zig");
 const Expression = expression.Expression;
 
-pub const Error = @import("error.zig").Error;
+pub const Error = @import("type.zig").Error;
 
 pub fn length(args: []const Expression, scope: *Scope) Error!void {
     switch (args[0]) {
@@ -24,7 +24,10 @@ pub fn length(args: []const Expression, scope: *Scope) Error!void {
                 @intCast(d.entries.len),
             );
         },
-        else => unreachable,
+        else => |v| {
+            std.debug.print("ERROR: unexpected case: {s}\n", .{@tagName(v)});
+            return Error.InvalidExpressoinType;
+        },
     }
 }
 
@@ -65,6 +68,41 @@ pub fn load_data(args: []const Expression, scope: *Scope) Error!void {
     } else return Error.NotImplemented;
 }
 
+const MAP_FN_INDEX = 1;
+const MAP_DATA_INDEX = 0;
+fn map_next(data_expr: *expression.Expression, scope: *Scope) Error!void {
+    std.debug.assert(data_expr.* == .array);
+    const local_data = data_expr.array.elements;
+    std.debug.assert(local_data[MAP_DATA_INDEX] == .iterator);
+    std.debug.assert(local_data[MAP_FN_INDEX] == .function);
+    const tmp = try scope.allocator.alloc(Expression, 1);
+    defer scope.allocator.free(tmp);
+    const args = try scope.allocator.alloc(Expression, 1);
+    defer scope.allocator.free(args);
+
+    tmp[0] = local_data[MAP_DATA_INDEX];
+    try iter_next(tmp, scope);
+    args[0] = scope.result() orelse unreachable;
+    const func = local_data[MAP_FN_INDEX].function;
+    var local_scope = try Scope.init(scope.allocator, scope.out, scope, func.args, args);
+    for (func.body) |st| {
+        try interpreter.evalStatement(st, &local_scope);
+    }
+    const out = local_scope.result() orelse unreachable;
+    scope.return_result = try out.clone(scope.allocator);
+}
+
+fn map_has_next(data_expr: *expression.Expression, scope: *Scope) Error!void {
+    std.debug.assert(data_expr.* == .array);
+    const local_data = data_expr.array.elements;
+    std.debug.assert(local_data[MAP_DATA_INDEX] == .iterator);
+    std.debug.assert(local_data[MAP_FN_INDEX] == .function);
+    const tmp = try scope.allocator.alloc(Expression, 1);
+    defer scope.allocator.free(tmp);
+    tmp[0] = local_data[MAP_DATA_INDEX];
+    try iter_has_next(tmp, scope);
+}
+
 pub fn map(args: []const Expression, scope: *Scope) Error!void {
     const elements = args[0];
     const callable = args[1];
@@ -89,6 +127,13 @@ pub fn map(args: []const Expression, scope: *Scope) Error!void {
                 }
             }
             scope.return_result = try expression.Array.init(scope.allocator, tmp);
+        },
+        .iterator => {
+            const tmp = try scope.allocator.alloc(Expression, 2);
+            tmp[MAP_DATA_INDEX] = elements;
+            tmp[MAP_FN_INDEX] = callable;
+            const data_expr = try expression.Array.init(scope.allocator, tmp);
+            scope.return_result = try expression.Iterator.initBuiltin(scope.allocator, &map_next, &map_has_next, data_expr);
         },
         else => return Error.NotImplemented,
     }
@@ -161,7 +206,7 @@ pub fn reduce(args: []const Expression, scope: *Scope) Error!void {
     if (callable.function.args.len != 2) {
         std.debug.print("ERROR: the provided function has {} arguments\n", .{callable.function.args.len});
         std.debug.print("   needed are {}\n", .{2});
-        std.process.exit(1);
+        return Error.InvalidExpressoinType;
     }
     const func = callable.function;
 
@@ -187,8 +232,65 @@ pub fn reduce(args: []const Expression, scope: *Scope) Error!void {
             out.* = acc;
             scope.return_result = out;
         },
+        .iterator => {
+            try iter_has_next(args[0..1], scope);
+            var result = scope.result() orelse unreachable;
+            std.debug.assert(result == .boolean);
+            if (!result.boolean.value) {
+                const tmp = try scope.allocator.create(Expression);
+                tmp.* = .{ .none = null };
+                scope.return_result = tmp;
+                return;
+            }
+            try iter_next(args[0..1], scope);
+            var acc = scope.result() orelse unreachable;
+            try iter_has_next(args[0..1], scope);
+            result = scope.result() orelse unreachable;
+            std.debug.assert(result == .boolean);
+            while (result.boolean.value) {
+                try iter_next(args[0..1], scope);
+                const e = scope.result() orelse unreachable;
+                var tmp = try scope.allocator.alloc(Expression, 2);
+                defer scope.allocator.free(tmp);
+                tmp[0] = acc;
+                tmp[1] = e;
+                var tmpScope = try Scope.init(scope.allocator, scope.out, scope, func.args, tmp);
+                for (func.body) |st| {
+                    try interpreter.evalStatement(st, &tmpScope);
+                }
+                if (tmpScope.result()) |r| {
+                    std.debug.print("INFO: reduce result type: {s}\n", .{@tagName(r)});
+                    acc = r;
+                } else {
+                    return Error.ValueNotFound;
+                }
+                try iter_has_next(args[0..1], scope);
+                result = scope.result() orelse unreachable;
+            }
+            scope.return_result = try acc.clone(scope.allocator);
+        },
         else => return Error.NotImplemented,
     }
+}
+
+const GROUP_BY_FN_INDEX = 1;
+const GROUP_BY_DATA_INDEX = 0;
+fn group_by_next(data_expr: *expression.Expression, scope: *Scope) Error!void {
+    std.debug.assert(data_expr.* == .array);
+    const elements = data_expr.array.elements;
+    std.debug.assert(elements[GROUP_BY_FN_INDEX] == .function);
+    std.debug.assert(elements[GROUP_BY_DATA_INDEX] == .iterator);
+    _ = scope;
+    return Error.NotImplemented;
+}
+
+fn group_by_has_next(data_expr: *expression.Expression, scope: *Scope) Error!void {
+    std.debug.assert(data_expr.* == .array);
+    const elements = data_expr.array.elements;
+    std.debug.assert(elements[GROUP_BY_FN_INDEX] == .function);
+    std.debug.assert(elements[GROUP_BY_DATA_INDEX] == .iterator);
+    _ = scope;
+    return Error.NotImplemented;
 }
 
 pub fn group_by(args: []const Expression, scope: *Scope) Error!void {
@@ -238,8 +340,15 @@ pub fn group_by(args: []const Expression, scope: *Scope) Error!void {
             }
             scope.return_result = try expression.Dictionary.init(scope.allocator, try entries.toOwnedSlice());
         },
+        .iterator => {
+            const tmp = try scope.allocator.alloc(Expression, 2);
+            tmp[GROUP_BY_DATA_INDEX] = elements;
+            tmp[GROUP_BY_FN_INDEX] = callable;
+            const data_expr = try expression.Array.init(scope.allocator, tmp);
+            scope.return_result = try expression.Iterator.initBuiltin(scope.allocator, &group_by_next, &group_by_has_next, data_expr);
+        },
         else => |e| {
-            std.debug.print("ERROR: unable to elements: '{s}' has no elements or is a single value\n", .{@tagName(e)});
+            std.debug.print("ERROR: unable to group: '{s}' has no elements or is a single value\n", .{@tagName(e)});
             return Error.InvalidExpressoinType;
         },
     }
@@ -538,4 +647,71 @@ pub fn first(args: []const Expression, scope: *Scope) Error!void {
 pub fn print3(args: []const Expression, scope: *Scope) Error!void {
     try interpreter.printValue(args[0], scope);
     _ = scope.out.write("\n") catch return Error.IOWrite;
+}
+
+pub fn iterator(args: []const Expression, scope: *Scope) Error!void {
+    const next_fn = args[0];
+    const has_next_fn = args[1];
+    const data_local = args[2];
+
+    if (next_fn != .function and has_next_fn != .function) {
+        return Error.InvalidExpressoinType;
+    }
+
+    scope.return_result = try expression.Iterator.init(
+        scope.allocator,
+        next_fn.function,
+        has_next_fn.function,
+        try data_local.clone(scope.allocator),
+    );
+}
+
+pub fn iter_next(args: []const Expression, scope: *Scope) Error!void {
+    const iter = args[0];
+    std.debug.assert(iter == .iterator);
+
+    switch (iter.iterator.next_fn) {
+        .runtime => |f| {
+            const tmp = try scope.allocator.alloc(Expression, 1);
+            defer scope.allocator.free(tmp);
+            tmp[0] = iter.iterator.data.*;
+            var local = try Scope.init(scope.allocator, scope.out, scope, f.args, tmp);
+            for (f.body) |st| {
+                try interpreter.evalStatement(st, &local);
+            }
+            if (local.result_ref()) |res| {
+                scope.return_result = res;
+            } else {
+                return Error.ValueNotFound;
+            }
+        },
+        .builtin => |f| {
+            try f(iter.iterator.data, scope);
+        },
+    }
+}
+
+pub fn iter_has_next(args: []const Expression, scope: *Scope) Error!void {
+    const iter = args[0];
+    std.debug.assert(iter == .iterator);
+
+    switch (iter.iterator.has_next_fn) {
+        .runtime => |f| {
+            const tmp = try scope.allocator.alloc(Expression, 1);
+            defer scope.allocator.free(tmp);
+            tmp[0] = iter.iterator.data.*;
+            var local = try Scope.init(scope.allocator, scope.out, scope, f.args, tmp);
+            for (f.body) |st| {
+                try interpreter.evalStatement(st, &local);
+            }
+            if (local.result_ref()) |res| {
+                scope.return_result = res;
+            } else {
+                return Error.ValueNotFound;
+            }
+        },
+        .builtin => |f| {
+            try f(iter.iterator.data, scope);
+        },
+    }
 }

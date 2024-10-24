@@ -89,6 +89,8 @@ fn modify(strct: *Expression, value: *Expression, scope: *Scope) Error!void {
         .array => |*a| {
             if (key.* != .number or key.number != .integer or key.number.integer >= a.elements.len and key.number.integer < 0) {
                 std.debug.print("ERROR: invalid expressoin type: {s}\n", .{@tagName(key.*)});
+                if (std.mem.eql(u8, @tagName(key.*), "binary_op"))
+                    std.debug.print("ERROR: operator of binary: {}\n", .{key.binary_op.op});
                 return Error.InvalidExpressoinType;
             }
             const index = @as(usize, @intCast(key.number.integer));
@@ -314,19 +316,25 @@ fn evalStructAccess(strct: *Expression, key: *Expression, scope: *Scope) Error!v
             try evalStructAccess(st, key, scope);
         },
         .array => |a| {
-            if (key.* != .number or key.number != .integer or key.number.integer >= a.elements.len and key.number.integer < 0) {
-                std.debug.print("INFO: expr: {}\n", .{key});
+            try evalExpression(key, scope);
+            const tmp_key = scope.result_ref() orelse unreachable;
+            if (tmp_key.* != .number or tmp_key.number != .integer or tmp_key.number.integer >= a.elements.len and tmp_key.number.integer < 0) {
+                std.debug.print("INFO: expr was: {s}\n", .{@tagName(tmp_key.*)});
+                if (std.mem.eql(u8, @tagName(tmp_key.*), "binary_op"))
+                    std.debug.print("ERROR: operator of binary: {}\n", .{tmp_key.binary_op.op});
                 return Error.InvalidExpressoinType;
             }
-            const index = key.number.integer;
+            const index = tmp_key.number.integer;
             scope.return_result = &a.elements[@intCast(index)];
         },
         .dictionary => |d| {
-            if (key.* != .number and key.* != .string and key.* != .boolean) {
+            try evalExpression(key, scope);
+            const tmp_key = scope.result_ref() orelse unreachable;
+            if (tmp_key.* != .number and tmp_key.* != .string and tmp_key.* != .boolean) {
                 return Error.InvalidExpressoinType;
             }
             for (d.entries) |e| {
-                if (key.eql(e.key.*)) {
+                if (tmp_key.eql(e.key.*)) {
                     scope.return_result = e.value;
                     return;
                 }
@@ -366,11 +374,28 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
             try evalFunctionCall(&tmp, scope);
         },
         .struct_access => |sa| try evalStructAccess(sa.strct, sa.key, scope),
-        .array => {
-            scope.return_result = value;
+        .array => |a| {
+            const tmp = try scope.allocator.alloc(Expression, a.elements.len);
+            for (a.elements, tmp) |*elem, *target| {
+                try evalExpression(elem, scope);
+                const out = scope.result() orelse unreachable;
+                target.* = out;
+            }
+            scope.return_result = try expr.Array.init(scope.allocator, tmp);
         },
-        .dictionary => {
-            scope.return_result = value;
+        .dictionary => |d| {
+            const tmp = try scope.allocator.alloc(expr.DictionaryEntry, d.entries.len);
+            for (d.entries, tmp) |entry, *target| {
+                try evalExpression(entry.key, scope);
+                const out_key = scope.result_ref() orelse unreachable;
+                try evalExpression(entry.value, scope);
+                const out_value = scope.result_ref() orelse unreachable;
+                target.* = expr.DictionaryEntry{
+                    .key = out_key,
+                    .value = out_value,
+                };
+            }
+            scope.return_result = try expr.Dictionary.init(scope.allocator, tmp);
         },
         .function => |f| {
             const new_body = try scope.captureExternals(&[_]expr.Identifier{}, f.body);
@@ -381,22 +406,7 @@ fn evalExpression(value: *Expression, scope: *Scope) Error!void {
             } };
             scope.return_result = out;
         },
-        .number => {
-            scope.return_result = value;
-        },
-        .string => {
-            scope.return_result = value;
-        },
-        .formatted_string => {
-            scope.return_result = value;
-        },
-        .boolean => {
-            scope.return_result = value;
-        },
-        .none => {
-            scope.return_result = value;
-        },
-        .iterator => {
+        .number, .string, .boolean, .formatted_string, .none, .iterator => {
             scope.return_result = value;
         },
     }
@@ -493,7 +503,10 @@ fn evalArithmeticOps(op: expr.ArithmeticOps, left: *Expression, right: *Expressi
                     out.* = .{ .string = .{ .value = inner } };
                     scope.return_result = out;
                 },
-                else => return Error.NotImplemented,
+                else => {
+                    std.debug.print("ERROR: arith. op. add: left = number, right = {s}\n", .{@tagName(rightEval)});
+                    return Error.NotImplemented;
+                },
             },
             else => |e| {
                 try stdlib.conversions.toNumber(&[_]Expression{e}, scope);

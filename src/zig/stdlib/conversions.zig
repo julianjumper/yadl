@@ -4,7 +4,7 @@ const expression = @import("../expression.zig");
 const Scope = @import("../scope.zig");
 const Expression = expression.Expression;
 
-const Error = @import("error.zig").Error;
+const Error = @import("type.zig").Error;
 
 pub fn toBoolean(args: []const Expression, scope: *Scope) Error!void {
     switch (args[0]) {

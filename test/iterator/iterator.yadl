@@ -1,0 +1,28 @@
+// RUN: DEFAULT
+
+list = [ 1, 2, 3, 4 ]
+next = (data) => {
+    if (data['index'] < len(data['list'])) {
+        data['index'] = data['index'] + 1
+        return data['list'][ data['index'] - 1 ]
+    } else {
+        return none
+    }
+}
+has_next = (data) => data['index'] < len(data['list'])
+
+d = {
+   'index': 0,
+   'list': list
+}
+
+iter = iterator( next, has_next, d )
+
+while (has_next(iter)) {
+    print(next(iter))
+}
+
+// CHECK-OUT: 1
+// CHECK-OUT: 2
+// CHECK-OUT: 3
+// CHECK-OUT: 4

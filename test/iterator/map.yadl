@@ -1,0 +1,36 @@
+// RUN: DEFAULT
+x = [1, 2, 3, 4, 5]
+
+square_if_even = (n) => {
+    if (n % 2 == 0) {
+        return n * n
+    }
+
+    return n
+}
+
+next = (data) => {
+    if (data['index'] < len(data['list'])) {
+        data['index'] = data['index'] + 1
+        return data['list'][ data['index'] - 1 ]
+    } else {
+        return none
+    }
+}
+has_next = (data) => data['index'] < len(data['list'])
+d = {
+   'index': 0,
+   'list': x
+}
+
+iter = map(iterator(next, has_next, d), square_if_even)
+
+while (has_next(iter)) {
+    print(next(iter))
+}
+
+// CHECK-OUT: 1
+// CHECK-OUT: 4
+// CHECK-OUT: 3
+// CHECK-OUT: 16
+// CHECK-OUT: 5
