@@ -1,26 +1,8 @@
 # *Y*et *A*nother *D*ata *L*anguage
-> Simplify Data Workflows by Combining Programming and Data Operations! <br> Designed to work with data stream operations directly on common data formats such as JSON and CSV. <br> *YADL* is a Turing-complete language and was created in a group at university. Thanks to all of them. This repository is a re-upload.
-
-## Table of Contents
-1. [Introduction](#intro)
-    1. [Example](#example)
-    2. [Anonymous Functions](#anonymous)
-    3. [Commong Bugs](#bugs)
-2. [Quick Start/Installation](#start)
-3. [Build Instructions](#build)
-    1. [Prerequisites](#pre)
-    2. [Building in Terminal/Shell](#build_sh)
-    3. [Building in intellij IDEA](#build_idea)
-4. [Testing of Code](#testing)
-    1. [Unit testing](#unit)
-    1. [Testing with pytest](#python)
-
-
-## Introduction <a name="intro" />
-
+> Simplify Data Workflows by Combining Programming and Data Operations! <br>
 > Beyond basic queries, SQL struggles with complex data manipuiation. APIs often return data in JSON format, requiring additional parsing. YADL bridges the gap, offering built-in functionality for both - write less code, analyze more effectively. It's a programming language that allows to parse different file types (json, csv, etc.) with a singe load function and to work with data operations on it.
 
-### Example <a name="example"></a>
+> *YADL* is a Turing-complete language and was created in a group at university. Thanks to all of them. This repository is a re-upload.
 
 ```js
 weather_data = load("./weather-data.json", "json") // open json file
@@ -49,6 +31,27 @@ while (index < len(bern) and continuous_data) {
 }
 print3(continuous_data)
 ```
+
+## Table of Contents
+1. [Introduction](#intro)
+    1. [Example](#example)
+    2. [Anonymous Functions](#anonymous)
+    3. [Commong Bugs](#bugs)
+2. [Quick Start/Installation](#start)
+3. [Build Instructions](#build)
+    1. [Prerequisites](#pre)
+    2. [Building in Terminal/Shell](#build_sh)
+    3. [Building in intellij IDEA](#build_idea)
+4. [Testing of Code](#testing)
+    1. [Unit testing](#unit)
+    1. [Testing with pytest](#python)
+
+
+## Introduction <a name="intro" />
+
+### Example <a name="example"></a>
+
+Let's examine the example above!
 Assuming there is the file `weather-data.json`, this file will use functions, loops and if-statements to analyze the data in the JSON. This is of course only a small demonstration. <br>
 Functions, that are not specifically declared in this example are inbuilt functions. For all in-built functions (with description), [click here](https://github.com/julianjumper/yadl/blob/main/spec/stdlib/iterator%20methods.md). <br>
 Please keep in mind, that this project was created in a short period of time. This has not reach its full potential. The most important idea we had in mind, is to load the data chunk-wise so that not all data needs to be stored in memory.
