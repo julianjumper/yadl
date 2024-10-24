@@ -1,4 +1,39 @@
-# yadl
+# *Y*et *A*nother *D*ata *L*anguage
+Simplify Data Workflows by Combining Programming and Data Operations! <br>
+Designed to work with data stream operations directly on common data formats such as JSON and CSV. <br>
+*YADL* is a Turing-complete language and was created in a group at university. Thanks to all of them. This repository is a re-upload.
+
+## Example
+
+```js
+weather_data = load("./weather-data.json", "json") // open json file
+
+bern = weather_data["bern"] // extract "bern" object
+
+// example of a function (fat-arrow style)
+has_freezing_days = (city) => {
+    return check_any(city, (item) => item["temp"] < 0)
+}
+
+print3("Has Bern freezing days?: " + has_freezing_days(bern))
+print3("Has Bern not freezing days?: " + check_all(bern, (item) => item["temp"] < 0)) // use function in print-statement
+print3("Is Bern the best city?: idk, im a computer")
+
+// find continuous data with a while-loop and if/else
+print3("Has Bern continuous data?:")
+index = 1
+continuous_data = true
+while (index < len(bern) && continuous_data) {
+    if (bern[index-1]["day"] +1 != bern[index]["day"]) {
+        continuous_data = false
+    }
+    index = index + 1
+}
+print3(continuous_data)
+```
+Assuming there is the file `weather-data.json`, this file will use functions, loops and if-statements to analyze the data in the JSON. This is of course only a small demonstration. <br>
+Functions, that are not specifically declared in this example are inbuilt functions. For all in-built functions (with description), [click here](spec/stdlib/iterator methods.md). <br>
+Please keep in mind, that this project was created in a short period of time. This has not reach its full potential. The most important idea we had in mind, is to load the data chunk-wise so that not all data needs to be stored in memory.
 
 ## Build Instructions
 
