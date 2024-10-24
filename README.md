@@ -1,7 +1,5 @@
 # *Y*et *A*nother *D*ata *L*anguage
-Simplify Data Workflows by Combining Programming and Data Operations! <br>
-Designed to work with data stream operations directly on common data formats such as JSON and CSV. <br>
-*YADL* is a Turing-complete language and was created in a group at university. Thanks to all of them. This repository is a re-upload.
+> Simplify Data Workflows by Combining Programming and Data Operations! <br> Designed to work with data stream operations directly on common data formats such as JSON and CSV. <br> *YADL* is a Turing-complete language and was created in a group at university. Thanks to all of them. This repository is a re-upload.
 
 ## Table of Contents
 1. [Introduction](#intro)
