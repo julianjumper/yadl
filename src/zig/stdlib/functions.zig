@@ -273,6 +273,26 @@ pub fn reduce(args: []const Expression, scope: *Scope) Error!void {
     }
 }
 
+const GROUP_BY_FN_INDEX = 1;
+const GROUP_BY_DATA_INDEX = 0;
+fn group_by_next(data_expr: *expression.Expression, scope: *Scope) Error!void {
+    std.debug.assert(data_expr.* == .array);
+    const elements = data_expr.array.elements;
+    std.debug.assert(elements[GROUP_BY_FN_INDEX] == .function);
+    std.debug.assert(elements[GROUP_BY_DATA_INDEX] == .iterator);
+    _ = scope;
+    return Error.NotImplemented;
+}
+
+fn group_by_has_next(data_expr: *expression.Expression, scope: *Scope) Error!void {
+    std.debug.assert(data_expr.* == .array);
+    const elements = data_expr.array.elements;
+    std.debug.assert(elements[GROUP_BY_FN_INDEX] == .function);
+    std.debug.assert(elements[GROUP_BY_DATA_INDEX] == .iterator);
+    _ = scope;
+    return Error.NotImplemented;
+}
+
 pub fn group_by(args: []const Expression, scope: *Scope) Error!void {
     const elements = args[0];
     const callable = args[1];
@@ -319,6 +339,13 @@ pub fn group_by(args: []const Expression, scope: *Scope) Error!void {
                 try entries.append(.{ .key = key, .value = value });
             }
             scope.return_result = try expression.Dictionary.init(scope.allocator, try entries.toOwnedSlice());
+        },
+        .iterator => {
+            const tmp = try scope.allocator.alloc(Expression, 2);
+            tmp[GROUP_BY_DATA_INDEX] = elements;
+            tmp[GROUP_BY_FN_INDEX] = callable;
+            const data_expr = try expression.Array.init(scope.allocator, tmp);
+            scope.return_result = try expression.Iterator.initBuiltin(scope.allocator, &group_by_next, &group_by_has_next, data_expr);
         },
         else => |e| {
             std.debug.print("ERROR: unable to group: '{s}' has no elements or is a single value\n", .{@tagName(e)});
