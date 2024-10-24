@@ -36,7 +36,8 @@ print3(continuous_data)
 1. [Introduction](#intro)
     1. [Example](#example)
     2. [Anonymous Functions](#anonymous)
-    3. [Commong Bugs](#bugs)
+    3. [Standard Library/Built-ins](#stdlib)
+    4. [Common Bugs](#bugs)
 2. [Quick Start/Installation](#start)
 3. [Build Instructions](#build)
     1. [Prerequisites](#pre)
@@ -51,10 +52,15 @@ print3(continuous_data)
 
 ### Example <a name="example"></a>
 
-Let's examine the example above!
-Assuming there is the file `weather-data.json`, this file will use functions, loops and if-statements to analyze the data in the JSON. This is of course only a small demonstration. <br>
+Let's examine the example above! <br>
+Assuming there is the file `weather-data.json` (you can also find it in `fancy-tests/weather-data.json`), this file will use functions, loops and if-statements to analyze the data in the JSON. This is of course only a small demonstration. <br>
+
 Functions, that are not specifically declared in this example are inbuilt functions. For all in-built functions (with description), [click here](https://github.com/julianjumper/yadl/blob/main/spec/stdlib/iterator%20methods.md). <br>
 Please keep in mind, that this project was created in a short period of time. This has not reach its full potential. The most important idea we had in mind, is to load the data chunk-wise so that not all data needs to be stored in memory.
+
+### Standard Library / In-built Functions <a name="stdlib"/>
+
+YADL comes with a lot of in-built functions - `map`, `filter` and `reduce` to name a few. All of them are described [here](https://github.com/julianjumper/yadl/blob/main/spec/stdlib/iterator%20methods.md).
 
 ### Anonymous functions <a name="anonymous"></a>
 
