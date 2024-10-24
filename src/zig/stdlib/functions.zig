@@ -206,7 +206,7 @@ pub fn reduce(args: []const Expression, scope: *Scope) Error!void {
     if (callable.function.args.len != 2) {
         std.debug.print("ERROR: the provided function has {} arguments\n", .{callable.function.args.len});
         std.debug.print("   needed are {}\n", .{2});
-        std.process.exit(1);
+        return Error.InvalidExpressoinType;
     }
     const func = callable.function;
 
