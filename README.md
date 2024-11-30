@@ -2,7 +2,7 @@
 > Simplify Data Workflows by Combining Programming and Data Operations! <br>
 > Beyond basic queries, SQL struggles with complex data manipuiation. APIs often return data in JSON format, requiring additional parsing. YADL bridges the gap, offering built-in functionality for both - write less code, analyze more effectively. It's a programming language that allows to parse different file types (json, csv, etc.) with a singe load function and to work with data operations on it.
 
-> *YADL* is a Turing-complete language and was created in a group at university. Thanks to all of them. This repository is a re-upload.
+> *YADL* is a Turing-complete language and was created in a group at university. Thanks to all of them. This repository is a re-upload. A new version of yadl can be found on [Dennis' Github](https://github.com/DeSc1998/yadl) who was one of the main contributors of yadl.
 
 ```js
 weather_data = load("./weather-data.json", "json") // open json file
